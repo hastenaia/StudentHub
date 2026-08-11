@@ -1,22 +1,11 @@
--- StudentHub — consolidated schema (Phase 1.5)
--- For fresh setups, run this in the Supabase SQL Editor for project cbdxebzizvgzoupdplvs.
--- For incremental changes, prefer the timestamped files in supabase/migrations/.
+-- StudentHub — migration 0001: base profiles table, RLS, triggers.
+-- Provides a 1:1 table with auth.users and first-login password flag.
 
--- 1. Role enum
-do $$
-begin
-  create type public.user_role as enum ('student', 'teacher', 'admin');
-exception
-  when duplicate_object then null;
-end;
-$$;
-
--- 2. Profiles table (1:1 with auth.users)
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   full_name text,
   avatar_url text,
-  role public.user_role not null default 'student',
+  role text not null default 'student',
   must_change_password boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -33,22 +22,17 @@ create policy "Profiles are updatable by owner"
   on public.profiles for update
   using (auth.uid() = id);
 
--- 3. Auto-create a profile row whenever a new auth user is created.
---    Honour a `role` provided in signup metadata (admin provisioning only).
+-- Auto-create a profile row whenever a new auth user is created
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, full_name, role, must_change_password)
+  insert into public.profiles (id, full_name, must_change_password)
   values (
     new.id,
     coalesce(new.raw_user_meta_data ->> 'full_name', new.email),
-    coalesce(
-      (new.raw_user_meta_data ->> 'role')::public.user_role,
-      'student'::public.user_role
-    ),
     coalesce((new.raw_user_meta_data ->> 'must_change_password')::boolean, true)
   );
   return new;
@@ -60,7 +44,7 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- 4. Keep updated_at fresh
+-- Keep updated_at fresh
 create or replace function public.handle_updated_at()
 returns trigger
 language plpgsql
@@ -75,6 +59,3 @@ drop trigger if exists on_profiles_updated on public.profiles;
 create trigger on_profiles_updated
   before update on public.profiles
   for each row execute procedure public.handle_updated_at();
-
--- 5. Role index for role-scoped queries
-create index if not exists profiles_role_idx on public.profiles (role);

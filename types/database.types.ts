@@ -6,6 +6,8 @@
  */
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
+export type UserRole = "student" | "teacher" | "admin";
+
 export interface Database {
   public: {
     Tables: {
@@ -14,7 +16,7 @@ export interface Database {
           id: string;
           full_name: string | null;
           avatar_url: string | null;
-          role: string;
+          role: UserRole;
           must_change_password: boolean;
           created_at: string;
           updated_at: string;
@@ -23,7 +25,7 @@ export interface Database {
           id: string;
           full_name?: string | null;
           avatar_url?: string | null;
-          role?: string;
+          role?: UserRole;
           must_change_password?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -32,7 +34,7 @@ export interface Database {
           id?: string;
           full_name?: string | null;
           avatar_url?: string | null;
-          role?: string;
+          role?: UserRole;
           must_change_password?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -42,7 +44,9 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
-    Enums: Record<string, never>;
+    Enums: {
+      user_role: UserRole;
+    };
     CompositeTypes: Record<string, never>;
   };
 }

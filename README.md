@@ -58,17 +58,50 @@ app/
   error.tsx             Root error boundary
   not-found.tsx         404 page
 components/
-  ui/                  Reusable primitives (Button, Input, Card, Skeleton, Toaster...)
+  ui/                  Reusable primitives (Button, Input, Card, Skeleton, Toaster, Form...)
   layout/              Sidebar, Navbar, DashboardShell
   auth/                LoginForm, ForgotPasswordForm, ChangePasswordForm
   common/              ErrorBoundary, Skeletons, ComingSoon
-hooks/                 useAuth, useToast, useMediaQuery
-lib/supabase/          Browser client, server client, middleware session helper
+hooks/                 useAuth, useToast, useMediaQuery, useRole
+lib/
+  supabase/            Browser client, server client, middleware session helper, error mapping
+  rbac.ts              Role hierarchy + route-level access map
+  requireRole.ts       Server-side role guard (redirects)
+  validations/         Zod schemas (auth)
 services/               auth.service.ts — all Supabase Auth calls live here
-types/                  Database + auth types
-utils/                  cn(), validation helpers
-middleware.ts           Route protection + first-login password-change redirect
-supabase/schema.sql     Database schema, RLS policies, triggers
+types/                  Database + auth + api result types
+utils/                  cn(), validation helpers (+ unit tests)
+middleware.ts           Route protection + first-login password-change + RBAC redirects
+supabase/
+  schema.sql            Consolidated schema for fresh setups
+  migrations/           Timestamped migration files (offline-managed)
+eslint.config.mjs       ESLint flat config
+vitest.config.mts       Vitest config
+```
+
+## Horizontal infrastructure (Phase 1.5)
+
+- **Roles & RBAC** — `public.user_role` enum (`student`/`teacher`/`admin`) with a
+  route-level access map in `lib/rbac.ts`, a server guard (`lib/requireRole.ts`),
+  and a client hook (`hooks/useRole`). Role is enforced in middleware.
+- **Forms** — React Hook Form + Zod with reusable UI primitives in
+  `components/ui/form.tsx` and schemas in `lib/validations/`.
+- **Testing** — Vitest + Testing Library (`npm test`). Covers validation utils,
+  Zod schemas, RBAC, and Supabase error mapping.
+- **Error handling** — consistent `ApiResult` (`types/api.ts`) returned by
+  services and friendly messages via `lib/supabase/errors.ts`.
+
+## Scripts
+
+```bash
+npm run dev        # start dev server
+npm run build      # production build
+npm test           # run unit tests (vitest)
+npm test:watch     # watch mode
+npm run lint       # ESLint
+npm run db:reset   # reset local supabase db (needs CLI)
+npm run db:migrate # push migrations (needs CLI)
+npm run typegen    # regenerate database.types.ts (needs CLI)
 ```
 
 ## Authentication features implemented

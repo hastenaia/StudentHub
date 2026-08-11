@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getRequiredRoles, hasRole, type UserRole } from "@/lib/rbac";
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
@@ -55,6 +56,18 @@ export async function updateSession(request: NextRequest) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/change-password";
     return NextResponse.redirect(redirectUrl);
+  }
+
+  // Route-level RBAC guard (e.g. staff-only areas).
+  const requiredRoles = getRequiredRoles(path);
+  if (user && requiredRoles) {
+    const role: UserRole = (user.user_metadata?.role as UserRole) ?? "student";
+    const allowed = requiredRoles.some((r) => hasRole(role, r));
+    if (!allowed) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/dashboard";
+      return NextResponse.redirect(redirectUrl);
+    }
   }
 
   return supabaseResponse;

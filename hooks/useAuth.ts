@@ -4,15 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { authService } from "@/services/auth.service";
+import type { User } from "@supabase/supabase-js";
 import type { AuthUser } from "@/types/auth";
 
-function mapUser(user: any): AuthUser | null {
+function mapUser(user: User | null): AuthUser | null {
   if (!user) return null;
+  const role: AuthUser["role"] =
+    (user.user_metadata?.role as AuthUser["role"]) ?? "student";
   return {
     id: user.id,
     email: user.email ?? null,
     fullName: user.user_metadata?.full_name ?? null,
     avatarUrl: user.user_metadata?.avatar_url ?? null,
+    role,
     mustChangePassword: user.user_metadata?.must_change_password === true,
   };
 }

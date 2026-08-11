@@ -1,12 +1,13 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { getAuthErrorMessage } from "@/lib/supabase/errors";
 import type {
-  AuthResult,
   ChangePasswordPayload,
   ForgotPasswordPayload,
   LoginPayload,
 } from "@/types/auth";
+import { fail, ok, type ApiResult } from "@/types/api";
 
 /**
  * Thin service layer around Supabase Auth. Keeping these calls out of
@@ -14,40 +15,37 @@ import type {
  * later without touching UI code.
  */
 export const authService = {
-  async login({ email, password }: LoginPayload): Promise<AuthResult> {
+  async login({ email, password }: LoginPayload): Promise<ApiResult> {
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      return { success: false, message: error.message };
+      return fail(getAuthErrorMessage(error));
     }
-    return { success: true };
+    return ok();
   },
 
-  async logout(): Promise<AuthResult> {
+  async logout(): Promise<ApiResult> {
     const supabase = createClient();
     const { error } = await supabase.auth.signOut();
     if (error) {
-      return { success: false, message: error.message };
+      return fail(getAuthErrorMessage(error));
     }
-    return { success: true };
+    return ok();
   },
 
-  async requestPasswordReset({ email }: ForgotPasswordPayload): Promise<AuthResult> {
+  async requestPasswordReset({ email }: ForgotPasswordPayload): Promise<ApiResult> {
     const supabase = createClient();
     const redirectTo = `${window.location.origin}/auth/callback?next=/change-password`;
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
 
     if (error) {
-      return { success: false, message: error.message };
+      return fail(getAuthErrorMessage(error));
     }
-    return {
-      success: true,
-      message: "If an account exists for that email, a reset link is on its way.",
-    };
+    return ok("If an account exists for that email, a reset link is on its way.");
   },
 
-  async changePassword({ newPassword }: ChangePasswordPayload): Promise<AuthResult> {
+  async changePassword({ newPassword }: ChangePasswordPayload): Promise<ApiResult> {
     const supabase = createClient();
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
@@ -55,9 +53,9 @@ export const authService = {
     });
 
     if (error) {
-      return { success: false, message: error.message };
+      return fail(getAuthErrorMessage(error));
     }
-    return { success: true, message: "Password updated successfully." };
+    return ok("Password updated successfully.");
   },
 
   async getCurrentUser() {
