@@ -22,9 +22,3 @@ export interface ChangePasswordPayload {
   newPassword: string;
   confirmPassword: string;
 }
-
-export interface AuthResult<T = void> {
-  success: boolean;
-  message?: string;
-  data?: T;
-}

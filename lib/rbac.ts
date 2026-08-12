@@ -15,6 +15,18 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Admin",
 };
 
+/**
+ * Resolves a user's role from `app_metadata`. We deliberately read from
+ * `app_metadata` (JWT-backed, only writable via the service role / admin) and
+ * NOT from `user_metadata`, which is client-controllable and would allow a
+ * self-signed privilege escalation.
+ */
+export function roleFromUser(
+  user: { app_metadata?: Record<string, unknown> | null } | null | undefined
+): UserRole {
+  return (user?.app_metadata?.role as UserRole) ?? "student";
+}
+
 /** Returns true when `role` is equal to or above `required`. */
 export function hasRole(role: UserRole, required: UserRole): boolean {
   return ROLE_RANK[role] >= ROLE_RANK[required];

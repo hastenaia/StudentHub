@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PASSWORD_RULES } from "@/utils/validation";
 
 const emailSchema = z.string().trim().email("Enter a valid email address");
 
@@ -13,12 +14,12 @@ export const forgotPasswordSchema = z.object({
 });
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
-const passwordSchema = z
+export const passwordSchema = z
   .string()
-  .min(8, "At least 8 characters")
-  .regex(/[A-Z]/, "One uppercase letter")
-  .regex(/[a-z]/, "One lowercase letter")
-  .regex(/[0-9]/, "One number");
+  .min(8, PASSWORD_RULES[0].label)
+  .regex(/[A-Z]/, PASSWORD_RULES[1].label)
+  .regex(/[a-z]/, PASSWORD_RULES[2].label)
+  .regex(/[0-9]/, PASSWORD_RULES[3].label);
 
 export const changePasswordSchema = z
   .object({

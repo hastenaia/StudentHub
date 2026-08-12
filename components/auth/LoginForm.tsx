@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/form";
 import { authService } from "@/services/auth.service";
 import { useToast } from "@/hooks/useToast";
+import { safeRedirect } from "@/utils/safeRedirect";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
 
 export function LoginForm() {
@@ -41,7 +42,7 @@ export function LoginForm() {
     }
 
     toast({ title: "Welcome back!", variant: "success" });
-    const redirectTo = searchParams.get("redirectTo") || "/dashboard";
+    const redirectTo = safeRedirect(searchParams.get("redirectTo"));
     router.push(redirectTo);
     router.refresh();
   };

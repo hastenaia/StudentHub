@@ -19,6 +19,7 @@ import {
 import { authService } from "@/services/auth.service";
 import { useToast } from "@/hooks/useToast";
 import { changePasswordSchema, type ChangePasswordInput } from "@/lib/validations/auth";
+import { PASSWORD_RULES } from "@/utils/validation";
 import { cn } from "@/utils/cn";
 
 export function ChangePasswordForm({ isFirstLogin = false }: { isFirstLogin?: boolean }) {
@@ -31,12 +32,10 @@ export function ChangePasswordForm({ isFirstLogin = false }: { isFirstLogin?: bo
   });
 
   const newPassword = form.watch("newPassword");
-  const rules = [
-    { label: "At least 8 characters", met: newPassword.length >= 8 },
-    { label: "One uppercase letter", met: /[A-Z]/.test(newPassword) },
-    { label: "One lowercase letter", met: /[a-z]/.test(newPassword) },
-    { label: "One number", met: /[0-9]/.test(newPassword) },
-  ];
+  const rules = PASSWORD_RULES.map((rule) => ({
+    label: rule.label,
+    met: rule.test(newPassword),
+  }));
 
   const onSubmit = async ({ newPassword }: ChangePasswordInput) => {
     const result = await authService.changePassword({

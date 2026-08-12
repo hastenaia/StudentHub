@@ -19,23 +19,36 @@ alter table public.profiles
 alter table public.profiles
   alter column role set default 'student';
 
--- 3. Honour a role supplied in signup metadata (admin provisioning only)
+-- 3. Auto-create a profile on signup. Role is read from `app_metadata`
+--    (admin/service-role only) and mirrored back into `app_metadata` so it is
+--    carried in the JWT for edge/middleware checks. We never trust the
+--    client-controllable `user_metadata` for the role.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
+declare
+  new_role public.user_role := coalesce(
+    (new.raw_app_meta_data ->> 'role')::public.user_role,
+    'student'::public.user_role
+  );
 begin
-  insert into public.profiles (id, full_name, role, must_change_password)
+  insert into public.profiles (id, full_name, avatar_url, role, must_change_password)
   values (
     new.id,
     coalesce(new.raw_user_meta_data ->> 'full_name', new.email),
-    coalesce(
-      (new.raw_user_meta_data ->> 'role')::public.user_role,
-      'student'::public.user_role
-    ),
+    new.raw_user_meta_data ->> 'avatar_url',
+    new_role,
     coalesce((new.raw_user_meta_data ->> 'must_change_password')::boolean, true)
   );
+
+  update auth.users
+  set raw_app_meta_data =
+    coalesce(new.raw_app_meta_data, '{}'::jsonb)
+    || jsonb_build_object('role', new_role)
+  where id = new.id;
+
   return new;
 end;
 $$;

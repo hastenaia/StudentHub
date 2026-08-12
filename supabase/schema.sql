@@ -34,23 +34,36 @@ create policy "Profiles are updatable by owner"
   using (auth.uid() = id);
 
 -- 3. Auto-create a profile row whenever a new auth user is created.
---    Honour a `role` provided in signup metadata (admin provisioning only).
+--    Role is taken from `app_metadata` (admin/service-role only). We never trust
+--    `user_metadata` for the role, since that is client-controllable and would
+--    allow a self-signed privilege escalation. The same role is written back into
+--    `app_metadata` so it appears in the user's JWT for edge/middleware checks.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
+declare
+  new_role public.user_role := coalesce(
+    (new.raw_app_meta_data ->> 'role')::public.user_role,
+    'student'::public.user_role
+  );
 begin
-  insert into public.profiles (id, full_name, role, must_change_password)
+  insert into public.profiles (id, full_name, avatar_url, role, must_change_password)
   values (
     new.id,
     coalesce(new.raw_user_meta_data ->> 'full_name', new.email),
-    coalesce(
-      (new.raw_user_meta_data ->> 'role')::public.user_role,
-      'student'::public.user_role
-    ),
+    new.raw_user_meta_data ->> 'avatar_url',
+    new_role,
     coalesce((new.raw_user_meta_data ->> 'must_change_password')::boolean, true)
   );
+
+  update auth.users
+  set raw_app_meta_data =
+    coalesce(new.raw_app_meta_data, '{}'::jsonb)
+    || jsonb_build_object('role', new_role)
+  where id = new.id;
+
   return new;
 end;
 $$;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkPasswordStrength, getInitials, isValidEmail } from "./validation";
+import { checkPasswordStrength, getInitials, isValidEmail, PASSWORD_RULES } from "./validation";
 
 describe("isValidEmail", () => {
   it("accepts a valid email", () => {
@@ -29,13 +29,13 @@ describe("checkPasswordStrength", () => {
   it("flags a short password", () => {
     const result = checkPasswordStrength("Ab1");
     expect(result.valid).toBe(false);
-    expect(result.errors).toContain("At least 8 characters");
+    expect(result.errors).toContain(PASSWORD_RULES[0].label);
   });
 
   it("flags a missing number", () => {
     const result = checkPasswordStrength("Abcdefgh");
     expect(result.valid).toBe(false);
-    expect(result.errors).toContain("At least one number");
+    expect(result.errors).toContain(PASSWORD_RULES[3].label);
   });
 });
 

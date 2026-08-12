@@ -11,12 +11,12 @@ Lucide Icons, and Supabase (Auth + PostgreSQL + Storage).
 npm install
 ```
 
-Environment variables are already filled in for you in `.env.local`
-(copied from `.env.local.example`):
+Environment variables are required (copy `.env.local.example` to `.env.local`
+and fill in your Supabase project values — do not commit real keys):
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://cbdxebzizvgzoupdplvs.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_kQqG2KIic6nXQUpbaLF5XQ_Si3Cwnip
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
 ## 2. Set up the database
