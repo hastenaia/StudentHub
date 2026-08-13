@@ -1,17 +1,20 @@
 import type { Metadata } from "next";
-import { BookOpen, CalendarClock, GraduationCap, TrendingUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getAcademicSettings, getDashboardData } from "@/services/academics.service";
+import { ConnectGoogleBanner } from "@/components/dashboard/ConnectGoogleBanner";
+import { TodayOverview } from "@/components/dashboard/TodayOverview";
+import { CourseSnapshot } from "@/components/dashboard/CourseSnapshot";
+import { AnnouncementsFeed } from "@/components/dashboard/AnnouncementsFeed";
+import { GpaProjectionCard } from "@/components/dashboard/GpaProjectionCard";
+import { SyncNowCard } from "@/components/dashboard/SyncNowCard";
 
 export const metadata: Metadata = { title: "Dashboard — StudentHub" };
 
-const STATS = [
-  { label: "Enrolled Courses", value: "6", icon: BookOpen, accent: "text-brand-royal" },
-  { label: "Current GPA", value: "3.7", icon: GraduationCap, accent: "text-brand-royal" },
-  { label: "Upcoming Classes", value: "3 today", icon: CalendarClock, accent: "text-brand-royal" },
-  { label: "Attendance", value: "96%", icon: TrendingUp, accent: "text-brand-royal" },
-];
-
+/**
+ * Server-rendered academic dashboard. Reads entirely from the Supabase cache
+ * (see services/academics.service.ts) — never calling Google per page load —
+ * so this stays fast and works even if the Google connection is flaky.
+ */
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
@@ -19,6 +22,16 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
 
   const displayName = user?.user_metadata?.full_name?.split(" ")[0] || "there";
+
+  if (!user) {
+    // Middleware normally blocks this; kept as a graceful fallback.
+    return <p className="text-sm text-gray-500">You need to be signed in to view this page.</p>;
+  }
+
+  const [data, settings] = await Promise.all([
+    getDashboardData(user.id),
+    getAcademicSettings(user.id),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -31,64 +44,24 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {STATS.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={stat.label}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-gray-500">{stat.label}</CardTitle>
-                <Icon className={`h-4 w-4 ${stat.accent}`} />
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold text-brand-dark">{stat.value}</p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      {!data.googleLinked ? (
+        <>
+          <ConnectGoogleBanner />
+          <CourseSnapshot courses={data.courses} gradeScale={settings.gradeScale} />
+        </>
+      ) : (
+        <>
+          <SyncNowCard stale={data.stale} lastSyncedAt={data.lastSyncedAt} />
+          <GpaProjectionCard gpa={data.gpa} targetGpa={data.targetGpa} />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Today&apos;s schedule</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {[
-              { time: "09:00 AM", course: "Data Structures & Algorithms", room: "Room 204" },
-              { time: "11:30 AM", course: "Linear Algebra", room: "Room 118" },
-              { time: "02:00 PM", course: "Technical Writing", room: "Online" },
-            ].map((item) => (
-              <div
-                key={item.time}
-                className="flex items-center justify-between rounded-md border border-gray-100 bg-brand-gray/50 px-4 py-3"
-              >
-                <div>
-                  <p className="text-sm font-medium text-brand-dark">{item.course}</p>
-                  <p className="text-xs text-gray-500">{item.room}</p>
-                </div>
-                <span className="text-xs font-semibold text-brand-royal">{item.time}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <TodayOverview events={data.calendarEvents} upcoming={data.upcoming} />
+            <AnnouncementsFeed announcements={data.announcements} />
+          </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Account</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-500">Email</span>
-              <span className="font-medium text-brand-dark">{user?.email}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Status</span>
-              <span className="font-medium text-green-600">Active</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          <CourseSnapshot courses={data.courses} gradeScale={settings.gradeScale} />
+        </>
+      )}
     </div>
   );
 }

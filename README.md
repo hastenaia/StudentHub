@@ -47,6 +47,59 @@ Visit `http://localhost:3000` — you'll be redirected to `/login`.
 Push to GitHub and import the repo in Vercel. Add the two environment
 variables above in your Vercel project settings.
 
+## 6. Google integration setup (Module 1)
+
+The Academic Dashboard (Google Calendar + Google Classroom) uses a server-side
+OAuth 2.0 flow with read-only scopes. Set it up once per environment:
+
+1. Go to <https://console.cloud.google.com/> and create a project (or reuse one).
+2. From **APIs & Services → Library**, enable:
+   - **Google Cloud Classroom API**
+   - **Google Calendar API**
+3. **APIs & Services → OAuth consent screen → External → Create.**
+   - App name, support email, and (mandatory for testing) add your own email
+     under **Test users**. Classroom reads won't show for non-test users until
+     the app is verified/published.
+4. **APIs & Services → Credentials → Create credentials → OAuth client ID →
+   Web application.**
+   - Authorized JavaScript origins: `http://localhost:3000`, `https://<your-domain>`
+   - Authorized redirect URIs:
+     - `http://localhost:3000/api/google/callback`
+     - `https://<your-domain>/api/google/callback`
+5. Copy the client ID/secret into `.env.local`:
+   ```
+   GOOGLE_CLIENT_ID=...apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=...
+   GOOGLE_REDIRECT_URI=http://localhost:3000/api/google/callback
+   ```
+6. Generate a token-encryption key `.env.local`:
+   ```
+   GOOGLE_TOKEN_ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+   ```
+   Tokens are AES-256-GCM encrypted with this key before being stored in
+   Postgres; never commit the real value.
+
+Then apply the new tables (only needed once, not on every deploy):
+
+```bash
+npm run db:migrate     # pushes supabase/migrations/, incl. google_academics
+```
+
+### How the module works
+
+- **Dashboard** (`app/(dashboard)/dashboard/page.tsx`) is a Server Component
+  that reads a Supabase cache — it never calls Google per page load.
+- **Sync** (`POST /api/dashboard/sync`) is the only path that talks to Google:
+  on demand, it fetches Classroom courses/assignments/announcements and a
+  rolling Calendar window, then upserts them into
+  `google_accounts`, `courses`, `assignments`, `announcements`,
+  `calendar_events`, and `academic_settings` (all owner-only RLS).
+- **GPA math** lives in `lib/gpa.ts` as pure functions (unit-tested with
+  Vitest) covering grade-scale conversion, weighted GPA, and goal projections.
+- **Settings** (`dashboard/settings`) manages the Google connection, the
+  grading scale + target GPA, and manually tracked courses that aren't on
+  Google Classroom.
+
 ## Architecture
 
 ```
