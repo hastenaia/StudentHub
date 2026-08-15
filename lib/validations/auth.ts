@@ -21,6 +21,19 @@ export const passwordSchema = z
   .regex(/[a-z]/, PASSWORD_RULES[2].label)
   .regex(/[0-9]/, PASSWORD_RULES[3].label);
 
+export const signupSchema = z
+  .object({
+    fullName: z.string().trim().max(120, "Name is too long").optional(),
+    email: emailSchema,
+    password: passwordSchema,
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+export type SignupInput = z.infer<typeof signupSchema>;
+
 export const changePasswordSchema = z
   .object({
     newPassword: passwordSchema,

@@ -2,7 +2,7 @@ import { createServerCookieClient } from "@/lib/supabase/factory";
 import { NextResponse, type NextRequest } from "next/server";
 import { getRequiredRoles, hasRole, roleFromUser } from "@/lib/rbac";
 
-const PUBLIC_ROUTES = ["/login", "/forgot-password", "/auth/callback", "/change-password"];
+const PUBLIC_ROUTES = ["/login", "/signup", "/forgot-password", "/auth/callback", "/change-password"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
