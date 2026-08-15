@@ -269,6 +269,74 @@ export interface Database {
         };
         Relationships: [];
       };
+      tasks: {
+        Row: {
+          id: string;
+          user_id: string;
+          course_id: string | null;
+          title: string;
+          description: string | null;
+          status: string;
+          priority: string;
+          tags: string[];
+          due_at: string | null;
+          estimate_minutes: number | null;
+          recurrence_freq: string | null;
+          recurrence_interval: number;
+          recur_until: string | null;
+          sort_order: number;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          course_id?: string | null;
+          title: string;
+          description?: string | null;
+          status?: string;
+          priority?: string;
+          tags?: string[];
+          due_at?: string | null;
+          estimate_minutes?: number | null;
+          recurrence_freq?: string | null;
+          recurrence_interval?: number;
+          recur_until?: string | null;
+          sort_order?: number;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          course_id?: string | null;
+          title?: string;
+          description?: string | null;
+          status?: string;
+          priority?: string;
+          tags?: string[];
+          due_at?: string | null;
+          estimate_minutes?: number | null;
+          recurrence_freq?: string | null;
+          recurrence_interval?: number;
+          recur_until?: string | null;
+          sort_order?: number;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tasks_course_id_fkey";
+            columns: ["course_id"];
+            isOneToOne: false;
+            referencedRelation: "courses";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       academic_settings: {
         Row: {
           id: string;
