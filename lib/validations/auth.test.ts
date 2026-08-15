@@ -49,8 +49,13 @@ describe("signupSchema", () => {
   });
 
   it("accepts a signup without a full name", () => {
-    const { fullName, ...rest } = valid;
-    expect(signupSchema.safeParse(rest).success).toBe(true);
+    expect(
+      signupSchema.safeParse({
+        email: "jane@studenthub.edu",
+        password: "Abcdef1!",
+        confirmPassword: "Abcdef1!",
+      }).success
+    ).toBe(true);
   });
 
   it("rejects an invalid email", () => {
