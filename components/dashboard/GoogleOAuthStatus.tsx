@@ -47,11 +47,16 @@ export function GoogleOAuthStatus() {
 
   React.useEffect(() => {
     const status = searchParams.get("google");
+    const reason = searchParams.get("reason");
     if (!status || handled.current) return;
     handled.current = true;
 
     const message = MESSAGES[status];
-    if (message) toast(message);
+    if (message) {
+      // OAuth failures carry the real reason from the callback; prefer it over
+      // the generic copy so the user (and we) can actually fix the problem.
+      toast(status === "error" && reason ? { ...message, description: reason } : message);
+    }
 
     router.replace(pathname, { scroll: false });
   }, [searchParams, pathname, router, toast]);
