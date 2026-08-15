@@ -158,6 +158,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       creditHours: Number(course.credit_hours ?? 0),
       gradePoints: result?.gradePoints ?? null,
       progress: result?.progress ?? null,
+      targetPct: course.target_pct != null ? Number(course.target_pct) : null,
       weightedPoints:
         result?.gradePoints != null ? result.gradePoints * Number(course.credit_hours ?? 0) : null,
       upcomingAssignments: upcoming,
@@ -208,6 +209,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     announcements: dashboardAnnouncements,
     calendarEvents,
     targetGpa: settings.targetGpa,
+    gradeScale: scale,
   };
 }
 

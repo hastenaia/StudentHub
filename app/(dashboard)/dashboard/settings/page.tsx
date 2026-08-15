@@ -53,6 +53,7 @@ export default async function SettingsPage() {
     creditHours: Number(c.credit_hours ?? 0),
     gradePoints: c.manual_grade != null ? Number(c.manual_grade) : null,
     progress: null,
+    targetPct: c.target_pct != null ? Number(c.target_pct) : null,
     weightedPoints:
       c.manual_grade != null ? Number(c.manual_grade) * Number(c.credit_hours ?? 0) : null,
     upcomingAssignments: [],

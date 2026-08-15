@@ -133,7 +133,8 @@ create table if not exists public.courses (
   teacher_name text,
   color text,
   credit_hours numeric not null default 3.0 check (credit_hours >= 0),
-  manual_grade numeric,
+  manual_grade numeric,                  -- grade points (scale) for manual courses
+  target_pct numeric check (target_pct is null or target_pct between 0 and 100),
   archived boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

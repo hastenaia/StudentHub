@@ -2,6 +2,7 @@ import { BookOpen } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DashboardCourse } from "@/types/academics";
 import { pointsToLetter, type GradeScale } from "@/lib/gpa";
+import { formatDueLabel } from "@/utils/date";
 
 interface CourseSnapshotProps {
   courses: DashboardCourse[];
@@ -76,6 +77,7 @@ export function CourseSnapshot({ courses, gradeScale }: CourseSnapshotProps) {
                   {course.upcomingAssignments.map((a) => (
                     <li key={a.id} className="flex justify-between gap-2 text-xs">
                       <span className="truncate text-gray-600">{a.title}</span>
+                      <span className="shrink-0 text-gray-400">{formatDueLabel(a.dueAt)}</span>
                     </li>
                   ))}
                 </ul>

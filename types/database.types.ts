@@ -102,6 +102,7 @@ export interface Database {
           color: string | null;
           credit_hours: number;
           manual_grade: number | null;
+          target_pct: number | null;
           archived: boolean;
           created_at: string;
           updated_at: string;
@@ -118,6 +119,7 @@ export interface Database {
           color?: string | null;
           credit_hours?: number;
           manual_grade?: number | null;
+          target_pct?: number | null;
           archived?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -134,6 +136,7 @@ export interface Database {
           color?: string | null;
           credit_hours?: number;
           manual_grade?: number | null;
+          target_pct?: number | null;
           archived?: boolean;
           created_at?: string;
           updated_at?: string;

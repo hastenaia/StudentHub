@@ -17,6 +17,8 @@ export interface DashboardCourse {
   gradePoints: number | null;
   /** 0..1 fraction of total points earned across graded + possible work. */
   progress: number | null;
+  /** Per-course grade goal (0-100); null falls back to the default target. */
+  targetPct: number | null;
   /** Weighted points (creditHours * gradePoints), used by the GPA rollup. */
   weightedPoints: number | null;
   /** Assignments due soon, pre-sorted ascending by due_at. */
@@ -66,6 +68,8 @@ export interface DashboardData {
   announcements: DashboardAnnouncement[];
   calendarEvents: CalendarEvent[];
   targetGpa: number;
+  /** The user's configured grading scale (for letter-grade display). */
+  gradeScale: Record<string, number>;
 }
 
 export interface GpaViewModel {
