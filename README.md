@@ -124,7 +124,7 @@ lib/
 services/               auth.service.ts — all Supabase Auth calls live here
 types/                  Database + auth + api result types
 utils/                  cn(), validation helpers (+ unit tests)
-middleware.ts           Route protection + first-login password-change + RBAC redirects
+proxy.ts                Route protection + first-login password-change + RBAC redirects
 supabase/
   schema.sql            Consolidated schema for fresh setups
   migrations/           Timestamped migration files (offline-managed)
