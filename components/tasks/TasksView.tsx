@@ -64,8 +64,9 @@ export function TasksView({ initialData }: TasksViewProps) {
 
   const handleCreate = async (draft: TaskDraft) => {
     const result = await tasksClientService.createTask(draft);
-    if (result.success && result.data) {
-      applyTasks([...tasks, taskRowToView(result.data, courseMap)]);
+    const row = result.data;
+    if (result.success && row) {
+      applyTasks([...tasks, taskRowToView(row, courseMap)]);
       setFormOpen(false);
       notify(true, "Task created", result.message);
     } else {
@@ -76,10 +77,9 @@ export function TasksView({ initialData }: TasksViewProps) {
   const handleEdit = async (draft: TaskDraft) => {
     if (!editing) return;
     const result = await tasksClientService.updateTask(editing.id, draft);
-    if (result.success && result.data) {
-      applyTasks(
-        tasks.map((task) => (task.id === editing.id ? taskRowToView(result.data, courseMap) : task))
-      );
+    const row = result.data;
+    if (result.success && row) {
+      applyTasks(tasks.map((task) => (task.id === editing.id ? taskRowToView(row, courseMap) : task)));
       setFormOpen(false);
       setEditing(null);
       notify(true, "Task updated", result.message);
@@ -100,13 +100,12 @@ export function TasksView({ initialData }: TasksViewProps) {
 
   const handleComplete = async (id: string) => {
     const result = await tasksClientService.completeTask(id);
-    if (result.success && result.data) {
-      applyTasks(
-        tasks.map((task) => (task.id === id ? taskRowToView(result.data, courseMap) : task))
-      );
+    const row = result.data;
+    if (result.success && row) {
+      applyTasks(tasks.map((task) => (task.id === id ? taskRowToView(row, courseMap) : task)));
       notify(
         true,
-        result.data.status === "done" ? "Task completed" : "Next occurrence scheduled",
+        row.status === "done" ? "Task completed" : "Next occurrence scheduled",
         result.message
       );
     } else {
@@ -120,6 +119,7 @@ export function TasksView({ initialData }: TasksViewProps) {
       notify(false, "Couldn't move task", result.message);
       return false;
     }
+    applyTasks(tasks.map((task) => (task.id === id ? { ...task, status, sortOrder: index } : task)));
     return true;
   };
 

@@ -14,7 +14,6 @@ const FREQ_VALUES = ["daily", "weekly", "monthly", "none"] as const;
 const MINUTES_FIELD = z
   .string()
   .trim()
-  .default("")
   .refine(
     (value) => value === "" || (!Number.isNaN(Number(value)) && Number(value) > 0 && Number(value) <= 1000),
     "Estimate must be 1-1000 minutes"
@@ -23,7 +22,6 @@ const MINUTES_FIELD = z
 const INTERVAL_FIELD = z
   .string()
   .trim()
-  .default("1")
   .refine(
     (value) => !Number.isNaN(Number(value)) && Number(value) >= 1 && Number(value) <= 31,
     "Interval must be 1-31"
@@ -31,16 +29,16 @@ const INTERVAL_FIELD = z
 
 export const taskFormSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(200, "Title is too long"),
-  description: z.string().trim().max(2000, "Description is too long").default(""),
+  description: z.string().trim().max(2000, "Description is too long"),
   status: z.enum(STATUS_VALUES),
   priority: z.enum(PRIORITY_VALUES),
   tags: z.string().trim().max(300, "Tags are too long"),
-  dueAt: z.string().default(""),
+  dueAt: z.string(),
   estimateMinutes: MINUTES_FIELD,
-  recurrenceFreq: z.enum(FREQ_VALUES).default("none"),
+  recurrenceFreq: z.enum(FREQ_VALUES),
   recurrenceInterval: INTERVAL_FIELD,
-  recurUntil: z.string().default(""),
-  courseId: z.string().default(""),
+  recurUntil: z.string(),
+  courseId: z.string(),
 });
 export type TaskFormValues = z.infer<typeof taskFormSchema>;
 

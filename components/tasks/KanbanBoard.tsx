@@ -127,6 +127,11 @@ export function KanbanBoard({ tasks, onMove, onEdit, onDelete, onComplete, onAdd
     }
   };
 
+  const handleDragCancel = () => {
+    setActiveId(null);
+    setColumns(groupByStatus(tasks));
+  };
+
   const activeTask = activeId ? tasks.find((task) => task.id === activeId) : null;
 
   return (
@@ -136,7 +141,7 @@ export function KanbanBoard({ tasks, onMove, onEdit, onDelete, onComplete, onAdd
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
-      onDragCancel={() => setActiveId(null)}
+      onDragCancel={handleDragCancel}
     >
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {TASK_STATUSES.map((status) => (
