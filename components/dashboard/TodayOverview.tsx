@@ -46,7 +46,7 @@ export function TodayOverview({ events, upcoming }: TodayOverviewProps) {
         )}
 
         <div>
-          <p className="mb-2 text-sm font-medium text-brand-dark text-gray-500">
+          <p className="mb-2 text-sm font-medium text-gray-500">
             Upcoming assignments
           </p>
           {upcoming.length > 0 ? (

@@ -92,6 +92,21 @@ export const academicsClientService = {
     return error ? fail(error.message) : ok("Academic settings saved.");
   },
 
+  async saveCourseTarget(input: { id: string; targetPct: number | null }): Promise<ApiResult> {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return fail("You must be signed in.");
+
+    const { error } = await supabase
+      .from("courses")
+      .update({ target_pct: input.targetPct })
+      .eq("id", input.id)
+      .eq("user_id", user.id);
+    return error ? fail(error.message) : ok("Course goal saved.");
+  },
+
   async disconnectGoogle(): Promise<ApiResult> {
     const supabase = createClient();
     const {
@@ -99,12 +114,15 @@ export const academicsClientService = {
     } = await supabase.auth.getUser();
     if (!user) return fail("You must be signed in.");
 
-    // Deleting courses cascades to their assignments + announcements; calendar
-    // events have no FK so they're removed explicitly.
+    // Only Classroom-sourced data belongs to the Google link — deleting it
+    // cascades to its assignments + announcements. Manual courses are kept so
+    // the GPA still has data after disconnecting. Calendar events have no FK
+    // to courses, so they're removed explicitly.
     const { error: coursesError } = await supabase
       .from("courses")
       .delete()
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .eq("source", "classroom");
     if (coursesError) return fail(coursesError.message);
 
     const { error: eventsError } = await supabase

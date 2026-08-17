@@ -64,3 +64,9 @@ export function formatRelativeDateTime(iso: string | null): string {
   if (seconds < 7 * 86400) return `${Math.floor(seconds / 86400)}d ago`;
   return formatDate(iso);
 }
+
+/** True when the given timestamp is in the past (used for overdue styling). */
+export function isOverdue(iso: string | null): boolean {
+  if (!iso) return false;
+  return new Date(iso).getTime() < Date.now();
+}

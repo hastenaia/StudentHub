@@ -3,6 +3,7 @@ import {
   changePasswordSchema,
   forgotPasswordSchema,
   loginSchema,
+  signupSchema,
 } from "./auth";
 
 describe("loginSchema", () => {
@@ -32,6 +33,50 @@ describe("forgotPasswordSchema", () => {
   it("requires a valid email", () => {
     expect(forgotPasswordSchema.safeParse({ email: "a@b.co" }).success).toBe(true);
     expect(forgotPasswordSchema.safeParse({ email: "nope" }).success).toBe(false);
+  });
+});
+
+describe("signupSchema", () => {
+  const valid = {
+    fullName: "Jane Doe",
+    email: "jane@studenthub.edu",
+    password: "Abcdef1!",
+    confirmPassword: "Abcdef1!",
+  };
+
+  it("accepts valid credentials with a full name", () => {
+    expect(signupSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("accepts a signup without a full name", () => {
+    expect(
+      signupSchema.safeParse({
+        email: "jane@studenthub.edu",
+        password: "Abcdef1!",
+        confirmPassword: "Abcdef1!",
+      }).success
+    ).toBe(true);
+  });
+
+  it("rejects an invalid email", () => {
+    const result = signupSchema.safeParse({ ...valid, email: "bad" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toEqual(["email"]);
+    }
+  });
+
+  it("rejects weak passwords", () => {
+    const result = signupSchema.safeParse({ ...valid, password: "weak", confirmPassword: "weak" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects mismatched confirmation", () => {
+    const result = signupSchema.safeParse({ ...valid, confirmPassword: "Abcdef1?" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toContain("confirmPassword");
+    }
   });
 });
 

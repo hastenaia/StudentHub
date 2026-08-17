@@ -290,6 +290,39 @@ export function assignmentProjection(
   return { requiredPct, earned, totalMax, remainingMax };
 }
 
+export type ProjectionStatus = "no-data" | "complete" | "secured" | "unreachable" | "needs";
+
+export interface ProjectionView {
+  /** "no-data": nothing has max points; "complete": all work already graded. */
+  status: ProjectionStatus;
+  /** Percentage still needed on the remaining ungraded work, if meaningful. */
+  requiredPct: number | null;
+  remainingMax: number;
+  earned: number;
+  totalMax: number;
+  targetPct: number;
+}
+
+/**
+ * Classify an assignmentProjection result into a UI-ready status.
+ * - "secured": remaining scores cannot drag the course below the target
+ * - "unreachable": even perfect scores on the rest won't reach the target
+ * - "needs": a specific percentage is still required on the remaining work
+ */
+export function buildProjection(
+  assignments: AssignmentGradeInput[],
+  targetPct: number
+): ProjectionView {
+  const p = assignmentProjection(assignments, targetPct);
+  const base = { ...p, targetPct };
+
+  if (p.totalMax <= 0) return { ...base, status: "no-data", requiredPct: null };
+  if (p.requiredPct == null) return { ...base, status: "complete" };
+  if (p.requiredPct <= 0) return { ...base, status: "secured" };
+  if (p.requiredPct >= 100) return { ...base, status: "unreachable" };
+  return { ...base, status: "needs" };
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assignmentProjection,
+  buildProjection,
   computeCourseGradePoints,
   computeGpa,
   DEFAULT_GRADE_SCALE,
@@ -288,5 +289,57 @@ describe("assignmentProjection", () => {
       50
     );
     expect(p.requiredPct).toBe(0); // clamped negative -> 0 in round
+  });
+});
+
+describe("buildProjection", () => {
+  it("classifies no-workload courses as no-data", () => {
+    expect(buildProjection([], 90).status).toBe("no-data");
+  });
+
+  it("classifies fully-graded courses as complete", () => {
+    const v = buildProjection([{ earned: 95, maxPoints: 100 }], 90);
+    expect(v.status).toBe("complete");
+    expect(v.requiredPct).toBeNull();
+  });
+
+  it("classifies already-met targets as secured", () => {
+    // 100/100 earned on a 100pt assignment + only 5pts remaining, target 90% —
+    // a 0 on the rest still leaves 95%+, so the target is already locked in.
+    const v = buildProjection(
+      [
+        { earned: 100, maxPoints: 100 },
+        { earned: null, maxPoints: 5 },
+      ],
+      90
+    );
+    expect(v.status).toBe("secured");
+  });
+
+  it("classifies impossible targets as unreachable", () => {
+    // 0/100 graded, target 90% — but remaining max is only 100.
+    const v = buildProjection(
+      [
+        { earned: 0, maxPoints: 100 },
+        { earned: null, maxPoints: 100 },
+      ],
+      95
+    );
+    expect(v.status).toBe("unreachable");
+  });
+
+  it("reports the percentage still needed", () => {
+    // 70/100 earned, 100pts left, target 80% overall -> need 90 on the rest.
+    const v = buildProjection(
+      [
+        { earned: 70, maxPoints: 100 },
+        { earned: null, maxPoints: 100 },
+      ],
+      80
+    );
+    expect(v.status).toBe("needs");
+    expect(v.requiredPct).toBe(90);
+    expect(v.remainingMax).toBe(100);
+    expect(v.targetPct).toBe(80);
   });
 });

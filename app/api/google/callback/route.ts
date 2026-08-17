@@ -37,7 +37,10 @@ export async function GET(request: Request) {
   if (!user) return redirect("/login");
 
   const result = await storeGoogleAccount(user.id, code, codeVerifier);
-  if (!result.success) return redirect("/dashboard?google=error");
+  if (!result.success) {
+    const reason = encodeURIComponent(result.message ?? "We couldn't link your Google account.");
+    return redirect(`/dashboard?google=error&reason=${reason}`);
+  }
 
   // Best-effort initial sync; failures surface on the dashboard as a banner.
   await syncGoogleData(user.id);
