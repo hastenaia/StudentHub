@@ -69,31 +69,55 @@ export function QuickActions({ courses }: Props) {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Quick Actions</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-            <Button variant="outline" className="flex h-auto flex-col gap-1 py-3" onClick={() => setTaskOpen(true)}>
-              <ClipboardList className="h-5 w-5 text-brand-royal" />
-              <span className="text-xs">Add Task</span>
+        <CardContent className="px-4 sm:px-5">
+          <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+            <Button
+              variant="outline"
+              className="flex h-auto min-h-[80px] w-full min-w-[110px] flex-1 flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
+              onClick={() => setTaskOpen(true)}
+            >
+              <ClipboardList className="h-5 w-5 shrink-0 text-brand-royal" />
+              <span className="whitespace-normal break-words text-center leading-tight">Add Task</span>
             </Button>
-            <Button variant="outline" className="flex h-auto flex-col gap-1 py-3" onClick={() => setEventOpen(true)}>
-              <CalendarPlus className="h-5 w-5 text-brand-royal" />
-              <span className="text-xs">Add Event</span>
+            <Button
+              variant="outline"
+              className="flex h-auto min-h-[80px] w-full min-w-[110px] flex-1 flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
+              onClick={() => setEventOpen(true)}
+            >
+              <CalendarPlus className="h-5 w-5 shrink-0 text-brand-royal" />
+              <span className="whitespace-normal break-words text-center leading-tight">Add Event</span>
             </Button>
-            <Button variant="outline" className="flex h-auto flex-col gap-1 py-3" onClick={() => setCourseOpen(true)}>
-              <GraduationCap className="h-5 w-5 text-brand-royal" />
-              <span className="text-xs">Add Course</span>
+            <Button
+              variant="outline"
+              className="flex h-auto min-h-[80px] w-full min-w-[110px] flex-1 flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
+              onClick={() => setCourseOpen(true)}
+            >
+              <GraduationCap className="h-5 w-5 shrink-0 text-brand-royal" />
+              <span className="whitespace-normal break-words text-center leading-tight">Add Course</span>
             </Button>
-            <Button variant="outline" className="flex h-auto flex-col gap-1 py-3" onClick={() => setFocusOpen(true)}>
-              <Timer className="h-5 w-5 text-emerald-600" />
-              <span className="text-xs">Start Focus</span>
+            <Button
+              variant="outline"
+              className="flex h-auto min-h-[80px] w-full min-w-[110px] flex-1 flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
+              onClick={() => setFocusOpen(true)}
+            >
+              <Timer className="h-5 w-5 shrink-0 text-emerald-600" />
+              <span className="whitespace-normal break-words text-center leading-tight">Start Focus</span>
             </Button>
-            <Button variant="outline" className="flex h-auto flex-col gap-1 py-3" onClick={() => setNoteOpen(true)}>
-              <StickyNote className="h-5 w-5 text-amber-600" />
-              <span className="text-xs">Create Note</span>
+            <Button
+              variant="outline"
+              className="flex h-auto min-h-[80px] w-full min-w-[110px] flex-1 flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
+              onClick={() => setNoteOpen(true)}
+            >
+              <StickyNote className="h-5 w-5 shrink-0 text-amber-600" />
+              <span className="whitespace-normal break-words text-center leading-tight">Create Note</span>
             </Button>
-            <Button variant="outline" className="flex h-auto flex-col gap-1 py-3" onClick={() => setAiOpen(true)}>
-              <Bot className="h-5 w-5 text-purple-600" />
-              <span className="text-xs">Ask AI</span>
+            <Button
+              variant="outline"
+              className="flex h-auto min-h-[80px] w-full min-w-[110px] flex-1 flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
+              onClick={() => setAiOpen(true)}
+            >
+              <Bot className="h-5 w-5 shrink-0 text-purple-600" />
+              <span className="whitespace-normal break-words text-center leading-tight">Ask AI</span>
             </Button>
           </div>
         </CardContent>
