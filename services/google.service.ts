@@ -196,8 +196,6 @@ async function performSync(
         room: gc.room ?? null,
         teacher_name: gc.ownerId ?? null,
         color: null,
-        credit_hours: 3, // students commonly take 3-credit courses; adjustable in settings
-        manual_grade: null,
         archived: false,
       })),
       { onConflict: "user_id,google_course_id" }
