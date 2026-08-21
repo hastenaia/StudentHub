@@ -96,6 +96,10 @@ export interface Database {
           google_course_id: string | null;
           source: CourseSource;
           name: string;
+          course_code: string | null;
+          course_name: string | null;
+          instructor: string | null;
+          description: string | null;
           section: string | null;
           room: string | null;
           teacher_name: string | null;
@@ -113,6 +117,10 @@ export interface Database {
           google_course_id?: string | null;
           source?: CourseSource;
           name: string;
+          course_code?: string | null;
+          course_name?: string | null;
+          instructor?: string | null;
+          description?: string | null;
           section?: string | null;
           room?: string | null;
           teacher_name?: string | null;
@@ -130,6 +138,10 @@ export interface Database {
           google_course_id?: string | null;
           source?: CourseSource;
           name?: string;
+          course_code?: string | null;
+          course_name?: string | null;
+          instructor?: string | null;
+          description?: string | null;
           section?: string | null;
           room?: string | null;
           teacher_name?: string | null;

@@ -128,12 +128,16 @@ create table if not exists public.courses (
   google_course_id text,
   source text not null default 'manual' check (source in ('classroom', 'manual')),
   name text not null,
+  course_code text,
+  course_name text,
+  instructor text,
+  description text,
   section text,
   room text,
   teacher_name text,
   color text,
   credit_hours numeric not null default 3.0 check (credit_hours >= 0),
-  manual_grade numeric,                  -- grade points (scale) for manual courses
+  manual_grade numeric,                  -- legacy grade points (soft-ignored)
   target_pct numeric check (target_pct is null or target_pct between 0 and 100),
   archived boolean not null default false,
   created_at timestamptz not null default now(),
