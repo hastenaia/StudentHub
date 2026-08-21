@@ -349,6 +349,62 @@ export interface Database {
           }
         ];
       };
+      schedule_events: {
+        Row: {
+          id: string;
+          user_id: string;
+          course_id: string | null;
+          title: string;
+          description: string | null;
+          location: string | null;
+          event_type: string;
+          start_at: string;
+          end_at: string;
+          all_day: boolean;
+          color: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          course_id?: string | null;
+          title: string;
+          description?: string | null;
+          location?: string | null;
+          event_type?: string;
+          start_at: string;
+          end_at: string;
+          all_day?: boolean;
+          color?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          course_id?: string | null;
+          title?: string;
+          description?: string | null;
+          location?: string | null;
+          event_type?: string;
+          start_at?: string;
+          end_at?: string;
+          all_day?: boolean;
+          color?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "schedule_events_course_id_fkey";
+            columns: ["course_id"];
+            isOneToOne: false;
+            referencedRelation: "courses";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       academic_settings: {
         Row: {
           id: string;
