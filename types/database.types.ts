@@ -445,6 +445,8 @@ export interface Database {
           course_id: string | null;
           title: string;
           content: string | null;
+          favorite: boolean;
+          tags: string[];
           created_at: string;
           updated_at: string;
         };
@@ -454,6 +456,8 @@ export interface Database {
           course_id?: string | null;
           title: string;
           content?: string | null;
+          favorite?: boolean;
+          tags?: string[];
           created_at?: string;
           updated_at?: string;
         };
@@ -463,8 +467,151 @@ export interface Database {
           course_id?: string | null;
           title?: string;
           content?: string | null;
+          favorite?: boolean;
+          tags?: string[];
           created_at?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      flashcards: {
+        Row: {
+          id: string;
+          user_id: string;
+          course_id: string | null;
+          note_id: string | null;
+          front: string;
+          back: string;
+          tags: string[];
+          is_known: boolean;
+          correct_count: number;
+          incorrect_count: number;
+          last_reviewed: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          course_id?: string | null;
+          note_id?: string | null;
+          front: string;
+          back: string;
+          tags?: string[];
+          is_known?: boolean;
+          correct_count?: number;
+          incorrect_count?: number;
+          last_reviewed?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          course_id?: string | null;
+          note_id?: string | null;
+          front?: string;
+          back?: string;
+          tags?: string[];
+          is_known?: boolean;
+          correct_count?: number;
+          incorrect_count?: number;
+          last_reviewed?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      quizzes: {
+        Row: {
+          id: string;
+          user_id: string;
+          course_id: string | null;
+          title: string;
+          description: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          course_id?: string | null;
+          title: string;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          course_id?: string | null;
+          title?: string;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      quiz_questions: {
+        Row: {
+          id: string;
+          quiz_id: string;
+          question_text: string;
+          question_type: string;
+          options: Json | null;
+          correct_answer: string;
+          explanation: string | null;
+          position: number;
+        };
+        Insert: {
+          id?: string;
+          quiz_id: string;
+          question_text: string;
+          question_type: string;
+          options?: Json | null;
+          correct_answer: string;
+          explanation?: string | null;
+          position?: number;
+        };
+        Update: {
+          id?: string;
+          quiz_id?: string;
+          question_text?: string;
+          question_type?: string;
+          options?: Json | null;
+          correct_answer?: string;
+          explanation?: string | null;
+          position?: number;
+        };
+        Relationships: [];
+      };
+      quiz_attempts: {
+        Row: {
+          id: string;
+          quiz_id: string;
+          user_id: string;
+          answers: Json;
+          score: number;
+          total: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          quiz_id: string;
+          user_id: string;
+          answers: Json;
+          score: number;
+          total: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          quiz_id?: string;
+          user_id?: string;
+          answers?: Json;
+          score?: number;
+          total?: number;
+          created_at?: string;
         };
         Relationships: [];
       };

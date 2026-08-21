@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BookOpen,
+  BookMarked,
   CalendarDays,
   LayoutDashboard,
   ListTodo,
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
   { label: "Courses", href: "/dashboard/courses", icon: BookOpen },
   { label: "Schedule", href: "/dashboard/schedule", icon: CalendarDays },
   { label: "Tasks", href: "/dashboard/tasks", icon: ListTodo },
+  { label: "Study Hub", href: "/dashboard/study", icon: BookMarked },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
