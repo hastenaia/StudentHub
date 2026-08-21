@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, KeyRound, Mail, Plug, ShieldCheck, UserCircle } from "lucide-react";
+import { BookOpen, KeyRound, Plug, ShieldCheck, UserCircle, Palette, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
   Card,
@@ -10,10 +10,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-import { getInitials } from "@/utils/validation";
 import { getGoogleAccountView } from "@/services/academics.service";
 import { GoogleConnectionCard } from "@/components/settings/GoogleConnectionCard";
 import { ManualCoursesCard } from "@/components/settings/ManualCoursesCard";
+import { ProfileCard } from "@/components/settings/ProfileCard";
+import { PreferencesCard } from "@/components/settings/PreferencesCard";
+import { AccountCard } from "@/components/settings/AccountCard";
 import type { DashboardCourse } from "@/types/academics";
 
 export const metadata: Metadata = { title: "Settings — StudentHub" };
@@ -30,8 +32,13 @@ export default async function SettingsPage() {
     return <p className="text-sm text-gray-500">You need to be signed in to view this page.</p>;
   }
 
-  const [account, manualCourses] = await Promise.all([
+  const [account, profileRes, manualCoursesRes] = await Promise.all([
     getGoogleAccountView(user.id),
+    supabase
+      .from("profiles")
+      .select("timezone, theme, default_calendar_view, default_task_view, notifications_enabled, full_name, avatar_url")
+      .eq("id", user.id)
+      .maybeSingle(),
     supabase
       .from("courses")
       .select("*")
@@ -40,7 +47,9 @@ export default async function SettingsPage() {
       .order("created_at"),
   ]);
 
-  const manualCourseViews: DashboardCourse[] = (manualCourses.data ?? []).map((c) => ({
+  const profile = profileRes.data;
+
+  const manualCourseViews: DashboardCourse[] = (manualCoursesRes.data ?? []).map((c) => ({
     id: c.id,
     name: c.name,
     section: c.section,
@@ -52,11 +61,21 @@ export default async function SettingsPage() {
     upcomingAssignments: [],
   }));
 
+  const timezone = (profile as { timezone?: string } | null)?.timezone ?? "UTC";
+  const theme = ((profile as { theme?: string } | null)?.theme as "light" | "dark" | "system") ?? "system";
+  const defaultCalendarView = ((profile as { default_calendar_view?: string } | null)?.default_calendar_view as "month" | "week" | "day" | "agenda") ?? "month";
+  const defaultTaskView = ((profile as { default_task_view?: string } | null)?.default_task_view as "kanban" | "list") ?? "kanban";
+  const notificationsEnabled = (profile as { notifications_enabled?: boolean } | null)?.notifications_enabled ?? true;
+
+  // Prefer profile full_name if exists, else metadata
+  const displayName = ((profile as { full_name?: string | null } | null)?.full_name ?? fullName) as string;
+  const avatarUrl = ((profile as { avatar_url?: string | null } | null)?.avatar_url ?? (user.user_metadata?.avatar_url as string | null) ?? null) as string | null;
+
   return (
     <div className="max-w-3xl space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-brand-dark">Account settings</h2>
-        <p className="mt-1 text-sm text-gray-500">Manage your profile, Google, and courses.</p>
+        <p className="mt-1 text-sm text-gray-500">Manage your profile, Google, and preferences.</p>
       </div>
 
       <Card>
@@ -64,17 +83,10 @@ export default async function SettingsPage() {
           <CardTitle className="flex items-center gap-2">
             <UserCircle className="h-5 w-5 text-brand-royal" /> Profile
           </CardTitle>
+          <CardDescription>Name, email, avatar and timezone.</CardDescription>
         </CardHeader>
-        <CardContent className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-royal text-xl font-semibold text-white">
-            {getInitials(fullName)}
-          </div>
-          <div>
-            <p className="font-medium text-brand-dark">{fullName}</p>
-            <p className="flex items-center gap-1.5 text-sm text-gray-500">
-              <Mail className="h-3.5 w-3.5" /> {user?.email}
-            </p>
-          </div>
+        <CardContent>
+          <ProfileCard initialName={displayName} email={user.email ?? null} avatarUrl={avatarUrl} initialTimezone={timezone} />
         </CardContent>
       </Card>
 
@@ -84,7 +96,7 @@ export default async function SettingsPage() {
             <Plug className="h-5 w-5 text-brand-royal" /> Google
           </CardTitle>
           <CardDescription>
-            Connect read-only access to your Google Calendar and Classroom to power the dashboard.
+            Connect read-only access to your Google Calendar and Classroom to power the dashboard. Grades are never synced.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -95,11 +107,26 @@ export default async function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
+            <Palette className="h-5 w-5 text-brand-royal" /> Preferences
+          </CardTitle>
+          <CardDescription>Theme, default views and notifications.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PreferencesCard
+            initialTheme={theme}
+            initialCalendarView={defaultCalendarView}
+            initialTaskView={defaultTaskView}
+            initialNotifications={notificationsEnabled}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-brand-royal" /> Manual courses
           </CardTitle>
-          <CardDescription>
-            Add courses that aren&apos;t on Google Classroom.
-          </CardDescription>
+          <CardDescription>Add courses that aren&apos;t on Google Classroom.</CardDescription>
         </CardHeader>
         <CardContent>
           <ManualCoursesCard courses={manualCourseViews} />
@@ -120,6 +147,18 @@ export default async function SettingsPage() {
           <Link href="/change-password" className={buttonVariants({ variant: "outline", size: "sm" })}>
             <KeyRound className="h-4 w-4" /> Change password
           </Link>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LogOut className="h-5 w-5 text-brand-royal" /> Account
+          </CardTitle>
+          <CardDescription>Sign out or permanently delete your account and data.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AccountCard />
         </CardContent>
       </Card>
     </div>

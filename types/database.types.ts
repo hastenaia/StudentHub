@@ -24,6 +24,11 @@ export interface Database {
           avatar_url: string | null;
           role: UserRole;
           must_change_password: boolean;
+          timezone: string;
+          theme: string;
+          default_calendar_view: string;
+          default_task_view: string;
+          notifications_enabled: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -33,6 +38,11 @@ export interface Database {
           avatar_url?: string | null;
           role?: UserRole;
           must_change_password?: boolean;
+          timezone?: string;
+          theme?: string;
+          default_calendar_view?: string;
+          default_task_view?: string;
+          notifications_enabled?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -42,6 +52,11 @@ export interface Database {
           avatar_url?: string | null;
           role?: UserRole;
           must_change_password?: boolean;
+          timezone?: string;
+          theme?: string;
+          default_calendar_view?: string;
+          default_task_view?: string;
+          notifications_enabled?: boolean;
           created_at?: string;
           updated_at?: string;
         };

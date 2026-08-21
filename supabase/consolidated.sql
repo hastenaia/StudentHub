@@ -28,6 +28,11 @@ create table if not exists public.profiles (
   avatar_url text,
   role public.user_role not null default 'student',
   must_change_password boolean not null default true,
+  timezone text not null default 'UTC',
+  theme text not null default 'system' check (theme in ('light','dark','system')),
+  default_calendar_view text not null default 'month' check (default_calendar_view in ('month','week','day','agenda')),
+  default_task_view text not null default 'kanban' check (default_task_view in ('kanban','list')),
+  notifications_enabled boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
