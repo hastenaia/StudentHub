@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  BarChart3,
   BookOpen,
   BookMarked,
   CalendarDays,
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { label: "Study Hub", href: "/dashboard/study", icon: BookMarked },
   { label: "Focus", href: "/dashboard/focus", icon: Timer },
   { label: "Wellness", href: "/dashboard/wellness", icon: Heart },
+  { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
