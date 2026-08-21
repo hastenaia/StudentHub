@@ -52,23 +52,25 @@ export const flashcardsClientService = {
 
   async markKnown(id: string, known: boolean): Promise<ApiResult> {
     const supabase = createClient();
-    const { data, error } = await supabase
+    const { data: current, error: fetchError } = await supabase
       .from("flashcards")
-      .update({
-        is_known: known,
-        last_reviewed: new Date().toISOString(),
-        correct_count: known ? undefined : undefined,
-      })
+      .select("correct_count, incorrect_count")
       .eq("id", id)
-      .select()
       .single();
+    if (fetchError) return fail(fetchError.message);
+    const patch = known
+      ? {
+          is_known: true,
+          last_reviewed: new Date().toISOString(),
+          correct_count: ((current as { correct_count: number }).correct_count ?? 0) + 1,
+        }
+      : {
+          is_known: false,
+          last_reviewed: new Date().toISOString(),
+          incorrect_count: ((current as { incorrect_count: number }).incorrect_count ?? 0) + 1,
+        };
+    const { error } = await supabase.from("flashcards").update(patch).eq("id", id);
     if (error) return fail(error.message);
-    // Increment counters via rpc-like logic: fetch current then update
-    const current = data as unknown as { correct_count: number; incorrect_count: number };
-    const patch: Record<string, unknown> = known
-      ? { correct_count: (current.correct_count ?? 0) + 1 }
-      : { incorrect_count: (current.incorrect_count ?? 0) + 1 };
-    await supabase.from("flashcards").update(patch).eq("id", id);
     return ok(known ? "Marked as known" : "Marked as unknown");
   },
 };
