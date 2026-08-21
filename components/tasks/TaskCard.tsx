@@ -3,11 +3,12 @@
 import * as React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CheckCircle2, Clock, Pencil, Repeat, Trash2 } from "lucide-react";
+import { CheckCircle2, Clock, Pencil, Repeat, Timer, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/utils/cn";
 import { formatDueLabel, isOverdue } from "@/utils/date";
 import { formatRecurrenceLabel } from "@/lib/scheduling";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import type { Task, TaskPriority } from "@/types/tasks";
 
 const PRIORITY_BADGE: Record<TaskPriority, string> = {
@@ -140,6 +141,13 @@ const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(
         )}
 
         <div className="mt-2 flex items-center justify-end gap-1 border-t border-gray-100 pt-2 opacity-0 transition-opacity group-hover:opacity-100">
+          <Link
+            href={`/dashboard/focus?taskId=${task.id}`}
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+            aria-label="Start focus"
+          >
+            <Timer className="h-3.5 w-3.5" />
+          </Link>
           <Button variant="ghost" size="sm" onClick={() => onEdit(task)} aria-label="Edit task">
             <Pencil className="h-3.5 w-3.5" />
           </Button>

@@ -17,7 +17,6 @@ type Mode = "focus" | "break";
 interface PomodoroTimerProps {
   initialTask?: Task | null;
   tasks?: Task[];
-  courses?: { id: string; name: string }[];
 }
 
 const STORAGE_KEY = "studenthub:PomodoroTimer:v1";
@@ -42,7 +41,7 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export function PomodoroTimer({ initialTask, tasks = [], courses = [] }: PomodoroTimerProps) {
+export function PomodoroTimer({ initialTask, tasks = [] }: PomodoroTimerProps) {
   const { toast } = useToast();
 
   const [preset, setPreset] = React.useState<Preset>("25/5");
@@ -63,6 +62,7 @@ export function PomodoroTimer({ initialTask, tasks = [], courses = [] }: Pomodor
   const selectedTask = React.useMemo(() => tasks.find((t) => t.id === selectedTaskId) ?? initialTask ?? null, [tasks, selectedTaskId, initialTask]);
 
   // Initialize from preset
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   React.useEffect(() => {
     if (preset === "25/5") {
       setFocusMinutes(25);
@@ -76,6 +76,7 @@ export function PomodoroTimer({ initialTask, tasks = [], courses = [] }: Pomodor
   }, [preset, isRunning]);
 
   // Custom preset handling
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   React.useEffect(() => {
     if (preset === "custom") {
       const f = parseInt(customFocus, 10);
@@ -97,7 +98,6 @@ export function PomodoroTimer({ initialTask, tasks = [], courses = [] }: Pomodor
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const saved: PersistedState = JSON.parse(raw);
-      // Only restore if it was running or paused recently (within 4 hours)
       const age = saved.startAt ? Date.now() - new Date(saved.startAt).getTime() : Infinity;
       if (age > 4 * 60 * 60 * 1000) {
         localStorage.removeItem(STORAGE_KEY);
@@ -152,6 +152,59 @@ export function PomodoroTimer({ initialTask, tasks = [], courses = [] }: Pomodor
     } catch {}
   }, [focusMinutes, breakMinutes, preset, mode, remaining, isRunning, isPaused, startAt, pausedRemaining, selectedTaskId, selectedCourseId]);
 
+  const handleComplete = React.useCallback(async () => {
+    const wasFocus = mode === "focus";
+    const completedDuration = wasFocus ? focusMinutes : breakMinutes;
+    const startedAt = startAt ?? new Date(Date.now() - completedDuration * 60 * 1000).toISOString();
+    const endedAt = new Date().toISOString();
+
+    try {
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = wasFocus ? 880 : 440;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5);
+    } catch {}
+
+    if (wasFocus) {
+      const res = await focusClientService.completePomodoro(
+        completedDuration,
+        startedAt,
+        endedAt,
+        selectedTaskId,
+        selectedCourseId ?? selectedTask?.courseId ?? null
+      );
+      if (res.success) {
+        toast({ title: "Focus session saved", description: `${completedDuration} min • ${selectedTask ? selectedTask.title : "No task"}`, variant: "success" });
+      } else {
+        toast({ title: "Could not save session", description: res.message, variant: "error" });
+      }
+      setMode("break");
+      setRemaining(breakMinutes * 60);
+      setStartAt(new Date().toISOString());
+      setIsRunning(true);
+      setIsPaused(false);
+      setPausedRemaining(null);
+    } else {
+      toast({ title: "Break complete", description: "Ready for next focus?", variant: "success" });
+      setMode("focus");
+      setRemaining(focusMinutes * 60);
+      setStartAt(new Date().toISOString());
+      setIsRunning(true);
+      setIsPaused(false);
+      setPausedRemaining(null);
+    }
+
+    try {
+      if (navigator.vibrate) navigator.vibrate(wasFocus ? [100, 50, 100] : 50);
+    } catch {}
+  }, [mode, focusMinutes, breakMinutes, startAt, selectedTaskId, selectedCourseId, selectedTask, toast]);
+
   // Timer tick — Date-based to handle tab switching
   React.useEffect(() => {
     if (!isRunning || isPaused || !startAt) return;
@@ -169,7 +222,6 @@ export function PomodoroTimer({ initialTask, tasks = [], courses = [] }: Pomodor
     };
 
     const id = window.setInterval(tick, 250);
-    // Also handle visibility change
     const onVisible = () => {
       if (document.visibilityState === "visible") tick();
     };
@@ -178,75 +230,11 @@ export function PomodoroTimer({ initialTask, tasks = [], courses = [] }: Pomodor
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRunning, isPaused, startAt, mode, focusMinutes, breakMinutes]);
-
-  const handleComplete = async () => {
-    const wasFocus = mode === "focus";
-    const completedDuration = wasFocus ? focusMinutes : breakMinutes;
-    const startedAt = startAt ?? new Date(Date.now() - completedDuration * 60 * 1000).toISOString();
-    const endedAt = new Date().toISOString();
-
-    // Play notification sound (Web Audio beep)
-    try {
-      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = wasFocus ? 880 : 440;
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.5);
-    } catch {}
-
-    // Save focus session only for focus mode
-    if (wasFocus) {
-      const res = await focusClientService.completePomodoro(
-        completedDuration,
-        startedAt,
-        endedAt,
-        selectedTaskId,
-        selectedCourseId ?? selectedTask?.courseId ?? null
-      );
-      if (res.success) {
-        toast({ title: "Focus session saved", description: `${completedDuration} min • ${selectedTask ? selectedTask.title : "No task"}`, variant: "success" });
-      } else {
-        toast({ title: "Could not save session", description: res.message, variant: "error" });
-      }
-      // Auto-switch to break
-      setMode("break");
-      setRemaining(breakMinutes * 60);
-      setStartAt(new Date().toISOString());
-      // Keep running? For Pomodoro, auto-start break is common, but we pause to let user control
-      // We'll keep running but switch mode
-      setIsRunning(true);
-      setIsPaused(false);
-      setPausedRemaining(null);
-    } else {
-      // Break completed → switch to focus
-      toast({ title: "Break complete", description: "Ready for next focus?", variant: "success" });
-      setMode("focus");
-      setRemaining(focusMinutes * 60);
-      setStartAt(new Date().toISOString());
-      setIsRunning(true);
-      setIsPaused(false);
-      setPausedRemaining(null);
-    }
-
-    // Haptics if available
-    try {
-      if (navigator.vibrate) navigator.vibrate(wasFocus ? [100, 50, 100] : 50);
-    } catch {}
-
-    // Keep isRunning true for next interval (auto-continue pomodoro)
-  };
+  }, [isRunning, isPaused, startAt, mode, focusMinutes, breakMinutes, handleComplete]);
 
   const handleStart = () => {
     if (isRunning && !isPaused) return;
     if (isPaused && pausedRemaining !== null) {
-      // Resume
       const total = mode === "focus" ? focusMinutes * 60 : breakMinutes * 60;
       const elapsed = total - pausedRemaining;
       const newStart = new Date(Date.now() - elapsed * 1000).toISOString();
@@ -255,7 +243,6 @@ export function PomodoroTimer({ initialTask, tasks = [], courses = [] }: Pomodor
       setIsRunning(true);
       setPausedRemaining(null);
     } else {
-      // Fresh start
       setStartAt(new Date().toISOString());
       setIsRunning(true);
       setIsPaused(false);
@@ -290,7 +277,6 @@ export function PomodoroTimer({ initialTask, tasks = [], courses = [] }: Pomodor
   };
 
   const handleSkip = () => {
-    // Skip without saving (for focus, don't save partial)
     const nextMode: Mode = mode === "focus" ? "break" : "focus";
     setMode(nextMode);
     setRemaining(nextMode === "focus" ? focusMinutes * 60 : breakMinutes * 60);
@@ -302,7 +288,7 @@ export function PomodoroTimer({ initialTask, tasks = [], courses = [] }: Pomodor
   };
 
   const handlePresetChange = (p: Preset) => {
-    if (isRunning) return; // don't allow preset change while running
+    if (isRunning) return;
     setPreset(p);
   };
 
@@ -319,7 +305,6 @@ export function PomodoroTimer({ initialTask, tasks = [], courses = [] }: Pomodor
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Presets */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-gray-500">Preset:</span>
           <Button
@@ -361,16 +346,18 @@ export function PomodoroTimer({ initialTask, tasks = [], courses = [] }: Pomodor
           )}
         </div>
 
-        {/* Task association */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
           <div className="flex-1">
             <Label className="text-xs">Focus task (optional)</Label>
-            <Select value={selectedTaskId ?? ""} onChange={(e) => {
-              const id = e.target.value || null;
-              setSelectedTaskId(id);
-              const t = tasks.find((x) => x.id === id);
-              if (t?.courseId) setSelectedCourseId(t.courseId);
-            }}>
+            <Select
+              value={selectedTaskId ?? ""}
+              onChange={(e) => {
+                const id = e.target.value || null;
+                setSelectedTaskId(id);
+                const t = tasks.find((x) => x.id === id);
+                if (t?.courseId) setSelectedCourseId(t.courseId);
+              }}
+            >
               <option value="">No task — general focus</option>
               {tasks.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -386,7 +373,6 @@ export function PomodoroTimer({ initialTask, tasks = [], courses = [] }: Pomodor
           )}
         </div>
 
-        {/* Timer display */}
         <div className="flex flex-col items-center gap-4 py-2">
           <div className="relative flex h-48 w-48 items-center justify-center rounded-full border-4 border-gray-100 bg-white shadow-inner">
             <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 100 100">
@@ -410,7 +396,6 @@ export function PomodoroTimer({ initialTask, tasks = [], courses = [] }: Pomodor
             </div>
           </div>
 
-          {/* Controls */}
           <div className="flex flex-wrap items-center justify-center gap-2">
             {!isRunning ? (
               <Button onClick={handleStart} size="lg" className="gap-2">

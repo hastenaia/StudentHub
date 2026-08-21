@@ -70,6 +70,7 @@ export function ChillHub() {
     const data = buffer.getChannelData(0);
     let lastOut = 0;
     for (let i = 0; i < bufferSize; i++) {
+      // eslint-disable-next-line react-hooks/purity
       const white = Math.random() * 2 - 1;
       lastOut = lastOut * 0.99 + white * 0.01;
       data[i] = lastOut * 3.5;
@@ -143,6 +144,7 @@ export function ChillHub() {
       for (let i = 0; i < 2; i++) {
         const osc = ctx.createOscillator();
         osc.type = "sine";
+        // eslint-disable-next-line react-hooks/purity
         osc.frequency.value = 180 + Math.random() * 40;
         const g = ctx.createGain();
         g.gain.value = 0.02;
@@ -164,6 +166,7 @@ export function ChillHub() {
       for (let i = 0; i < 3; i++) {
         const osc = ctx.createOscillator();
         osc.type = "sine";
+        // eslint-disable-next-line react-hooks/purity
         osc.frequency.value = 2000 + Math.random() * 1000;
         const g = ctx.createGain();
         g.gain.value = 0;
@@ -177,9 +180,12 @@ export function ChillHub() {
           g.gain.setValueAtTime(0, now);
           g.gain.linearRampToValueAtTime(0.08, now + 0.05);
           g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+          // eslint-disable-next-line react-hooks/purity
           osc.frequency.setValueAtTime(1800 + Math.random() * 1200, now);
+          // eslint-disable-next-line react-hooks/purity
           setTimeout(chirp, 3000 + Math.random() * 5000);
         };
+        // eslint-disable-next-line react-hooks/purity
         setTimeout(chirp, 1000 + Math.random() * 2000);
         oscillators.push(osc);
       }
@@ -198,11 +204,13 @@ export function ChillHub() {
   };
 
   React.useEffect(() => {
+    const nodes = nodesRef.current;
+    const audio = audioRef.current;
     return () => {
       try {
-        audioRef.current?.close();
+        audio?.close();
       } catch {}
-      nodesRef.current.forEach((n) => {
+      nodes.forEach((n) => {
         try { n.source?.stop(); } catch {}
         n.oscillators.forEach((o) => { try { o.stop(); } catch {} });
       });
