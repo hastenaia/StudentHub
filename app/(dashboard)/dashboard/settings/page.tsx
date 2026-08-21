@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, GraduationCap, KeyRound, Mail, Plug, ShieldCheck, UserCircle } from "lucide-react";
+import { BookOpen, KeyRound, Mail, Plug, ShieldCheck, UserCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
   Card,
@@ -11,9 +11,8 @@ import {
 } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { getInitials } from "@/utils/validation";
-import { getAcademicSettings, getGoogleAccountView } from "@/services/academics.service";
+import { getGoogleAccountView } from "@/services/academics.service";
 import { GoogleConnectionCard } from "@/components/settings/GoogleConnectionCard";
-import { AcademicSettingsCard } from "@/components/settings/AcademicSettingsCard";
 import { ManualCoursesCard } from "@/components/settings/ManualCoursesCard";
 import type { DashboardCourse } from "@/types/academics";
 
@@ -31,9 +30,8 @@ export default async function SettingsPage() {
     return <p className="text-sm text-gray-500">You need to be signed in to view this page.</p>;
   }
 
-  const [account, settings, manualCourses] = await Promise.all([
+  const [account, manualCourses] = await Promise.all([
     getGoogleAccountView(user.id),
-    getAcademicSettings(user.id),
     supabase
       .from("courses")
       .select("*")
@@ -51,11 +49,6 @@ export default async function SettingsPage() {
     color: c.color,
     source: "manual",
     creditHours: Number(c.credit_hours ?? 0),
-    gradePoints: c.manual_grade != null ? Number(c.manual_grade) : null,
-    progress: null,
-    targetPct: c.target_pct != null ? Number(c.target_pct) : null,
-    weightedPoints:
-      c.manual_grade != null ? Number(c.manual_grade) * Number(c.credit_hours ?? 0) : null,
     upcomingAssignments: [],
   }));
 
@@ -63,7 +56,7 @@ export default async function SettingsPage() {
     <div className="max-w-3xl space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-brand-dark">Account settings</h2>
-        <p className="mt-1 text-sm text-gray-500">Manage your profile, Google, and academics.</p>
+        <p className="mt-1 text-sm text-gray-500">Manage your profile, Google, and courses.</p>
       </div>
 
       <Card>
@@ -102,28 +95,14 @@ export default async function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <GraduationCap className="h-5 w-5 text-brand-royal" /> Academic settings
-          </CardTitle>
-          <CardDescription>
-            Set your GPA goal and grading scale — used for the projection on the dashboard.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AcademicSettingsCard settings={settings} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-brand-royal" /> Manual courses
           </CardTitle>
           <CardDescription>
-            Add courses that aren&apos;t on Google Classroom so they still count toward your GPA.
+            Add courses that aren&apos;t on Google Classroom.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ManualCoursesCard courses={manualCourseViews} gradeScale={settings.gradeScale} />
+          <ManualCoursesCard courses={manualCourseViews} />
         </CardContent>
       </Card>
 

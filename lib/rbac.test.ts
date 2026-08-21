@@ -16,13 +16,9 @@ describe("hasRole", () => {
 });
 
 describe("getRequiredRoles", () => {
-  it("returns roles for staff-only routes", () => {
-    expect(getRequiredRoles("/dashboard/students")).toEqual(["teacher", "admin"]);
-    expect(getRequiredRoles("/dashboard/students?q=1")).toEqual(["teacher", "admin"]);
-  });
-
   it("returns null for open routes", () => {
     expect(getRequiredRoles("/dashboard")).toBeNull();
     expect(getRequiredRoles("/dashboard/courses")).toBeNull();
+    expect(getRequiredRoles("/dashboard/students")).toBeNull();
   });
 });

@@ -15,7 +15,6 @@ import {
   listAnnouncements,
   listCourseWork,
   listCourses,
-  listStudentSubmissions,
 } from "./classroom.service";
 import { buildWindow, listEvents } from "./calendar.service";
 
@@ -196,8 +195,7 @@ async function performSync(
         room: gc.room ?? null,
         teacher_name: gc.ownerId ?? null,
         color: null,
-        credit_hours: 3, // students commonly take 3-credit courses; adjustable in settings
-        manual_grade: null,
+        credit_hours: 3,
         archived: false,
       })),
       { onConflict: "user_id,google_course_id" }
@@ -230,15 +228,13 @@ async function performSync(
   }
 
   // --- Assignments ----------------------------------------------------------
+  // Grades are intentionally ignored — only informational fields are synced.
   const assignmentRows: Database["public"]["Tables"]["assignments"]["Insert"][] = [];
   const syncedWorkIds = new Set<string>();
 
   for (const [googleCourseId, dbCourseId] of courseIdByGoogle) {
     const courseWork = await listCourseWork(accessToken, googleCourseId);
     for (const cw of courseWork) {
-      const submissions = await listStudentSubmissions(accessToken, googleCourseId, cw.id);
-      const mine = submissions[0]; // student eyes only their own submission
-
       syncedWorkIds.add(cw.id);
       assignmentRows.push({
         user_id: userId,
@@ -247,10 +243,8 @@ async function performSync(
         title: cw.title || "Untitled assignment",
         description: cw.description ?? null,
         due_at: classroomDateToIso(cw.dueDate, cw.dueTime),
-        max_points: cw.maxPoints ?? null,
-        grade: mine?.assignedGrade ?? null,
-        submitted: Boolean(mine),
-        state: mine?.state ?? null,
+        submitted: false,
+        state: null,
       });
     }
   }

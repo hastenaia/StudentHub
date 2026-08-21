@@ -85,7 +85,7 @@ export function GoogleConnectionCard({ account }: GoogleConnectionCardProps) {
       </div>
       <p className="text-xs text-gray-500">
         Sync pulls your latest Google data on demand. Disconnecting removes your cached
-        classrooms and grades but keeps your StudentHub account.
+        classrooms and calendar events but keeps your StudentHub account.
       </p>
     </div>
   );

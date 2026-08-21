@@ -8,37 +8,27 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { manualCourseSchema, type ManualCourseInput } from "@/lib/validations/academics";
-import { pointsToLetter } from "@/lib/gpa";
 import { academicsClientService } from "@/services/academicsClient.service";
 import { useToast } from "@/hooks/useToast";
 import type { DashboardCourse } from "@/types/academics";
 
 interface ManualCoursesCardProps {
   courses: DashboardCourse[];
-  gradeScale: Record<string, number>;
-}
-
-const NO_GRADE = "__none__";
-
-function gradeOptionsKeys(scale: Record<string, number>): string[] {
-  return Object.keys(scale).sort((a, b) => (scale[b] ?? 0) - (scale[a] ?? 0));
 }
 
 /**
  * Manual course management. Students who aren't (fully) on Google Classroom
- * can still track courses and grades here; those grades and credits feed the
- * same GPA math as Classroom data.
+ * can still track courses here.
  */
-export function ManualCoursesCard({ courses, gradeScale }: ManualCoursesCardProps) {
+export function ManualCoursesCard({ courses }: ManualCoursesCardProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [editingId, setEditingId] = React.useState<string | null>(null);
 
   const addForm = useForm<ManualCourseInput>({
     resolver: zodResolver(manualCourseSchema),
-    defaultValues: { name: "", creditHours: "3", gradeLetter: NO_GRADE },
+    defaultValues: { name: "", creditHours: "3" },
   });
 
   const editForm = useForm<ManualCourseInput>({
@@ -61,11 +51,10 @@ export function ManualCoursesCard({ courses, gradeScale }: ManualCoursesCardProp
         academicsClientService.addManualCourse({
           name: input.name,
           creditHours: Number(input.creditHours),
-          gradePoints: toPoints(input.gradeLetter, gradeScale),
         }),
       "Course added"
     );
-    addForm.reset({ name: "", creditHours: "3", gradeLetter: NO_GRADE });
+    addForm.reset({ name: "", creditHours: "3" });
   };
 
   const startEdit = (course: DashboardCourse) => {
@@ -73,8 +62,6 @@ export function ManualCoursesCard({ courses, gradeScale }: ManualCoursesCardProp
     editForm.reset({
       name: course.name,
       creditHours: String(course.creditHours),
-      gradeLetter:
-        course.gradePoints != null ? (pointsToLetter(course.gradePoints, gradeScale) ?? NO_GRADE) : NO_GRADE,
     });
   };
 
@@ -86,7 +73,6 @@ export function ManualCoursesCard({ courses, gradeScale }: ManualCoursesCardProp
           id: editingId,
           name: input.name,
           creditHours: Number(input.creditHours),
-          gradePoints: toPoints(input.gradeLetter, gradeScale),
         }),
       "Course updated"
     );
@@ -99,7 +85,7 @@ export function ManualCoursesCard({ courses, gradeScale }: ManualCoursesCardProp
       <Form {...addForm}>
         <form
           onSubmit={addForm.handleSubmit(onAdd)}
-          className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] lg:grid-cols-[2fr_1fr_1fr_auto]"
+          className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] lg:grid-cols-[2fr_1fr_auto]"
           noValidate
         >
           <FormField
@@ -121,25 +107,6 @@ export function ManualCoursesCard({ courses, gradeScale }: ManualCoursesCardProp
                 <FormLabel>Credits</FormLabel>
                 <FormControl>
                   <Input type="number" step="0.5" min="0.5" max="20" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            name="gradeLetter"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Grade</FormLabel>
-                <FormControl>
-                  <Select {...field}>
-                    <option value={NO_GRADE}>No grade yet</option>
-                    {gradeOptionsKeys(gradeScale).map((letter) => (
-                      <option key={letter} value={letter}>
-                        {letter}
-                      </option>
-                    ))}
-                  </Select>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -168,7 +135,7 @@ export function ManualCoursesCard({ courses, gradeScale }: ManualCoursesCardProp
                 <Form {...editForm}>
                   <form
                     onSubmit={editForm.handleSubmit(onEdit)}
-                    className="grid w-full grid-cols-1 gap-3 sm:grid-cols-[2fr_1fr_1fr_auto_auto] sm:items-end"
+                    className="grid w-full grid-cols-1 gap-3 sm:grid-cols-[2fr_1fr_auto_auto] sm:items-end"
                     noValidate
                   >
                     <FormField
@@ -195,25 +162,6 @@ export function ManualCoursesCard({ courses, gradeScale }: ManualCoursesCardProp
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      name="gradeLetter"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Grade</FormLabel>
-                          <FormControl>
-                            <Select {...field}>
-                              <option value={NO_GRADE}>No grade</option>
-                              {gradeOptionsKeys(gradeScale).map((letter) => (
-                                <option key={letter} value={letter}>
-                                  {letter}
-                                </option>
-                              ))}
-                            </Select>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                     <Button type="submit" size="sm" isLoading={editForm.formState.isSubmitting}>
                       <Save className="h-4 w-4" /> Save
                     </Button>
@@ -234,11 +182,6 @@ export function ManualCoursesCard({ courses, gradeScale }: ManualCoursesCardProp
                     <p className="text-xs text-gray-500">{course.creditHours} credits</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-brand-royal">
-                      {course.gradePoints != null
-                        ? pointsToLetter(course.gradePoints, gradeScale) ?? course.gradePoints.toFixed(2)
-                        : "No grade"}
-                    </span>
                     <Button variant="ghost" size="sm" onClick={() => startEdit(course)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -261,10 +204,4 @@ export function ManualCoursesCard({ courses, gradeScale }: ManualCoursesCardProp
       )}
     </div>
   );
-}
-
-function toPoints(letter: string | undefined, scale: Record<string, number>): number | null {
-  if (!letter || letter === NO_GRADE) return null;
-  const points = scale[letter];
-  return points != null ? points : null;
 }

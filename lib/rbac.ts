@@ -35,10 +35,10 @@ export function hasRole(role: UserRole, required: UserRole): boolean {
 /**
  * Route-level access map. Keys are path prefixes, values are the roles
  * allowed to view them. More-specific (longer) prefixes win.
+ * Currently no route requires elevated roles after the Students directory
+ * was removed — the array is kept for future RBAC needs.
  */
-export const ROUTE_ROLES: Array<{ prefix: string; roles: UserRole[] }> = [
-  { prefix: "/dashboard/students", roles: ["teacher", "admin"] },
-];
+export const ROUTE_ROLES: Array<{ prefix: string; roles: UserRole[] }> = [];
 
 /** Returns the roles required for `path`, or null if the path is open. */
 export function getRequiredRoles(path: string): UserRole[] | null {

@@ -7,11 +7,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   BookOpen,
   CalendarDays,
-  GraduationCap,
   LayoutDashboard,
   ListTodo,
   Settings,
-  Users,
   X,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
@@ -21,8 +19,6 @@ const NAV_ITEMS = [
   { label: "Courses", href: "/dashboard/courses", icon: BookOpen },
   { label: "Schedule", href: "/dashboard/schedule", icon: CalendarDays },
   { label: "Tasks", href: "/dashboard/tasks", icon: ListTodo },
-  { label: "Students", href: "/dashboard/students", icon: Users },
-  { label: "Grades", href: "/dashboard/grades", icon: GraduationCap },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 

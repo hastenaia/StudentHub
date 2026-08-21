@@ -7,7 +7,6 @@ import { GoogleOAuthStatus } from "@/components/dashboard/GoogleOAuthStatus";
 import { TodayOverview } from "@/components/dashboard/TodayOverview";
 import { CourseSnapshot } from "@/components/dashboard/CourseSnapshot";
 import { AnnouncementsFeed } from "@/components/dashboard/AnnouncementsFeed";
-import { GpaProjectionCard } from "@/components/dashboard/GpaProjectionCard";
 import { SyncNowCard } from "@/components/dashboard/SyncNowCard";
 
 export const metadata: Metadata = { title: "Dashboard — StudentHub" };
@@ -49,19 +48,18 @@ export default async function DashboardPage() {
       {!data.googleLinked ? (
         <>
           <ConnectGoogleBanner />
-          <CourseSnapshot courses={data.courses} gradeScale={data.gradeScale} />
+          <CourseSnapshot courses={data.courses} />
         </>
       ) : (
         <>
           <SyncNowCard stale={data.stale} lastSyncedAt={data.lastSyncedAt} />
-          <GpaProjectionCard gpa={data.gpa} targetGpa={data.targetGpa} />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <TodayOverview events={data.calendarEvents} upcoming={data.upcoming} />
             <AnnouncementsFeed announcements={data.announcements} />
           </div>
 
-          <CourseSnapshot courses={data.courses} gradeScale={data.gradeScale} />
+          <CourseSnapshot courses={data.courses} />
         </>
       )}
     </div>

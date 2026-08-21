@@ -2,14 +2,12 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { fail, ok, type ApiResult } from "@/types/api";
-import type { GradeScale } from "@/lib/gpa";
-import type { Json } from "@/types/database.types";
 
 /**
- * Client-side academic writes: manual course CRUD, academic settings, and
- * Google disconnection. Mirrors the auth.service.ts pattern — components call
- * the service, not Supabase directly, so providers/logging can be swapped
- * later without touching UI.
+ * Client-side academic writes: manual course CRUD and Google disconnection.
+ * Mirrors the auth.service.ts pattern — components call the service, not
+ * Supabase directly, so providers/logging can be swapped later without
+ * touching UI.
  */
 
 export interface ManualCourseInput {
@@ -17,20 +15,12 @@ export interface ManualCourseInput {
   section?: string | null;
   room?: string | null;
   creditHours: number;
-  /** Grade points on the configured scale (null = ungraded). */
-  gradePoints: number | null;
-}
-
-export interface AcademicSettingsInput {
-  targetGpa: number;
-  gradeScale: GradeScale;
 }
 
 export interface ManualCourseUpdate {
   id: string;
   name?: string;
   creditHours?: number;
-  gradePoints?: number | null;
 }
 
 export const academicsClientService = {
@@ -48,7 +38,6 @@ export const academicsClientService = {
       section: input.section ?? null,
       room: input.room ?? null,
       credit_hours: input.creditHours,
-      manual_grade: input.gradePoints,
       archived: false,
     });
     return error ? fail(error.message) : ok("Course added.");
@@ -61,7 +50,6 @@ export const academicsClientService = {
       .update({
         name: input.name,
         credit_hours: input.creditHours,
-        manual_grade: input.gradePoints,
       })
       .eq("id", input.id)
       .eq("source", "manual");
@@ -74,39 +62,6 @@ export const academicsClientService = {
     return error ? fail(error.message) : ok("Course removed.");
   },
 
-  async saveAcademicSettings(input: AcademicSettingsInput): Promise<ApiResult> {
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return fail("You must be signed in.");
-
-    const { error } = await supabase.from("academic_settings").upsert(
-      {
-        user_id: user.id,
-        target_gpa: input.targetGpa,
-        grade_scale: input.gradeScale as unknown as Json,
-      },
-      { onConflict: "user_id" }
-    );
-    return error ? fail(error.message) : ok("Academic settings saved.");
-  },
-
-  async saveCourseTarget(input: { id: string; targetPct: number | null }): Promise<ApiResult> {
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return fail("You must be signed in.");
-
-    const { error } = await supabase
-      .from("courses")
-      .update({ target_pct: input.targetPct })
-      .eq("id", input.id)
-      .eq("user_id", user.id);
-    return error ? fail(error.message) : ok("Course goal saved.");
-  },
-
   async disconnectGoogle(): Promise<ApiResult> {
     const supabase = createClient();
     const {
@@ -115,9 +70,8 @@ export const academicsClientService = {
     if (!user) return fail("You must be signed in.");
 
     // Only Classroom-sourced data belongs to the Google link — deleting it
-    // cascades to its assignments + announcements. Manual courses are kept so
-    // the GPA still has data after disconnecting. Calendar events have no FK
-    // to courses, so they're removed explicitly.
+    // cascades to its assignments + announcements. Manual courses are kept.
+    // Calendar events have no FK to courses, so they're removed explicitly.
     const { error: coursesError } = await supabase
       .from("courses")
       .delete()
