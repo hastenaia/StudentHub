@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   ListTodo,
   Settings,
+  Timer,
   X,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { label: "Schedule", href: "/dashboard/schedule", icon: CalendarDays },
   { label: "Tasks", href: "/dashboard/tasks", icon: ListTodo },
   { label: "Study Hub", href: "/dashboard/study", icon: BookMarked },
+  { label: "Focus", href: "/dashboard/focus", icon: Timer },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
