@@ -20,7 +20,7 @@ export async function getTasksData(userId: string): Promise<TasksViewData> {
       .order("created_at", { ascending: true }),
     supabase
       .from("courses")
-      .select("id, name, color")
+      .select("id, name, course_name, color")
       .eq("user_id", userId)
       .eq("archived", false)
       .order("name"),
@@ -28,7 +28,7 @@ export async function getTasksData(userId: string): Promise<TasksViewData> {
 
   const courses: TaskCourseOption[] = (coursesRes.data ?? []).map((c) => ({
     id: c.id,
-    name: c.name,
+    name: (c as { course_name?: string | null; name: string }).course_name ?? c.name,
     color: c.color,
   }));
   const courseMap = new Map(courses.map((c) => [c.id, c]));

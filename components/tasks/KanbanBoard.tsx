@@ -20,9 +20,9 @@ import { SortableTaskCard, TaskCard } from "@/components/tasks/TaskCard";
 import { TASK_STATUSES, type Task, type TaskStatus } from "@/types/tasks";
 
 const STATUS_META: Record<TaskStatus, { label: string; dot: string }> = {
-  todo: { label: "To do", dot: "bg-gray-400" },
-  in_progress: { label: "In progress", dot: "bg-amber-500" },
-  done: { label: "Done", dot: "bg-emerald-500" },
+  todo: { label: "TODO", dot: "bg-gray-400" },
+  in_progress: { label: "IN_PROGRESS", dot: "bg-amber-500" },
+  done: { label: "COMPLETED", dot: "bg-emerald-500" },
 };
 
 type Columns = Record<TaskStatus, Task[]>;

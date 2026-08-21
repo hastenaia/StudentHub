@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { LayoutGrid, ListChecks, ListTodo, Plus } from "lucide-react";
+import { LayoutGrid, ListChecks, ListTodo, Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { useToast } from "@/hooks/useToast";
 import { tasksClientService } from "@/services/tasksClient.service";
 import { buildSchedule } from "@/lib/scheduling";
@@ -12,13 +14,16 @@ import { ListView } from "@/components/tasks/ListView";
 import { SuggestedOrderPanel } from "@/components/tasks/SuggestedOrderPanel";
 import { TaskForm } from "@/components/tasks/TaskForm";
 import { cn } from "@/utils/cn";
-import type { Task, TaskDraft, TaskStatus, TasksViewData } from "@/types/tasks";
+import type { Task, TaskDraft, TaskPriority, TaskStatus, TasksViewData } from "@/types/tasks";
+import { TASK_PRIORITIES, TASK_STATUSES } from "@/types/tasks";
 
 interface TasksViewProps {
   initialData: TasksViewData;
 }
 
-/** Client shell for the To-Do Tracker: view toggle, mutations, local state. */
+type SortMode = "smart" | "deadline" | "priority" | "effort" | "created";
+
+/** Client shell for the To-Do Tracker: view toggle, search, filters, sorting, mutations, local state. */
 export function TasksView({ initialData }: TasksViewProps) {
   const { toast } = useToast();
   const [tasks, setTasks] = React.useState<Task[]>(initialData.tasks);
@@ -27,6 +32,13 @@ export function TasksView({ initialData }: TasksViewProps) {
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Task | null>(null);
   const [defaultStatus, setDefaultStatus] = React.useState<TaskStatus>("todo");
+
+  // Search, filter, sort
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [filterStatus, setFilterStatus] = React.useState<TaskStatus | "all">("all");
+  const [filterPriority, setFilterPriority] = React.useState<TaskPriority | "all">("all");
+  const [filterCourse, setFilterCourse] = React.useState<string>("all");
+  const [sortMode, setSortMode] = React.useState<SortMode>("smart");
 
   const courseMap = React.useMemo(() => new Map(courses.map((c) => [c.id, c])), [courses]);
 
@@ -52,6 +64,45 @@ export function TasksView({ initialData }: TasksViewProps) {
           }))
       )
     );
+  };
+
+  const filteredTasks = React.useMemo(() => {
+    let result = [...tasks];
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.title.toLowerCase().includes(q) ||
+          (t.description && t.description.toLowerCase().includes(q)) ||
+          t.tags.some((tag) => tag.toLowerCase().includes(q)) ||
+          (t.courseName && t.courseName.toLowerCase().includes(q))
+      );
+    }
+    if (filterStatus !== "all") {
+      result = result.filter((t) => t.status === filterStatus);
+    }
+    if (filterPriority !== "all") {
+      result = result.filter((t) => t.priority === filterPriority);
+    }
+    if (filterCourse !== "all") {
+      if (filterCourse === "none") {
+        result = result.filter((t) => !t.courseId);
+      } else {
+        result = result.filter((t) => t.courseId === filterCourse);
+      }
+    }
+    return result;
+  }, [tasks, searchQuery, filterStatus, filterPriority, filterCourse]);
+
+  const hasActiveFilters =
+    searchQuery.trim() !== "" || filterStatus !== "all" || filterPriority !== "all" || filterCourse !== "all";
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setFilterStatus("all");
+    setFilterPriority("all");
+    setFilterCourse("all");
+    setSortMode("smart");
   };
 
   const notify = (success: boolean, title: string, description?: string) => {
@@ -99,6 +150,19 @@ export function TasksView({ initialData }: TasksViewProps) {
   };
 
   const handleComplete = async (id: string) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    // Reopen if already done
+    if (task.status === "done") {
+      const result = await tasksClientService.moveTask(id, "todo", 0);
+      if (result.success) {
+        applyTasks(tasks.map((t) => (t.id === id ? { ...t, status: "todo" as TaskStatus, completedAt: null, sortOrder: 0 } : t)));
+        notify(true, "Task reopened", "Moved back to To do.");
+      } else {
+        notify(false, "Couldn't reopen task", result.message);
+      }
+      return;
+    }
     const result = await tasksClientService.completeTask(id);
     const row = result.data;
     if (result.success && row) {
@@ -166,6 +230,88 @@ export function TasksView({ initialData }: TasksViewProps) {
         </Button>
       </div>
 
+      {/* Search, filter, sort toolbar */}
+      <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Input
+              placeholder="Search tasks by title, description, tags, course…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <X className="h-4 w-4" /> Clear filters
+            </Button>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-500">Status:</span>
+            <Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as TaskStatus | "all")}>
+              <option value="all">All</option>
+              {TASK_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s === "todo" ? "TODO" : s === "in_progress" ? "IN PROGRESS" : "COMPLETED"}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-500">Priority:</span>
+            <Select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value as TaskPriority | "all")}>
+              <option value="all">All</option>
+              {TASK_PRIORITIES.map((p) => (
+                <option key={p} value={p} className="capitalize">
+                  {p.toUpperCase()}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-500">Course:</span>
+            <Select value={filterCourse} onChange={(e) => setFilterCourse(e.target.value)}>
+              <option value="all">All</option>
+              <option value="none">No course</option>
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          {view === "list" && (
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500">Sort by:</span>
+              <Select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
+                <option value="smart">Smart order</option>
+                <option value="deadline">Deadline</option>
+                <option value="priority">Priority</option>
+                <option value="effort">Estimated effort</option>
+                <option value="created">Created date</option>
+              </Select>
+            </div>
+          )}
+        </div>
+        {hasActiveFilters && (
+          <p className="text-xs text-gray-500">
+            Showing {filteredTasks.length} of {tasks.length} tasks
+          </p>
+        )}
+      </div>
+
       <SuggestedOrderPanel schedule={schedule} />
 
       {tasks.length === 0 ? (
@@ -184,9 +330,17 @@ export function TasksView({ initialData }: TasksViewProps) {
             <Plus className="h-4 w-4" /> Add a task
           </Button>
         </div>
+      ) : filteredTasks.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-gray-200 bg-white py-12 text-center">
+          <Search className="h-6 w-6 text-gray-400" />
+          <p className="text-sm text-gray-500">No tasks match your filters.</p>
+          <Button variant="outline" size="sm" onClick={clearFilters}>
+            Clear filters
+          </Button>
+        </div>
       ) : view === "kanban" ? (
         <KanbanBoard
-          tasks={tasks}
+          tasks={filteredTasks}
           onMove={handleMove}
           onEdit={openEdit}
           onDelete={handleDelete}
@@ -195,8 +349,9 @@ export function TasksView({ initialData }: TasksViewProps) {
         />
       ) : (
         <ListView
-          tasks={tasks}
+          tasks={filteredTasks}
           order={scheduleOrder}
+          sortMode={sortMode}
           onEdit={openEdit}
           onDelete={handleDelete}
           onComplete={handleComplete}
