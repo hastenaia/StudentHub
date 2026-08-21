@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     if (data) courseName = (data as { course_name?: string | null; name: string }).course_name ?? data.name;
   }
 
-  const system = "You are a study planner. Create a concise, actionable study plan with daily breakdown, focus tips, and review checkpoints. Use bullet points and clear headings. No grades/GPA.";
+  const system = "You are a study planner. Create a concise, actionable study plan with daily breakdown, focus tips, and review checkpoints. Use bullet points and clear headings.";
   const prompt = `Create a ${duration}-day study plan for topic: "${topic}"${courseName ? ` (course: ${courseName})` : ""}. Include daily goals (30-90 min), resources to review, practice tasks, and a final review day. Keep it under 400 words.`;
 
   const result = await callAI(prompt, system);

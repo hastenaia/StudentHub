@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   if (!content || content.length < 30) return NextResponse.json({ success: false, message: "Provide content to generate quiz." }, { status: 400 });
 
   const count = Math.min(Math.max(body.count ?? 5, 1), 8);
-  const system = `You are a quiz generator. Return ONLY valid JSON with no markdown fences. Structure: {"questions": [{"question_text":"...", "question_type":"multiple_choice|true_false|short_answer", "options":["A","B","C","D"] (only for multiple_choice), "correct_answer":"...", "explanation":"..."}]}. For multiple_choice, provide 4 options and correct_answer must be one of them. For true_false, correct_answer is "True" or "False". Keep questions clear. No grades.`;
+  const system = `You are a quiz generator. Return ONLY valid JSON with no markdown fences. Structure: {"questions": [{"question_text":"...", "question_type":"multiple_choice|true_false|short_answer", "options":["A","B","C","D"] (only for multiple_choice), "correct_answer":"...", "explanation":"..."}]}. For multiple_choice, provide 4 options and correct_answer must be one of them. For true_false, correct_answer is "True" or "False". Keep questions clear.`;
   const prompt = `From this note titled "${body.title ?? "Study material"}", generate ${count} quiz questions as JSON:\n\n${content.slice(0, 6000)}`;
 
   const result = await callAI(prompt, system);

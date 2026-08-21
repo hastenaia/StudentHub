@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   if (!content || content.length < 30) return NextResponse.json({ success: false, message: "Provide note content (at least 30 chars) to generate flashcards." }, { status: 400 });
 
   const count = Math.min(Math.max(body.count ?? 5, 1), 10);
-  const system = "You are a flashcard generator for students. Create concise, clear flashcards. Return ONLY valid JSON array with no markdown fences. Each item: {\"front\": \"question\", \"back\": \"answer\"}. Keep front under 120 chars, back under 300 chars. No grades/GPA.";
+  const system = "You are a flashcard generator for students. Create concise, clear flashcards. Return ONLY valid JSON array with no markdown fences. Each item: {\"front\": \"question\", \"back\": \"answer\"}. Keep front under 120 chars, back under 300 chars.";
   const prompt = `From this note, generate ${count} flashcards as JSON array:\n\n${content.slice(0, 6000)}\n\nReturn JSON only.`;
 
   const result = await callAI(prompt, system);

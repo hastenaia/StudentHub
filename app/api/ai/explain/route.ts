@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   const concept = body.concept?.trim();
   if (!concept) return NextResponse.json({ success: false, message: "Concept is required." }, { status: 400 });
 
-  const system = "You are a friendly study assistant for university students. Explain concepts clearly with examples, bullet points, and simple language. Keep it concise but thorough. Do not mention grades or GPA.";
+  const system = "You are a friendly study assistant for university students. Explain concepts clearly with examples, bullet points, and simple language. Keep it concise but thorough.";
   const prompt = `Explain this concept for a student: "${concept}"${body.courseId ? " (related to their course)" : ""}. Use clear headings and examples.`;
 
   const result = await callAI(prompt, system);
