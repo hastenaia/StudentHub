@@ -27,8 +27,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             Everything for your academic life, in one place.
           </h2>
           <p className="text-brand-sky/90">
-            Courses, schedules, grades, and campus life — organized, accessible, and always
-            in sync.
+            Courses, schedules, and campus life — organized, accessible, and always in sync.
           </p>
         </div>
 

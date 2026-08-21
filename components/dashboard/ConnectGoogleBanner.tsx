@@ -18,8 +18,8 @@ export function ConnectGoogleBanner() {
           <div>
             <h3 className="font-semibold text-brand-dark">Connect Google</h3>
             <p className="mt-1 max-w-md text-sm text-gray-500">
-              Link your Google account to pull in your class schedule, assignments,
-              announcements, and grades — pulled in securely and cached for a fast dashboard.
+              Link your Google account to pull in your class schedule, assignments, and
+              announcements — pulled in securely and cached for a fast dashboard.
             </p>
           </div>
         </div>

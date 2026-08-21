@@ -9,7 +9,7 @@ interface CourseSnapshotProps {
 
 /**
  * Grid of the student's courses. Shows course metadata and upcoming
- * assignments — grade information is intentionally not displayed.
+ * assignments.
  */
 export function CourseSnapshot({ courses }: CourseSnapshotProps) {
   if (courses.length === 0) {

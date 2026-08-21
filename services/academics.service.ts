@@ -11,8 +11,8 @@ import type {
 
 /**
  * Server-side view assembly for the Academic Dashboard. Reads the Supabase
- * cache (never Google) and runs the pure GPA math. Cheap, deterministic and
- * safe to call from a Server Component on every page load.
+ * cache (never Google). Cheap, deterministic and safe to call from a Server
+ * Component on every page load.
  */
 
 /** After this long without a sync, we nudge the user to refresh. */
