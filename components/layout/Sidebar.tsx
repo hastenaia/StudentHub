@@ -8,6 +8,7 @@ import {
   BookOpen,
   BookMarked,
   CalendarDays,
+  Heart,
   LayoutDashboard,
   ListTodo,
   Settings,
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { label: "Tasks", href: "/dashboard/tasks", icon: ListTodo },
   { label: "Study Hub", href: "/dashboard/study", icon: BookMarked },
   { label: "Focus", href: "/dashboard/focus", icon: Timer },
+  { label: "Wellness", href: "/dashboard/wellness", icon: Heart },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
