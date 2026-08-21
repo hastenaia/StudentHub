@@ -100,6 +100,9 @@ export interface Database {
           room: string | null;
           teacher_name: string | null;
           color: string | null;
+          credit_hours: number;
+          manual_grade: number | null;
+          target_pct: number | null;
           archived: boolean;
           created_at: string;
           updated_at: string;
@@ -114,6 +117,9 @@ export interface Database {
           room?: string | null;
           teacher_name?: string | null;
           color?: string | null;
+          credit_hours?: number;
+          manual_grade?: number | null;
+          target_pct?: number | null;
           archived?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -128,6 +134,9 @@ export interface Database {
           room?: string | null;
           teacher_name?: string | null;
           color?: string | null;
+          credit_hours?: number;
+          manual_grade?: number | null;
+          target_pct?: number | null;
           archived?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -328,56 +337,29 @@ export interface Database {
           }
         ];
       };
-      study_sessions: {
+      academic_settings: {
         Row: {
           id: string;
           user_id: string;
-          course_id: string | null;
-          task_id: string | null;
-          started_at: string;
-          ended_at: string;
-          duration_seconds: number;
-          kind: string;
-          created_at: string;
+          grade_scale: Json;
+          target_gpa: number;
+          updated_at: string;
         };
         Insert: {
           id?: string;
           user_id: string;
-          course_id?: string | null;
-          task_id?: string | null;
-          started_at: string;
-          ended_at: string;
-          duration_seconds: number;
-          kind?: string;
-          created_at?: string;
+          grade_scale?: Json;
+          target_gpa?: number;
+          updated_at?: string;
         };
         Update: {
           id?: string;
           user_id?: string;
-          course_id?: string | null;
-          task_id?: string | null;
-          started_at?: string;
-          ended_at?: string;
-          duration_seconds?: number;
-          kind?: string;
-          created_at?: string;
+          grade_scale?: Json;
+          target_gpa?: number;
+          updated_at?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "study_sessions_course_id_fkey";
-            columns: ["course_id"];
-            isOneToOne: false;
-            referencedRelation: "courses";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "study_sessions_task_id_fkey";
-            columns: ["task_id"];
-            isOneToOne: false;
-            referencedRelation: "tasks";
-            referencedColumns: ["id"];
-          }
-        ];
+        Relationships: [];
       };
     };
     Views: Record<string, never>;

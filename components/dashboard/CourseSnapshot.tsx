@@ -1,18 +1,20 @@
 import { BookOpen } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DashboardCourse } from "@/types/academics";
+import { pointsToLetter, type GradeScale } from "@/lib/gpa";
 import { formatDueLabel } from "@/utils/date";
 
 interface CourseSnapshotProps {
   courses: DashboardCourse[];
+  gradeScale: GradeScale;
 }
 
 /**
- * Grid of the student's courses with per-course progress. Courses show a
- * progress bar (earned/possible points); courses without graded work say
- * "No graded work yet" instead of showing 0.
+ * Grid of the student's courses with per-course progress. Classroom courses
+ * show a progress bar (earned/possible points); manual courses show their
+ * grade. Courses without a grade say "No grade yet" instead of showing 0.
  */
-export function CourseSnapshot({ courses }: CourseSnapshotProps) {
+export function CourseSnapshot({ courses, gradeScale }: CourseSnapshotProps) {
   if (courses.length === 0) {
     return (
       <Card>
@@ -21,7 +23,7 @@ export function CourseSnapshot({ courses }: CourseSnapshotProps) {
             <BookOpen className="h-6 w-6 text-brand-royal" />
           </div>
           <p className="text-sm text-gray-500">
-            No courses yet. Connect Google Classroom to sync your courses.
+            No courses yet. Sync your Google Classroom or add a course in Settings.
           </p>
         </CardContent>
       </Card>
@@ -45,16 +47,18 @@ export function CourseSnapshot({ courses }: CourseSnapshotProps) {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-brand-dark">{course.name}</p>
-                  <p className="truncate text-xs text-gray-500">{course.section || "Course"}</p>
+                  <p className="truncate text-xs text-gray-500">
+                    {course.section || "Course"} · {course.creditHours} credits
+                  </p>
                 </div>
-                {course.progress != null && (
-                  <span className="shrink-0 text-sm font-semibold text-brand-royal">
-                    {Math.round(course.progress * 100)}%
-                  </span>
-                )}
+                <span className="shrink-0 text-sm font-semibold text-brand-royal">
+                  {course.gradePoints != null
+                    ? pointsToLetter(course.gradePoints, gradeScale) ?? course.gradePoints.toFixed(2)
+                    : "No grade"}
+                </span>
               </div>
 
-              {course.progress != null ? (
+              {course.progress != null && (
                 <div className="mt-3">
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
                     <div
@@ -66,8 +70,6 @@ export function CourseSnapshot({ courses }: CourseSnapshotProps) {
                     {Math.round(course.progress * 100)}% of possible points earned
                   </p>
                 </div>
-              ) : (
-                <p className="mt-3 text-xs text-gray-400">No graded work yet</p>
               )}
 
               {course.upcomingAssignments.length > 0 && (

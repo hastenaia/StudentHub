@@ -7,9 +7,8 @@ import { GoogleOAuthStatus } from "@/components/dashboard/GoogleOAuthStatus";
 import { TodayOverview } from "@/components/dashboard/TodayOverview";
 import { CourseSnapshot } from "@/components/dashboard/CourseSnapshot";
 import { AnnouncementsFeed } from "@/components/dashboard/AnnouncementsFeed";
-import { DailyPlanCard } from "@/components/dashboard/DailyPlanCard";
+import { GpaProjectionCard } from "@/components/dashboard/GpaProjectionCard";
 import { SyncNowCard } from "@/components/dashboard/SyncNowCard";
-import { getDailyPlan } from "@/services/planner.service";
 
 export const metadata: Metadata = { title: "Dashboard — StudentHub" };
 
@@ -30,7 +29,6 @@ export default async function DashboardPage() {
   }
 
   const data = await getDashboardData(user.id);
-  const plan = await getDailyPlan(user.id);
   const displayName = user.user_metadata?.full_name?.split(" ")[0] || "there";
 
   return (
@@ -51,19 +49,19 @@ export default async function DashboardPage() {
       {!data.googleLinked ? (
         <>
           <ConnectGoogleBanner />
-          <CourseSnapshot courses={data.courses} />
+          <CourseSnapshot courses={data.courses} gradeScale={data.gradeScale} />
         </>
       ) : (
         <>
           <SyncNowCard stale={data.stale} lastSyncedAt={data.lastSyncedAt} />
-          <DailyPlanCard plan={plan} />
+          <GpaProjectionCard gpa={data.gpa} targetGpa={data.targetGpa} />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <TodayOverview events={data.calendarEvents} upcoming={data.upcoming} />
             <AnnouncementsFeed announcements={data.announcements} />
           </div>
 
-          <CourseSnapshot courses={data.courses} />
+          <CourseSnapshot courses={data.courses} gradeScale={data.gradeScale} />
         </>
       )}
     </div>

@@ -110,18 +110,12 @@ npm run db:migrate   # pushes supabase/migrations/, incl. google_academics
   on demand, it fetches Classroom courses/assignments/announcements and a
   rolling Calendar window, then upserts them into
   `google_accounts`, `courses`, `assignments`, `announcements`,
-  `calendar_events` (all owner-only RLS).
-- **Focus Timer + Study Stats** (`dashboard/focus`, Module 3): pomodoro
-  sessions are logged to `study_sessions`; pure math in `lib/focus.ts`
-  (unit-tested with Vitest) computes daily/weekly minutes, streaks and
-  per-course breakdowns.
-- **Deadline Radar** (`dashboard/schedule`): a 28-day heatmap of unsubmitted
-  work with crunch-week warnings — logic in `lib/deadlineRadar.ts`.
-- **Smart Daily Plan** (dashboard home card): merges open tasks, near-deadline
-  assignments and calendar free time into one prioritized list — logic in
-  `lib/dailyPlan.ts`.
-- **Settings** (`dashboard/settings`) manages the Google connection and
-  account security.
+  `calendar_events`, and `academic_settings` (all owner-only RLS).
+- **GPA math** lives in `lib/gpa.ts` as pure functions (unit-tested with
+  Vitest) covering grade-scale conversion, weighted GPA, and goal projections.
+- **Settings** (`dashboard/settings`) manages the Google connection, the
+  grading scale + target GPA, and manually tracked courses that aren't on
+  Google Classroom.
 
 ## Architecture
 

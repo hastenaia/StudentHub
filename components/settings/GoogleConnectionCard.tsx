@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Plug, Unplug } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { googleClientService } from "@/services/googleClient.service";
+import { academicsClientService } from "@/services/academicsClient.service";
 import { useToast } from "@/hooks/useToast";
 import { SyncNowButton } from "@/components/dashboard/SyncNowButton";
 import { formatRelativeSync } from "@/utils/date";
@@ -27,7 +27,7 @@ export function GoogleConnectionCard({ account }: GoogleConnectionCardProps) {
 
   const onDisconnect = async () => {
     setBusy(true);
-    const result = await googleClientService.disconnectGoogle();
+    const result = await academicsClientService.disconnectGoogle();
     toast({
       title: result.success ? "Disconnected" : "Something went wrong",
       description: result.message,
@@ -85,7 +85,7 @@ export function GoogleConnectionCard({ account }: GoogleConnectionCardProps) {
       </div>
       <p className="text-xs text-gray-500">
         Sync pulls your latest Google data on demand. Disconnecting removes your cached
-        classrooms and assignments but keeps your StudentHub account.
+        classrooms and grades but keeps your StudentHub account.
       </p>
     </div>
   );

@@ -132,6 +132,9 @@ create table if not exists public.courses (
   room text,
   teacher_name text,
   color text,
+  credit_hours numeric not null default 3.0 check (credit_hours >= 0),
+  manual_grade numeric,                  -- grade points (scale) for manual courses
+  target_pct numeric check (target_pct is null or target_pct between 0 and 100),
   archived boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -183,12 +186,21 @@ create table if not exists public.calendar_events (
   unique (user_id, google_event_id)
 );
 
+create table if not exists public.academic_settings (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique references public.profiles (id) on delete cascade,
+  grade_scale jsonb not null default '{"A":4,"A-":3.7,"B+":3.3,"B":3,"B-":2.7,"C+":2.3,"C":2,"C-":1.7,"D+":1.3,"D":1,"D-":0.7,"F":0}'::jsonb,
+  target_gpa numeric not null default 3.0 check (target_gpa between 0 and 4.333),
+  updated_at timestamptz not null default now()
+);
+
 -- Row Level Security (owner-only on every table)
 alter table public.google_accounts enable row level security;
 alter table public.courses enable row level security;
 alter table public.assignments enable row level security;
 alter table public.announcements enable row level security;
 alter table public.calendar_events enable row level security;
+alter table public.academic_settings enable row level security;
 
 create policy "google_accounts owner select"  on public.google_accounts for select  using (auth.uid() = user_id);
 create policy "google_accounts owner insert"  on public.google_accounts for insert  with check (auth.uid() = user_id);
@@ -215,6 +227,11 @@ create policy "calendar_events owner insert" on public.calendar_events for inser
 create policy "calendar_events owner update" on public.calendar_events for update using (auth.uid() = user_id);
 create policy "calendar_events owner delete" on public.calendar_events for delete using (auth.uid() = user_id);
 
+create policy "academic_settings owner select" on public.academic_settings for select using (auth.uid() = user_id);
+create policy "academic_settings owner insert" on public.academic_settings for insert with check (auth.uid() = user_id);
+create policy "academic_settings owner update" on public.academic_settings for update using (auth.uid() = user_id);
+create policy "academic_settings owner delete" on public.academic_settings for delete using (auth.uid() = user_id);
+
 -- Keep updated_at fresh (reuse handle_updated_at from above)
 drop trigger if exists on_google_accounts_updated on public.google_accounts;
 create trigger on_google_accounts_updated before update on public.google_accounts
@@ -234,6 +251,10 @@ create trigger on_announcements_updated before update on public.announcements
 
 drop trigger if exists on_calendar_events_updated on public.calendar_events;
 create trigger on_calendar_events_updated before update on public.calendar_events
+  for each row execute procedure public.handle_updated_at();
+
+drop trigger if exists on_academic_settings_updated on public.academic_settings;
+create trigger on_academic_settings_updated before update on public.academic_settings
   for each row execute procedure public.handle_updated_at();
 
 -- Indexes for the read patterns the dashboard uses
@@ -283,35 +304,5 @@ create trigger on_tasks_updated before update on public.tasks
 
 create index if not exists tasks_user_status_idx on public.tasks (user_id, status);
 create index if not exists tasks_user_due_idx on public.tasks (user_id, due_at);
-
-commit;
-
--- ============================================================
--- 8. Module 3: Focus Timer + Study Stats
--- ============================================================
-begin;
-
--- Append-only log of completed focus/break sessions (immutable rows).
-create table if not exists public.study_sessions (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles (id) on delete cascade,
-  course_id uuid references public.courses (id) on delete set null,
-  task_id uuid references public.tasks (id) on delete set null,
-  started_at timestamptz not null,
-  ended_at timestamptz not null,
-  duration_seconds integer not null check (duration_seconds > 0),
-  kind text not null default 'focus' check (kind in ('focus', 'break')),
-  created_at timestamptz not null default now()
-);
-
-alter table public.study_sessions enable row level security;
-
-create policy "study_sessions owner select" on public.study_sessions for select using (auth.uid() = user_id);
-create policy "study_sessions owner insert" on public.study_sessions for insert with check (auth.uid() = user_id);
-create policy "study_sessions owner update" on public.study_sessions for update using (auth.uid() = user_id);
-create policy "study_sessions owner delete" on public.study_sessions for delete using (auth.uid() = user_id);
-
-create index if not exists study_sessions_user_started_idx
-  on public.study_sessions (user_id, started_at desc);
 
 commit;
