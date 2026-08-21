@@ -405,6 +405,69 @@ export interface Database {
           }
         ];
       };
+      focus_sessions: {
+        Row: {
+          id: string;
+          user_id: string;
+          duration_minutes: number;
+          started_at: string;
+          ended_at: string | null;
+          task_id: string | null;
+          course_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          duration_minutes: number;
+          started_at?: string;
+          ended_at?: string | null;
+          task_id?: string | null;
+          course_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          duration_minutes?: number;
+          started_at?: string;
+          ended_at?: string | null;
+          task_id?: string | null;
+          course_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      notes: {
+        Row: {
+          id: string;
+          user_id: string;
+          course_id: string | null;
+          title: string;
+          content: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          course_id?: string | null;
+          title: string;
+          content?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          course_id?: string | null;
+          title?: string;
+          content?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       academic_settings: {
         Row: {
           id: string;

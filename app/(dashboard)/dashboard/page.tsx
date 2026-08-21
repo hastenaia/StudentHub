@@ -1,21 +1,21 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { getDashboardData } from "@/services/academics.service";
-import { ConnectGoogleBanner } from "@/components/dashboard/ConnectGoogleBanner";
+import { getProductivityDashboardData } from "@/services/dashboard.service";
 import { GoogleOAuthStatus } from "@/components/dashboard/GoogleOAuthStatus";
-import { TodayOverview } from "@/components/dashboard/TodayOverview";
-import { CourseSnapshot } from "@/components/dashboard/CourseSnapshot";
-import { AnnouncementsFeed } from "@/components/dashboard/AnnouncementsFeed";
+import { ConnectGoogleBanner } from "@/components/dashboard/ConnectGoogleBanner";
 import { SyncNowCard } from "@/components/dashboard/SyncNowCard";
+import { AnnouncementsFeed } from "@/components/dashboard/AnnouncementsFeed";
+import { TodaysSchedule } from "@/components/dashboard/TodaysSchedule";
+import { PriorityTasks } from "@/components/dashboard/PriorityTasks";
+import { UpcomingDeadlines } from "@/components/dashboard/UpcomingDeadlines";
+import { QuickActions } from "@/components/dashboard/QuickActions";
+import { FocusToday } from "@/components/dashboard/FocusToday";
+import { StudyActivity } from "@/components/dashboard/StudyActivity";
+import { SmartRecommendation } from "@/components/dashboard/SmartRecommendation";
 
 export const metadata: Metadata = { title: "Dashboard — StudentHub" };
 
-/**
- * Server-rendered academic dashboard. Reads entirely from the Supabase cache
- * (see services/academics.service.ts) — never calling Google per page load —
- * so this stays fast and works even if the Google connection is flaky.
- */
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
@@ -23,11 +23,10 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    // Middleware normally blocks this; kept as a graceful fallback.
     return <p className="text-sm text-gray-500">You need to be signed in to view this page.</p>;
   }
 
-  const data = await getDashboardData(user.id);
+  const data = await getProductivityDashboardData(user.id);
   const displayName = user.user_metadata?.full_name?.split(" ")[0] || "there";
 
   return (
@@ -37,31 +36,42 @@ export default async function DashboardPage() {
       </Suspense>
 
       <div>
-        <h2 className="text-xl font-semibold text-brand-dark sm:text-2xl">
-          Welcome back, {displayName} 👋
-        </h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Here&apos;s what&apos;s happening with your studies today.
-        </p>
+        <h2 className="text-xl font-semibold text-brand-dark sm:text-2xl">Welcome back, {displayName} 👋</h2>
+        <p className="mt-1 text-sm text-gray-500">What should you focus on today?</p>
       </div>
 
       {!data.googleLinked ? (
-        <>
-          <ConnectGoogleBanner />
-          <CourseSnapshot courses={data.courses} />
-        </>
+        <ConnectGoogleBanner />
       ) : (
-        <>
-          <SyncNowCard stale={data.stale} lastSyncedAt={data.lastSyncedAt} />
-
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <TodayOverview events={data.calendarEvents} upcoming={data.upcoming} />
-            <AnnouncementsFeed announcements={data.announcements} />
-          </div>
-
-          <CourseSnapshot courses={data.courses} />
-        </>
+        <SyncNowCard stale={data.stale} lastSyncedAt={data.lastSyncedAt} />
       )}
+
+      {/* Smart recommendation — hero */}
+      <SmartRecommendation recommendation={data.recommendation} />
+
+      {/* Primary productivity grid */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
+          <TodaysSchedule items={data.todaySchedule} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FocusToday minutes={data.focus.minutes} sessions={data.focus.sessions} streak={data.focus.streak} />
+            <StudyActivity
+              completedTasks={data.activity.completedTasks}
+              studySessions={data.activity.studySessions}
+              notesCreated={data.activity.notesCreated}
+            />
+          </div>
+        </div>
+        <div className="space-y-4">
+          <PriorityTasks tasks={data.priorityTasks} />
+          <QuickActions courses={data.courses} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <UpcomingDeadlines deadlines={data.upcomingDeadlines} />
+        <AnnouncementsFeed announcements={data.announcements} />
+      </div>
     </div>
   );
 }
