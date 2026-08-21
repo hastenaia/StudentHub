@@ -247,19 +247,21 @@ function FlashcardDialog({
     const res = editing ? await flashcardsClientService.updateFlashcard(editing.id, draft) : await flashcardsClientService.createFlashcard(draft);
     if (res.success) {
       const data = res.data as unknown as Flashcard;
+      // eslint-disable-next-line react-hooks/purity
+      const fallbackId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString();
       const fallback: Flashcard = {
-        id: Math.random().toString(),
+        id: fallbackId,
         front: draft.front,
         back: draft.back,
         tags: draft.tags,
         courseId: draft.courseId,
-        courseName: null,
         noteId: draft.noteId,
         isKnown: false,
         correctCount: 0,
         incorrectCount: 0,
         lastReviewed: null,
         createdAt: new Date().toISOString(),
+        courseName: null,
       };
       onSuccess(data?.id ? data : fallback, !!editing);
     }

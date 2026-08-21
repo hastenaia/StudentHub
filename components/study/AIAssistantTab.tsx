@@ -25,8 +25,6 @@ export function AIAssistantTab({ notes, courses }: Props) {
   const [error, setError] = React.useState<string | null>(null);
   const [generated, setGenerated] = React.useState<unknown>(null);
 
-  const selectedNoteContent = notes.find((n) => n.id === selectedNote)?.content ?? "";
-
   const call = async (endpoint: string, body: Record<string, unknown>) => {
     setLoading(true);
     setError(null);
