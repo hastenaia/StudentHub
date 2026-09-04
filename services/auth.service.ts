@@ -63,13 +63,36 @@ export const authService = {
 
   async requestPasswordReset({ email }: ForgotPasswordPayload): Promise<ApiResult> {
     const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/callback?next=/change-password`;
+    const redirectTo = `${window.location.origin}/auth/callback?next=/reset-password`;
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
 
     if (error) {
       return fail(getAuthErrorMessage(error));
     }
     return ok("If an account exists for that email, a reset link is on its way.");
+  },
+
+  async verifyRecoveryCode(code: string): Promise<ApiResult> {
+    const supabase = createClient();
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (error) {
+      return fail(getAuthErrorMessage(error));
+    }
+    return ok();
+  },
+
+  async verifyRecoveryToken(tokenHash: string): Promise<ApiResult> {
+    const supabase = createClient();
+    const { error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: "recovery",
+    });
+
+    if (error) {
+      return fail(getAuthErrorMessage(error));
+    }
+    return ok();
   },
 
   async changePassword({ newPassword }: ChangePasswordPayload): Promise<ApiResult> {

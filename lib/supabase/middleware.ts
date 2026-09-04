@@ -2,7 +2,7 @@ import { createServerCookieClient } from "@/lib/supabase/factory";
 import { NextResponse, type NextRequest } from "next/server";
 import { getRequiredRoles, hasRole, roleFromUser } from "@/lib/rbac";
 
-const PUBLIC_ROUTES = ["/login", "/signup", "/forgot-password", "/auth/callback", "/change-password"];
+const PUBLIC_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/auth/confirm", "/change-password"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -43,8 +43,14 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Force a password change before letting first-time users into the app.
+  // Recovery links land on /reset-password, so don't bounce them away.
   const mustChangePassword = user?.user_metadata?.must_change_password === true;
-  if (user && mustChangePassword && path !== "/change-password") {
+  if (
+    user &&
+    mustChangePassword &&
+    path !== "/change-password" &&
+    path !== "/reset-password"
+  ) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/change-password";
     return NextResponse.redirect(redirectUrl);

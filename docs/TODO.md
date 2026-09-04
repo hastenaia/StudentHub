@@ -1,0 +1,1 @@
+One manual step left (can't do in code): Supabase Dashboard → Authentication → URL Configuration → set Site URL to http://localhost:3000 (plus prod URL), and add http://localhost:3000/** + https://<prod>/** to Redirect URLs. Then request a reset and confirm the email link contains redirect_to=.../auth/callback?next=/reset-password.

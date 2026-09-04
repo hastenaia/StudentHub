@@ -29,15 +29,18 @@ which wraps `supabase.auth.*` calls and returns a consistent `ApiResult`
 |---|---|---|
 | `/login` | Yes | Sign in |
 | `/forgot-password` | Yes | Request a password reset email |
+| `/reset-password` | Yes | Set a new password from a reset link (handles `?code=`, `?token_hash=`, hash fragments) |
 | `/auth/callback` | Yes | Exchange a Supabase auth code for a session |
+| `/auth/confirm` | Yes | Verify a Supabase OTP token (`?token_hash=&type=`) |
 | `/change-password` | Yes* | Change password (first-login forced or on demand) |
 | `/dashboard/*` | No | Authenticated app |
 
-`*` `/change-password` is public so an unauthenticated user who follows the
-email reset link can still set a new password; authenticated users with
-`must_change_password` set are redirected here too.
+`*` `/change-password` and `/reset-password` are public so an unauthenticated
+user who follows the email reset link can still set a new password;
+authenticated users with `must_change_password` set are redirected to
+`/change-password` (recovery links land on `/reset-password` instead).
 
-`PUBLIC_ROUTES = ["/login", "/forgot-password", "/auth/callback", "/change-password"]`
+`PUBLIC_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/auth/confirm", "/change-password"]`
 is defined in `lib/supabase/middleware.ts`.
 
 ## Middleware protection
@@ -82,10 +85,14 @@ is defined in `lib/supabase/middleware.ts`.
 
 1. `components/auth/ForgotPasswordForm.tsx` → `authService.requestPasswordReset({ email })`.
 2. Calls `supabase.auth.resetPasswordForEmail(email, { redirectTo })` where
-   `redirectTo` is `${window.location.origin}/auth/callback?next=/change-password`.
+   `redirectTo` is `${window.location.origin}/auth/callback?next=/reset-password`.
 3. The email link hits `/auth/callback`, which exchanges the code for a session
-   and redirects to the `next` target (`/change-password`).
-4. The user sets a new password and is signed in.
+   (or verifies `token_hash`/`type` via `verifyOtp`) and redirects to the
+   `next` target (`/reset-password`).
+4. `app/(auth)/reset-password/page.tsx` + `components/auth/ResetPasswordForm.tsx`
+   verify any leftover `?code=` / `?token_hash=` params client-side (and listen
+   for `PASSWORD_RECOVERY` for hash-fragment links), then the user sets a new
+   password via `authService.changePassword` and is signed in.
 
 For security the service always returns the generic message
 "If an account exists for that email, a reset link is on its way." regardless
@@ -96,10 +103,13 @@ of whether the account exists.
 `app/auth/callback/route.ts` handles both the reset flow and any
 Supabase-generated auth code. It:
 
-- Reads `code` and an optional `next` param (`safeRedirect`-sanitized).
-- Exchanges the code for a session with `supabase.auth.exchangeCodeForSession(code)`.
-- Redirects to `${origin}${next}` on success, or `/login?error=auth-callback-failed`
-  otherwise.
+- Reads `code`, `token_hash`/`type`, and an optional `next` param (`safeRedirect`-sanitized).
+- Exchanges the code for a session with `supabase.auth.exchangeCodeForSession(code)`,
+  or verifies OTP links with `supabase.auth.verifyOtp({ token_hash, type })`.
+- Redirects to `${origin}${next}` on success, or `${origin}${next}?error=auth-callback-failed`
+  (falling back to `/login?error=auth-callback-failed`) otherwise, so the target
+  page can show an "invalid/expired link" state. `app/auth/confirm/route.ts` is a
+  thin alias for OTP (`token_hash`) links defaulting `next` to `/reset-password`.
 
 ## Logout
 
