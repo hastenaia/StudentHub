@@ -62,9 +62,16 @@ export function ScheduleView({ initialEvents, courses }: ScheduleViewProps) {
   };
 
   const filtered = React.useMemo(() => {
+    // Decorate once: parse timestamps a single time for sort/filter.
+    const decorated = events.map((e) => ({
+      e,
+      s: Date.parse(e.startAt) || 0,
+      ee: Date.parse(e.endAt) || 0,
+    }));
     // For agenda, show all upcoming sorted; for others filter by view range
     if (view === "agenda") {
-      return [...events].sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+      decorated.sort((a, b) => a.s - b.s);
+      return decorated.map((d) => d.e);
     }
     let start: Date;
     let end: Date;
@@ -82,12 +89,20 @@ export function ScheduleView({ initialEvents, courses }: ScheduleViewProps) {
       start = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
       end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
     }
-    return events.filter((e) => {
-      const s = new Date(e.startAt).getTime();
-      const ee = new Date(e.endAt).getTime();
-      return s < end.getTime() && ee > start.getTime();
-    });
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+    return decorated.filter((d) => d.s < endMs && d.ee > startMs).map((d) => d.e);
   }, [events, view, currentDate]);
+
+  const { userCount, googleCount } = React.useMemo(() => {
+    let u = 0;
+    let g = 0;
+    for (const e of events) {
+      if (e.source === "google") g++;
+      else u++;
+    }
+    return { userCount: u, googleCount: g };
+  }, [events]);
 
   const notify = (success: boolean, title: string, description?: string) => {
     toast({ title, description, variant: success ? "success" : "error" });
@@ -96,7 +111,7 @@ export function ScheduleView({ initialEvents, courses }: ScheduleViewProps) {
   const handleCreate = async (draft: ScheduleDraft) => {
     const result = await scheduleClientService.createEvent(draft);
     if (result.success && result.data) {
-      setEvents((prev) => [...prev, result.data as ScheduleEvent].sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()));
+      setEvents((prev) => [...prev, result.data as ScheduleEvent].sort((a, b) => (Date.parse(a.startAt) || 0) - (Date.parse(b.startAt) || 0)));
       setFormOpen(false);
       setDefaultDate(undefined);
       notify(true, "Event created", result.message);
@@ -366,10 +381,10 @@ export function ScheduleView({ initialEvents, courses }: ScheduleViewProps) {
       <Card className="border-dashed">
         <CardContent className="flex flex-wrap items-center gap-4 py-3 text-xs text-gray-500">
           <span className="flex items-center gap-1">
-            <CalendarDays className="h-3.5 w-3.5" /> {events.filter((e) => e.source === "user").length} your events
+            <CalendarDays className="h-3.5 w-3.5" /> {userCount} your events
           </span>
           <span className="flex items-center gap-1">
-            <CalendarDays className="h-3.5 w-3.5 text-gray-400" /> {events.filter((e) => e.source === "google").length} Google events (read-only)
+            <CalendarDays className="h-3.5 w-3.5 text-gray-400" /> {googleCount} Google events (read-only)
           </span>
           <span className="ml-auto">Click a date or time slot to create an event.</span>
         </CardContent>

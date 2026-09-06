@@ -4,6 +4,7 @@ import { cn } from "@/utils/cn";
 import { EVENT_TYPE_COLOR } from "@/types/schedule";
 import type { ScheduleEvent } from "@/types/schedule";
 import { formatTime } from "@/utils/date";
+import { dayKey, useGroupedEvents } from "@/hooks/useGroupedEvents";
 
 interface WeekViewProps {
   currentDate: Date;
@@ -32,11 +33,9 @@ export function WeekView({ currentDate, events, onEventClick, onTimeClick }: Wee
   const start = startOfWeek(currentDate);
   const days = Array.from({ length: 7 }, (_, i) => new Date(start.getTime() + i * 24 * 60 * 60 * 1000));
   const hours = Array.from({ length: 12 }, (_, i) => i + 7); // 7am - 6pm, simplified
+  const { byDay, byDayHour } = useGroupedEvents(events);
 
-  const eventsForDay = (day: Date) =>
-    events
-      .filter((e) => isSameDay(new Date(e.startAt), day))
-      .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+  const eventsForDay = (day: Date) => byDay.get(dayKey(day)) ?? [];
 
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
@@ -60,7 +59,7 @@ export function WeekView({ currentDate, events, onEventClick, onTimeClick }: Wee
               {hour === 12 ? "12 PM" : hour < 12 ? `${hour} AM` : `${hour - 12} PM`}
             </div>
             {days.map((day) => {
-              const hourEvents = eventsForDay(day).filter((e) => new Date(e.startAt).getHours() === hour);
+              const hourEvents = (byDayHour.get(`${dayKey(day)}:${hour}`) ?? []);
               return (
                 <button
                   key={day.toISOString() + hour}
@@ -90,10 +89,7 @@ export function WeekView({ currentDate, events, onEventClick, onTimeClick }: Wee
         {/* Show remaining events not in 7-18 range */}
         <div className="p-2">
           {days.map((day) => {
-            const other = eventsForDay(day).filter((e) => {
-              const h = new Date(e.startAt).getHours();
-              return h < 7 || h >= 19;
-            });
+            const other = eventsForDay(day).filter((e) => e.hour < 7 || e.hour >= 19);
             if (other.length === 0) return null;
             return (
               <div key={day.toISOString()} className="mt-2">

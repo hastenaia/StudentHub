@@ -3,6 +3,7 @@
 import { EVENT_TYPE_COLOR } from "@/types/schedule";
 import type { ScheduleEvent } from "@/types/schedule";
 import { formatTime } from "@/utils/date";
+import { dayKey, useGroupedEvents } from "@/hooks/useGroupedEvents";
 
 interface DayViewProps {
   currentDate: Date;
@@ -11,14 +12,11 @@ interface DayViewProps {
   onTimeClick: (hour: number) => void;
 }
 
-function isSameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
 export function DayView({ currentDate, events, onEventClick, onTimeClick }: DayViewProps) {
-  const dayEvents = events
-    .filter((e) => isSameDay(new Date(e.startAt), currentDate))
-    .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+  const { byDay, byDayHour } = useGroupedEvents(events);
+  const key = dayKey(currentDate);
+  const dayEvents = byDay.get(key) ?? [];
+  const allDayEvents = dayEvents.filter((e) => e.allDayFlag);
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
@@ -31,7 +29,7 @@ export function DayView({ currentDate, events, onEventClick, onTimeClick }: DayV
       </div>
       <div className="divide-y divide-gray-100">
         {hours.map((hour) => {
-          const hourEvents = dayEvents.filter((e) => new Date(e.startAt).getHours() === hour && !e.allDay);
+          const hourEvents = (byDayHour.get(`${key}:${hour}`) ?? []).filter((e) => !e.allDayFlag);
           const label = hour === 0 ? "12 AM" : hour === 12 ? "12 PM" : hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
           return (
             <div key={hour} className="flex min-h-[48px]">
@@ -66,13 +64,11 @@ export function DayView({ currentDate, events, onEventClick, onTimeClick }: DayV
             </div>
           );
         })}
-        {dayEvents.filter((e) => e.allDay).length > 0 && (
+        {allDayEvents.length > 0 && (
           <div className="bg-amber-50 p-3">
             <div className="text-xs font-medium text-amber-700">All day</div>
             <div className="mt-1 flex flex-wrap gap-1">
-              {dayEvents
-                .filter((e) => e.allDay)
-                .map((e) => (
+              {allDayEvents.map((e) => (
                   <button
                     key={e.id}
                     onClick={() => onEventClick(e)}

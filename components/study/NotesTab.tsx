@@ -30,11 +30,16 @@ export function NotesTab({ initialNotes, courses }: Props) {
 
   const allTags = React.useMemo(() => Array.from(new Set(notes.flatMap((n) => n.tags))).sort(), [notes]);
 
+  const searchIndex = React.useMemo(
+    () => new Map(notes.map((n) => [n.id, `${n.title} ${n.content ?? ""} ${(n.tags ?? []).join(" ")} ${n.courseName ?? ""}`.toLowerCase()])),
+    [notes]
+  );
+  const deferredSearch = React.useDeferredValue(search);
   const filtered = React.useMemo(() => {
     let r = [...notes];
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      r = r.filter((n) => [n.title, n.content ?? "", n.tags.join(" "), n.courseName ?? ""].join(" ").toLowerCase().includes(q));
+    const q = deferredSearch.trim().toLowerCase();
+    if (q) {
+      r = r.filter((n) => searchIndex.get(n.id)?.includes(q) ?? false);
     }
     if (filterFav) r = r.filter((n) => n.favorite);
     if (filterCourse !== "all") {
@@ -43,7 +48,7 @@ export function NotesTab({ initialNotes, courses }: Props) {
     }
     if (filterTag !== "all") r = r.filter((n) => n.tags.includes(filterTag));
     return r;
-  }, [notes, search, filterFav, filterCourse, filterTag]);
+  }, [notes, deferredSearch, searchIndex, filterFav, filterCourse, filterTag]);
 
   const form = useForm<NoteFormValues>({
     resolver: zodResolver(noteSchema),

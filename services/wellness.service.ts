@@ -13,13 +13,15 @@ export async function getWellnessData(userId: string): Promise<{
 }> {
   const supabase = await createClient();
   const todayStr = toDateStr(new Date());
+  const weekAgoIso = new Date(Date.now() - 8 * 86400000).toISOString();
+  const todayIso = new Date().toISOString().slice(0, 10);
 
   const [historyRes, focusRes, tasksRes, scheduleRes, assignmentsRes] = await Promise.all([
     supabase.from("wellness_entries").select("*").eq("user_id", userId).order("entry_date", { ascending: false }).limit(30),
-    supabase.from("focus_sessions").select("duration_minutes, started_at").eq("user_id", userId),
-    supabase.from("tasks").select("id, status, completed_at, created_at").eq("user_id", userId),
-    supabase.from("schedule_events").select("id, event_type, start_at").eq("user_id", userId),
-    supabase.from("assignments").select("id, due_at").eq("user_id", userId).not("due_at", "is", null),
+    supabase.from("focus_sessions").select("duration_minutes, started_at").eq("user_id", userId).gte("started_at", weekAgoIso).limit(500),
+    supabase.from("tasks").select("id, status, completed_at, created_at").eq("user_id", userId).limit(1000),
+    supabase.from("schedule_events").select("id, event_type, start_at").eq("user_id", userId).gte("start_at", weekAgoIso).limit(500),
+    supabase.from("assignments").select("id, due_at").eq("user_id", userId).gte("due_at", todayIso).order("due_at").limit(200),
   ]);
 
   const history: WellnessEntry[] = (historyRes.data ?? []).map((row) => ({
@@ -44,28 +46,35 @@ export async function getWellnessData(userId: string): Promise<{
     weeklyMood.push({ date: dateStr, mood: (historyMap.get(dateStr) as WeeklyMoodPoint["mood"]) ?? null, label });
   }
 
-  // Workload based on actual activity
-  const todayFocusRows = (focusRes.data ?? []).filter((r: { started_at: string }) => toDateStr(new Date(r.started_at)) === todayStr);
-  const focusMinutesToday = todayFocusRows.reduce((sum: number, r: { duration_minutes: number }) => sum + (r.duration_minutes ?? 0), 0);
-  const focusSessionsToday = todayFocusRows.length;
+  // Workload based on actual activity — single pass each, ISO-slice compare
+  let focusMinutesToday = 0;
+  let focusSessionsToday = 0;
+  for (const r of (focusRes.data ?? []) as { started_at: string; duration_minutes: number }[]) {
+    if ((r.started_at as string).slice(0, 10) === todayStr) {
+      focusMinutesToday += r.duration_minutes ?? 0;
+      focusSessionsToday++;
+    }
+  }
 
-  const completedTasksToday = (tasksRes.data ?? []).filter((t: { status: string; completed_at: string | null }) => {
-    if (t.status !== "done" || !t.completed_at) return false;
-    return toDateStr(new Date(t.completed_at)) === todayStr;
-  }).length;
+  let completedTasksToday = 0;
+  for (const t of (tasksRes.data ?? []) as { status: string; completed_at: string | null }[]) {
+    if (t.status === "done" && t.completed_at && (t.completed_at as string).slice(0, 10) === todayStr) completedTasksToday++;
+  }
 
-  const studySessionsToday = (scheduleRes.data ?? []).filter(
-    (e: { event_type: string; start_at: string }) => e.event_type === "study_session" && toDateStr(new Date(e.start_at)) === todayStr
-  ).length;
+  let studySessionsToday = 0;
+  for (const e of (scheduleRes.data ?? []) as { event_type: string; start_at: string }[]) {
+    if (e.event_type === "study_session" && (e.start_at as string).slice(0, 10) === todayStr) studySessionsToday++;
+  }
 
-  const upcomingDeadlinesCount = (assignmentsRes.data ?? []).filter((a: { due_at: string | null }) => {
-    if (!a.due_at) return false;
-    const due = new Date(a.due_at);
-    const now = new Date();
-    const inFuture = due.getTime() >= now.getTime();
-    const withinWeek = due.getTime() - now.getTime() < 7 * 24 * 60 * 60 * 1000;
-    return inFuture && withinWeek;
-  }).length;
+  const nowMs = Date.now();
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  let upcomingDeadlinesCount = 0;
+  for (const a of (assignmentsRes.data ?? []) as { due_at: string | null }[]) {
+    if (!a.due_at) continue;
+    const dueMs = Date.parse(a.due_at);
+    if (Number.isNaN(dueMs)) continue;
+    if (dueMs >= nowMs && dueMs - nowMs < weekMs) upcomingDeadlinesCount++;
+  }
 
   // Gentle, non-medical workload suggestion
   let suggestion = "";

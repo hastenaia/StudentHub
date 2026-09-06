@@ -62,13 +62,15 @@ export default async function FocusPage({ searchParams }: FocusPageProps) {
     color: c.color,
   }));
   const courseMap = new Map(courses.map((c) => [c.id, c.name]));
+  const courseColorMap = new Map(courses.map((c) => [c.id, c.color]));
   const enrichedTasks = tasks.map((t) => ({
     ...t,
     courseName: t.courseId ? courseMap.get(t.courseId) ?? null : null,
-    courseColor: t.courseId ? courses.find((c) => c.id === t.courseId)?.color ?? null : null,
+    courseColor: t.courseId ? courseColorMap.get(t.courseId) ?? null : null,
   }));
+  const taskById = new Map(enrichedTasks.map((t) => [t.id, t]));
 
-  const selectedTask = taskIdParam ? enrichedTasks.find((t) => t.id === taskIdParam) ?? null : null;
+  const selectedTask = taskIdParam ? taskById.get(taskIdParam) ?? null : null;
 
   const recentSessions = recentRes.data ?? [];
 
@@ -107,7 +109,7 @@ export default async function FocusPage({ searchParams }: FocusPageProps) {
           ) : (
             <ul className="space-y-2">
               {recentSessions.map((s: { id: string; duration_minutes: number; started_at: string; ended_at: string | null; task_id: string | null; course_id: string | null }) => {
-                const task = s.task_id ? enrichedTasks.find((t) => t.id === s.task_id) : null;
+                const task = s.task_id ? taskById.get(s.task_id) ?? null : null;
                 const courseName = s.course_id ? courseMap.get(s.course_id) : null;
                 return (
                   <li key={s.id} className="flex items-center justify-between rounded-md border border-gray-100 bg-brand-gray/30 px-3 py-2.5">

@@ -45,6 +45,9 @@ function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+const WEEKDAY_LONG_FMT = new Intl.DateTimeFormat("en-US", { weekday: "long" });
+const WEEKDAY_SHORT_FMT = new Intl.DateTimeFormat("en-US", { weekday: "short" });
+
 function startOfDay(d: Date): Date {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
@@ -59,14 +62,16 @@ export async function getAnalyticsData(userId: string): Promise<AnalyticsData> {
   weekStart.setDate(todayStart.getDate() - 6);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
+  const windowStart = new Date(todayStart.getTime() - 60 * 86400000).toISOString();
+
   const [tasksRes, focusRes, notesRes, flashcardsRes, quizAttemptsRes, scheduleRes, wellnessRes] = await Promise.all([
-    supabase.from("tasks").select("id, status, due_at, completed_at, created_at").eq("user_id", userId),
-    supabase.from("focus_sessions").select("duration_minutes, started_at").eq("user_id", userId),
-    supabase.from("notes").select("id, created_at").eq("user_id", userId),
-    supabase.from("flashcards").select("id, last_reviewed, is_known").eq("user_id", userId),
-    supabase.from("quiz_attempts").select("id, created_at").eq("user_id", userId),
-    supabase.from("schedule_events").select("id, event_type, start_at").eq("user_id", userId),
-    supabase.from("wellness_entries").select("entry_date, mood").eq("user_id", userId).order("entry_date", { ascending: true }),
+    supabase.from("tasks").select("id, status, due_at, completed_at, created_at").eq("user_id", userId).limit(2000),
+    supabase.from("focus_sessions").select("duration_minutes, started_at").eq("user_id", userId).gte("started_at", windowStart).order("started_at", { ascending: false }).limit(2000),
+    supabase.from("notes").select("id, created_at").eq("user_id", userId).gte("created_at", windowStart).limit(2000),
+    supabase.from("flashcards").select("id, last_reviewed, is_known").eq("user_id", userId).limit(2000),
+    supabase.from("quiz_attempts").select("id, created_at").eq("user_id", userId).gte("created_at", windowStart).limit(2000),
+    supabase.from("schedule_events").select("id, event_type, start_at").eq("user_id", userId).gte("start_at", windowStart).limit(2000),
+    supabase.from("wellness_entries").select("entry_date, mood").eq("user_id", userId).gte("entry_date", windowStart.slice(0, 10)).order("entry_date", { ascending: true }).limit(90),
   ]);
 
   const tasks = tasksRes.data ?? [];
@@ -77,15 +82,37 @@ export async function getAnalyticsData(userId: string): Promise<AnalyticsData> {
   const scheduleEvents = scheduleRes.data ?? [];
   const wellnessEntries = wellnessRes.data ?? [];
 
-  // TASKS
-  const completed = tasks.filter((t) => t.status === "done").length;
-  const pending = tasks.filter((t) => t.status !== "done").length;
-  const overdue = tasks.filter((t) => t.status !== "done" && t.due_at && new Date(t.due_at).getTime() < now.getTime()).length;
+  // TASKS — single pass instead of 5x filter
+  let completed = 0;
+  let todoCount = 0;
+  let inProgressCount = 0;
+  const taskTrendMap = new Map<string, number>();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(todayStart);
+    d.setDate(d.getDate() - i);
+    taskTrendMap.set(toDateStr(d), 0);
+  }
+  const nowMs = now.getTime();
+  let overdue = 0;
+  for (const t of tasks) {
+    if (t.status === "done") {
+      completed++;
+      if (t.completed_at) {
+        const dStr = toDateStr(new Date(t.completed_at));
+        if (taskTrendMap.has(dStr)) taskTrendMap.set(dStr, (taskTrendMap.get(dStr) ?? 0) + 1);
+      }
+    } else {
+      if (t.status === "todo") todoCount++;
+      else if (t.status === "in_progress") inProgressCount++;
+      if (t.due_at && Date.parse(t.due_at) < nowMs) overdue++;
+    }
+  }
   const total = tasks.length;
+  const pending = total - completed;
   const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
   const byStatus = [
-    { status: "TODO", count: tasks.filter((t) => t.status === "todo").length },
-    { status: "IN_PROGRESS", count: tasks.filter((t) => t.status === "in_progress").length },
+    { status: "TODO", count: todoCount },
+    { status: "IN_PROGRESS", count: inProgressCount },
     { status: "COMPLETED", count: completed },
   ];
 
@@ -109,27 +136,36 @@ export async function getAnalyticsData(userId: string): Promise<AnalyticsData> {
 
   let totalFocusMinutes = 0;
   const focusByDay = new Map<string, number>(); // for most productive day
+  const todayStartMs = todayStart.getTime();
+  const weekStartMs = weekStart.getTime();
+  const monthStartMs = monthStart.getTime();
+  const prevWeekStartMs = weekStartMs - 7 * 86400000;
+  const prevWeekEndMs = weekStartMs - 1;
+  let prevWeekMins = 0;
 
   for (const row of focusSessions) {
-    const started = new Date(row.started_at);
+    const startedMs = Date.parse(row.started_at);
+    if (Number.isNaN(startedMs)) continue;
     const mins = row.duration_minutes ?? 0;
     totalFocusMinutes += mins;
-    const dateStr = toDateStr(started);
+    // Reuse ISO slice without allocating Date objects twice
+    const dateStr = (row.started_at as string).slice(0, 10);
     // daily trend
     if (dailyTrendMap.has(dateStr)) dailyTrendMap.set(dateStr, (dailyTrendMap.get(dateStr) ?? 0) + mins);
     // weekly trend - bucket by weeks
-    const diffDays = Math.floor((todayStart.getTime() - startOfDay(started).getTime()) / (24 * 60 * 60 * 1000));
+    const diffDays = Math.floor((todayStartMs - startedMs) / 86400000);
     if (diffDays >= 0 && diffDays < 28) {
       const weekIdx = Math.floor(diffDays / 7);
       const weekLabel = `W${4 - weekIdx}`;
       weeklyTrendMap.set(weekLabel, (weeklyTrendMap.get(weekLabel) ?? 0) + mins);
     }
-    if (started >= todayStart) { dailyMinutes += mins; dailySessions++; }
-    if (started >= weekStart) { weeklyMinutes += mins; weeklySessions++; }
-    if (started >= monthStart) { monthlyMinutes += mins; monthlySessions++; }
+    if (startedMs >= todayStartMs) { dailyMinutes += mins; dailySessions++; }
+    if (startedMs >= weekStartMs) { weeklyMinutes += mins; weeklySessions++; }
+    if (startedMs >= monthStartMs) { monthlyMinutes += mins; monthlySessions++; }
+    if (startedMs >= prevWeekStartMs && startedMs <= prevWeekEndMs) prevWeekMins += mins;
 
-    // for most productive day (weekday)
-    const weekday = started.toLocaleDateString("en-US", { weekday: "long" });
+    // for most productive day (weekday) — cached formatter
+    const weekday = WEEKDAY_LONG_FMT.format(new Date(startedMs));
     focusByDay.set(weekday, (focusByDay.get(weekday) ?? 0) + mins);
   }
 
@@ -137,18 +173,20 @@ export async function getAnalyticsData(userId: string): Promise<AnalyticsData> {
 
   const dailyTrend = Array.from(dailyTrendMap.entries()).map(([date, minutes]) => ({
     date,
-    label: new Date(date).toLocaleDateString("en-US", { weekday: "short" }),
+    label: WEEKDAY_SHORT_FMT.format(new Date(`${date}T12:00:00`)),
     minutes,
   }));
 
   const weeklyTrend = Array.from(weeklyTrendMap.entries()).map(([week, minutes]) => ({ week, minutes }));
 
-  // STUDY
+  // STUDY — single pass each (already O(N), no duplicate filters)
   const notesCreated = notes.length;
   const flashcardsTotal = flashcards.length;
-  const flashcardsStudied = flashcards.filter((f) => f.last_reviewed).length;
+  let flashcardsStudied = 0;
+  for (const f of flashcards) if (f.last_reviewed) flashcardsStudied++;
   const quizzesCompleted = quizAttempts.length;
-  const studySessions = scheduleEvents.filter((e) => e.event_type === "study_session").length;
+  let studySessions = 0;
+  for (const e of scheduleEvents) if (e.event_type === "study_session") studySessions++;
 
   // PRODUCTIVITY
   let mostProductiveDay: string | null = null;
@@ -159,28 +197,16 @@ export async function getAnalyticsData(userId: string): Promise<AnalyticsData> {
       mostProductiveDay = day;
     }
   }
-  // task completion trend last 7 days
-  const taskTrendMap = new Map<string, number>();
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(todayStart);
-    d.setDate(d.getDate() - i);
-    taskTrendMap.set(toDateStr(d), 0);
-  }
-  for (const t of tasks) {
-    if (t.status === "done" && t.completed_at) {
-      const dStr = toDateStr(new Date(t.completed_at));
-      if (taskTrendMap.has(dStr)) taskTrendMap.set(dStr, (taskTrendMap.get(dStr) ?? 0) + 1);
-    }
-  }
+  // task completion trend last 7 days — reuse taskTrendMap from single-pass above
   const taskTrend = Array.from(taskTrendMap.entries()).map(([date, count]) => ({
     date,
-    label: new Date(date).toLocaleDateString("en-US", { weekday: "short" }),
+    label: WEEKDAY_SHORT_FMT.format(new Date(`${date}T12:00:00`)),
     count,
   }));
 
   const averageFocusSession = averageMinutes;
 
-  // WELLNESS
+  // WELLNESS — single-pass avg
   const wellnessByDate = new Map(wellnessEntries.map((w) => [w.entry_date, w.mood]));
   const moodTrend: { date: string; label: string; mood: number | null }[] = [];
   for (let i = 6; i >= 0; i--) {
@@ -189,11 +215,13 @@ export async function getAnalyticsData(userId: string): Promise<AnalyticsData> {
     const dateStr = toDateStr(d);
     moodTrend.push({
       date: dateStr,
-      label: d.toLocaleDateString("en-US", { weekday: "short" }),
+      label: WEEKDAY_SHORT_FMT.format(d),
       mood: (wellnessByDate.get(dateStr) as number | undefined) ?? null,
     });
   }
-  const avgMood = wellnessEntries.length > 0 ? parseFloat((wellnessEntries.reduce((sum, w) => sum + (w.mood as number), 0) / wellnessEntries.length).toFixed(1)) : null;
+  let moodSum = 0;
+  for (const w of wellnessEntries) moodSum += w.mood as number;
+  const avgMood = wellnessEntries.length > 0 ? parseFloat((moodSum / wellnessEntries.length).toFixed(1)) : null;
 
   // INSIGHTS - dynamic, no hardcode
   const insights: string[] = [];
@@ -204,18 +232,8 @@ export async function getAnalyticsData(userId: string): Promise<AnalyticsData> {
   } else {
     insights.push(`No focus day stands out yet — try a short session today.`);
   }
-  // compare weekly focus vs previous week
+  // compare weekly focus vs previous week (prevWeekMins accumulated in focus loop)
   const thisWeekMins = weeklyMinutes;
-  // previous week = weekStart -7 to weekStart -1
-  const prevWeekStart = new Date(weekStart);
-  prevWeekStart.setDate(weekStart.getDate() - 7);
-  const prevWeekEnd = new Date(weekStart);
-  prevWeekEnd.setDate(weekStart.getDate() - 1);
-  let prevWeekMins = 0;
-  for (const row of focusSessions) {
-    const d = new Date(row.started_at);
-    if (d >= prevWeekStart && d <= prevWeekEnd) prevWeekMins += row.duration_minutes ?? 0;
-  }
   const diff = thisWeekMins - prevWeekMins;
   if (diff > 0) {
     insights.push(`You focused ${diff} minutes more than last week.`);
