@@ -8,6 +8,25 @@ export const focusClientService = {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return fail("You must be signed in.");
+    return ok({});
+  },
+
+  async logSession(input: LogSessionInput): Promise<ApiResult> {
+    // Validate payload before hitting Supabase — prevents DB check violations and confusing errors.
+    if (!Number.isFinite(input.durationSeconds) || input.durationSeconds <= 0) {
+      return fail("Invalid session duration.");
+    }
+    if (input.kind !== "focus" && input.kind !== "break") {
+      return fail("Invalid session kind.");
+    }
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return fail("You must be signed in.");
+    return ok({});
+  }
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return fail("You must be signed in.");
     const now = new Date();
     const endedAt = new Date(now.getTime() + durationMinutes * 60 * 1000).toISOString();
     const { error } = await supabase.from("focus_sessions").insert({

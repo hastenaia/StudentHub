@@ -16,7 +16,14 @@ describe("hasRole", () => {
 });
 
 describe("getRequiredRoles", () => {
-  it("returns null for open routes", () => {
+  it("returns null for open routes when no staff-only routes exist", () => {
+    // Students module removed — all dashboard routes are open to authenticated users.
+    expect(getRequiredRoles("/dashboard/students")).toBeNull();
+    expect(getRequiredRoles("/dashboard/students?q=1")).toBeNull();
+    expect(getRequiredRoles("/dashboard")).toBeNull();
+    expect(getRequiredRoles("/dashboard/courses")).toBeNull();
+    expect(getRequiredRoles("/dashboard/students")).toBeNull();
+  });
     expect(getRequiredRoles("/dashboard")).toBeNull();
     expect(getRequiredRoles("/dashboard/courses")).toBeNull();
     expect(getRequiredRoles("/dashboard/students")).toBeNull();

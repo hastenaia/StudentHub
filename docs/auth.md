@@ -152,10 +152,10 @@ client-controllable and would allow a self-signed privilege escalation.
 ### Route access map
 
 `lib/rbac.ts` exports `ROUTE_ROLES`, an array of `{ prefix, roles }` pairs.
-More-specific (longer) prefixes win. Currently:
+More-specific (longer) prefixes win. Currently the map is empty (no staff-only routes):
 
 ```ts
-{ prefix: "/dashboard/students", roles: ["teacher", "admin"] }
+// ROUTE_ROLES = [] — all dashboard pages are open to authenticated users.
 ```
 
 `getRequiredRoles(path)` returns the required roles for a path or `null` if the

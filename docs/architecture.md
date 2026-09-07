@@ -130,8 +130,7 @@ Route Handlers, and middleware all use the same `@supabase/ssr`
   (`components/settings/ManualCoursesCard.tsx`).
 
 ### Placeholders
-`app/(dashboard)/dashboard/{courses,grades,schedule,students}/page.tsx` render a
-`ComingSoon` component and are not yet implemented.
+No placeholders remain — all dashboard modules (`courses`, `schedule`, `tasks`, `notes`, `analytics`, `wellness`, `achievements`, `focus`) are implemented; the former `students` module has been removed.
 
 ## Data flow notes
 

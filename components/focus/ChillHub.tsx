@@ -71,7 +71,6 @@ export function ChillHub() {
     const data = buffer.getChannelData(0);
     let lastOut = 0;
     for (let i = 0; i < bufferSize; i++) {
-      // eslint-disable-next-line react-hooks/purity
       const white = Math.random() * 2 - 1;
       lastOut = lastOut * 0.99 + white * 0.01;
       data[i] = lastOut * 3.5;
@@ -112,7 +111,6 @@ export function ChillHub() {
 
     if (id === "brown" || id === "white" || id === "rain") {
       source = createBrownNoise(ctx);
-      // For white, use higher frequency content; for rain, add filtering
       if (id === "rain") {
         const filter = ctx.createBiquadFilter();
         filter.type = "bandpass";
@@ -121,10 +119,8 @@ export function ChillHub() {
         source.connect(filter);
         filter.connect(gain);
       } else if (id === "white") {
-        // white is already broad, no filter
         source.connect(gain);
       } else {
-        // brown - lowpass
         const filter = ctx.createBiquadFilter();
         filter.type = "lowpass";
         filter.frequency.value = 800;
@@ -133,7 +129,6 @@ export function ChillHub() {
       }
       source.start();
     } else if (id === "cafe") {
-      // Cafe: brown + occasional low chatter via oscillators
       source = createBrownNoise(ctx);
       const filter = ctx.createBiquadFilter();
       filter.type = "lowpass";
@@ -141,11 +136,9 @@ export function ChillHub() {
       source.connect(filter);
       filter.connect(gain);
       source.start();
-      // Add subtle crowd murmur with two detuned oscillators
       for (let i = 0; i < 2; i++) {
         const osc = ctx.createOscillator();
         osc.type = "sine";
-        // eslint-disable-next-line react-hooks/purity
         osc.frequency.value = 180 + Math.random() * 40;
         const g = ctx.createGain();
         g.gain.value = 0.02;
@@ -155,7 +148,6 @@ export function ChillHub() {
         oscillators.push(osc);
       }
     } else if (id === "forest") {
-      // Forest: gentle wind + birds
       source = createBrownNoise(ctx);
       const filter = ctx.createBiquadFilter();
       filter.type = "highpass";
@@ -163,30 +155,24 @@ export function ChillHub() {
       source.connect(filter);
       filter.connect(gain);
       source.start();
-      // Bird chirps
       for (let i = 0; i < 3; i++) {
         const osc = ctx.createOscillator();
         osc.type = "sine";
-        // eslint-disable-next-line react-hooks/purity
         osc.frequency.value = 2000 + Math.random() * 1000;
         const g = ctx.createGain();
         g.gain.value = 0;
         osc.connect(g);
         g.connect(gain);
         osc.start();
-        // Random chirps
         const chirp = () => {
           if (!playing[id] && !nodesRef.current.has(id)) return;
           const now = ctx.currentTime;
           g.gain.setValueAtTime(0, now);
           g.gain.linearRampToValueAtTime(0.08, now + 0.05);
           g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-          // eslint-disable-next-line react-hooks/purity
           osc.frequency.setValueAtTime(1800 + Math.random() * 1200, now);
-          // eslint-disable-next-line react-hooks/purity
           setTimeout(chirp, 3000 + Math.random() * 5000);
         };
-        // eslint-disable-next-line react-hooks/purity
         setTimeout(chirp, 1000 + Math.random() * 2000);
         oscillators.push(osc);
       }
@@ -266,6 +252,10 @@ export function ChillHub() {
         <p className="mt-3 text-center text-xs text-gray-400">
           All sounds are synthesized in-browser via Web Audio API — no copyrighted samples, 100% legal for focus.
         </p>
+      </CardContent>
+    </Card>
+  );
+}
       </CardContent>
     </Card>
   );
