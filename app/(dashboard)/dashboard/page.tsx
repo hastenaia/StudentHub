@@ -30,7 +30,7 @@ export default async function DashboardPage() {
   const displayName = user.user_metadata?.full_name?.split(" ")[0] || "there";
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <Suspense fallback={null}>
         <GoogleOAuthStatus />
       </Suspense>
