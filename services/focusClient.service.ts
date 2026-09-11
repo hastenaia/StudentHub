@@ -3,27 +3,17 @@
 import { createClient } from "@/lib/supabase/client";
 import { fail, ok, type ApiResult } from "@/types/api";
 
+export type LogSessionInput = {
+  durationSeconds: number;
+  kind: "focus" | "break";
+  courseId?: string | null;
+  taskId?: string | null;
+  startedAt: string;
+  endedAt: string;
+};
+
 export const focusClientService = {
   async startSession(durationMinutes: number, taskId?: string | null, courseId?: string | null): Promise<ApiResult> {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return fail("You must be signed in.");
-    return ok({});
-  },
-
-  async logSession(input: LogSessionInput): Promise<ApiResult> {
-    // Validate payload before hitting Supabase — prevents DB check violations and confusing errors.
-    if (!Number.isFinite(input.durationSeconds) || input.durationSeconds <= 0) {
-      return fail("Invalid session duration.");
-    }
-    if (input.kind !== "focus" && input.kind !== "break") {
-      return fail("Invalid session kind.");
-    }
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return fail("You must be signed in.");
-    return ok({});
-  }
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return fail("You must be signed in.");
@@ -38,10 +28,34 @@ export const focusClientService = {
       course_id: courseId ?? null,
     });
     if (error) return fail(error.message);
-    return ok(`Focused for ${durationMinutes} minutes.`);
+    return ok(`Focused for ${durationMinutes} minutes.`, undefined);
   },
 
-  async logSession(durationMinutes: number, opts?: { taskId?: string | null; courseId?: string | null; startedAt?: string; endedAt?: string }): Promise<ApiResult> {
+  async logSession(input: LogSessionInput): Promise<ApiResult> {
+    // Validate payload before hitting Supabase — prevents DB check violations and confusing errors.
+    if (!Number.isFinite(input.durationSeconds) || input.durationSeconds <= 0) {
+      return fail("Invalid session duration.");
+    }
+    if (input.kind !== "focus" && input.kind !== "break") {
+      return fail("Invalid session kind.");
+    }
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return fail("You must be signed in.");
+    const durationMinutes = Math.max(1, Math.round(input.durationSeconds / 60));
+    const { error } = await supabase.from("focus_sessions").insert({
+      user_id: user.id,
+      duration_minutes: durationMinutes,
+      started_at: input.startedAt,
+      ended_at: input.endedAt,
+      task_id: input.taskId ?? null,
+      course_id: input.courseId ?? null,
+    });
+    if (error) return fail(error.message);
+    return ok(`Logged ${durationMinutes} min ${input.kind} session.`);
+  },
+
+  async logSessionMinutes(durationMinutes: number, opts?: { taskId?: string | null; courseId?: string | null; startedAt?: string; endedAt?: string }): Promise<ApiResult> {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return fail("You must be signed in.");

@@ -44,9 +44,6 @@ export const ROUTE_ROLES: Array<{ prefix: string; roles: UserRole[] }> = [
 
 /** Returns the roles required for `path`, or null if the path is open. */
 export function getRequiredRoles(path: string): UserRole[] | null {
-
-/** Returns the roles required for `path`, or null if the path is open. */
-export function getRequiredRoles(path: string): UserRole[] | null {
   const match = ROUTE_ROLES.filter(({ prefix }) => path.startsWith(prefix)).sort(
     (a, b) => b.prefix.length - a.prefix.length
   )[0];

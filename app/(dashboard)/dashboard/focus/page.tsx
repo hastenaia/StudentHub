@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
 import { getFocusStats } from "@/services/focus.service";
 import { PomodoroTimer } from "@/components/focus/PomodoroTimer";
 import { FocusStats } from "@/components/focus/FocusStats";
@@ -10,8 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, ListTodo } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-
-export const metadata: Metadata = { title: "Focus — StudentHub" };
 
 export const metadata: Metadata = { title: "Focus — StudentHub" };
 
@@ -96,8 +92,6 @@ export default async function FocusPage({ searchParams }: FocusPageProps) {
       />
 
       <PomodoroTimer initialTask={selectedTask} tasks={enrichedTasks} />
-
-      <ChillHub />
 
       <ChillHub />
 

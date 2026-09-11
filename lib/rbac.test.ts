@@ -23,7 +23,6 @@ describe("getRequiredRoles", () => {
     expect(getRequiredRoles("/dashboard")).toBeNull();
     expect(getRequiredRoles("/dashboard/courses")).toBeNull();
     expect(getRequiredRoles("/dashboard/students")).toBeNull();
-  });
     expect(getRequiredRoles("/dashboard")).toBeNull();
     expect(getRequiredRoles("/dashboard/courses")).toBeNull();
     expect(getRequiredRoles("/dashboard/students")).toBeNull();

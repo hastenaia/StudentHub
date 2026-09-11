@@ -256,7 +256,3 @@ export function ChillHub() {
     </Card>
   );
 }
-      </CardContent>
-    </Card>
-  );
-}

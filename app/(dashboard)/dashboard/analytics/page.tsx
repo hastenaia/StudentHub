@@ -27,10 +27,6 @@ export default async function AnalyticsPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-brand-dark sm:text-2xl">Analytics</h2>
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-brand-dark sm:text-2xl">Analytics</h2>
         <p className="mt-1 max-w-2xl text-sm text-gray-500">
           Productivity and learning habits — calculated from your actual StudentHub data. No grades, no ranking.
         </p>
@@ -80,9 +76,6 @@ export default async function AnalyticsPage() {
           </div>
         ))}
       </div>
-    </div>
-  );
-}
     </div>
   );
 }
