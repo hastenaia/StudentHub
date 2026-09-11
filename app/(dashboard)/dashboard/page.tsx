@@ -49,8 +49,8 @@ export default async function DashboardPage() {
       {/* Smart recommendation — hero */}
       <SmartRecommendation recommendation={data.recommendation} />
 
-      {/* Primary productivity grid */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      {/* Primary productivity grid — B: schedule cluster left, actions+feed right for harmony */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 items-start">
         <div className="space-y-4 lg:col-span-2">
           <TodaysSchedule items={data.todaySchedule} />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 items-stretch auto-rows-fr">
@@ -61,16 +61,13 @@ export default async function DashboardPage() {
               notesCreated={data.activity.notesCreated}
             />
           </div>
+          <UpcomingDeadlines deadlines={data.upcomingDeadlines} />
         </div>
-        <div className="space-y-4">
+        <div className="space-y-4 lg:sticky lg:top-6">
           <PriorityTasks tasks={data.priorityTasks} />
           <QuickActions courses={data.courses} />
+          <AnnouncementsFeed announcements={data.announcements} />
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <UpcomingDeadlines deadlines={data.upcomingDeadlines} />
-        <AnnouncementsFeed announcements={data.announcements} />
       </div>
     </div>
   );
