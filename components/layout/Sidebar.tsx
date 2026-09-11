@@ -29,13 +29,10 @@ const NAV_ITEMS = [
   { label: "Tasks", href: "/dashboard/tasks", icon: ListTodo },
   { label: "Study Hub", href: "/dashboard/study", icon: BookMarked },
   { label: "Notes", href: "/dashboard/notes", icon: FileText },
+  { label: "Focus", href: "/dashboard/focus", icon: Timer },
   { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { label: "Wellness", href: "/dashboard/wellness", icon: Heart },
   { label: "Achievements", href: "/dashboard/achievements", icon: Award },
-
-  { label: "Focus", href: "/dashboard/focus", icon: Timer },
-  { label: "Wellness", href: "/dashboard/wellness", icon: Heart },
-  { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
