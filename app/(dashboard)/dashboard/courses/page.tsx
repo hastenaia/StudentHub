@@ -2,8 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getCoursesData } from "@/services/courses.service";
 import { CoursesView } from "@/components/courses/CoursesView";
 import type { Course } from "@/types/courses";
-import { mockCourses } from "@/lib/mocks/courses";
-import { CourseProgressCard } from "@/components/courses/CourseProgressCard";
 
 export const metadata = { title: "Courses — StudentHub" };
 
@@ -48,11 +46,6 @@ export default async function CoursesPage() {
         </p>
       </div>
       <CoursesView initialCourses={courses} />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {mockCourses.map((c) => (
-          <CourseProgressCard key={c.id} course={c} />
-        ))}
-      </div>
     </div>
   );
 }

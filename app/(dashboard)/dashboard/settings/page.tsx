@@ -17,7 +17,6 @@ import { ProfileCard } from "@/components/settings/ProfileCard";
 import { PreferencesCard } from "@/components/settings/PreferencesCard";
 import { AccountCard } from "@/components/settings/AccountCard";
 import type { DashboardCourse } from "@/types/academics";
-import { mockXp } from "@/lib/mocks/gamification";
 import { getInitials } from "@/utils/validation";
 
 export const metadata: Metadata = { title: "Settings — StudentHub" };
@@ -99,14 +98,6 @@ export default async function SettingsPage() {
                 <Mail className="h-3.5 w-3.5" /> {user?.email}
               </p>
             </div>
-          </div>
-          <div className="rounded-lg border border-gray-100 bg-brand-gray/40 p-3">
-            <p className="text-xs font-medium text-gray-500">Gamification (FR-02 mock)</p>
-            <p className="mt-1 text-sm font-semibold text-brand-dark">Level {mockXp.level} — {mockXp.total} XP · 🔥 {mockXp.streakDays}-day streak</p>
-            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
-              <div className="h-2 rounded-full bg-brand-royal" style={{ width: `${Math.round((mockXp.total / mockXp.nextLevelXp) * 100)}%` }} />
-            </div>
-            <p className="mt-1 text-xs text-gray-400">{mockXp.nextLevelXp - mockXp.total} XP to Level {mockXp.level + 1} · See Achievements</p>
           </div>
         </CardContent>
       </Card>
