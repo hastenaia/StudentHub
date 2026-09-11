@@ -69,11 +69,11 @@ export function QuickActions({ courses }: Props) {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Quick Actions</CardTitle>
         </CardHeader>
-        <CardContent className="px-4 sm:px-5">
-          <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+        <CardContent className="px-4 pb-5 sm:px-5">
+          <div className="grid grid-cols-2 gap-3 auto-rows-fr">
             <Button
               variant="outline"
-              className="flex h-auto min-h-[80px] w-full min-w-[110px] flex-1 flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
+              className="flex !h-auto min-h-[88px] w-full flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3.5 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
               onClick={() => setTaskOpen(true)}
             >
               <ClipboardList className="h-5 w-5 shrink-0 text-brand-royal" />
@@ -81,7 +81,7 @@ export function QuickActions({ courses }: Props) {
             </Button>
             <Button
               variant="outline"
-              className="flex h-auto min-h-[80px] w-full min-w-[110px] flex-1 flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
+              className="flex !h-auto min-h-[88px] w-full flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3.5 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
               onClick={() => setEventOpen(true)}
             >
               <CalendarPlus className="h-5 w-5 shrink-0 text-brand-royal" />
@@ -89,7 +89,7 @@ export function QuickActions({ courses }: Props) {
             </Button>
             <Button
               variant="outline"
-              className="flex h-auto min-h-[80px] w-full min-w-[110px] flex-1 flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
+              className="flex !h-auto min-h-[88px] w-full flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3.5 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
               onClick={() => setCourseOpen(true)}
             >
               <GraduationCap className="h-5 w-5 shrink-0 text-brand-royal" />
@@ -97,7 +97,7 @@ export function QuickActions({ courses }: Props) {
             </Button>
             <Button
               variant="outline"
-              className="flex h-auto min-h-[80px] w-full min-w-[110px] flex-1 flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
+              className="flex !h-auto min-h-[88px] w-full flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3.5 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
               onClick={() => setFocusOpen(true)}
             >
               <Timer className="h-5 w-5 shrink-0 text-emerald-600" />
@@ -105,7 +105,7 @@ export function QuickActions({ courses }: Props) {
             </Button>
             <Button
               variant="outline"
-              className="flex h-auto min-h-[80px] w-full min-w-[110px] flex-1 flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
+              className="flex !h-auto min-h-[88px] w-full flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3.5 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
               onClick={() => setNoteOpen(true)}
             >
               <StickyNote className="h-5 w-5 shrink-0 text-amber-600" />
@@ -113,7 +113,7 @@ export function QuickActions({ courses }: Props) {
             </Button>
             <Button
               variant="outline"
-              className="flex h-auto min-h-[80px] w-full min-w-[110px] flex-1 flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
+              className="flex !h-auto min-h-[88px] w-full flex-col items-center justify-center gap-1.5 whitespace-normal break-words px-3 py-3.5 text-center text-xs leading-tight hover:bg-brand-royal/[0.04] hover:border-brand-royal/30"
               onClick={() => setAiOpen(true)}
             >
               <Bot className="h-5 w-5 shrink-0 text-purple-600" />
