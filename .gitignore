@@ -4,3 +4,9 @@ node_modules
 .env
 *.log
 .DS_Store
+docs/7-day-plan.md
+docs/assignments/member-1-profile-gamification.md
+docs/assignments/member-2-academics-algorithm.md
+docs/assignments/member-3-study-ai-media.md
+docs/assignments/member-4-media-wellness-hardening.md
+docs/assignments/README.md
