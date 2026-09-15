@@ -3,7 +3,7 @@
 import * as React from "react";
 import type { ScheduleEvent } from "@/types/schedule";
 
-export interface GroupedEvent extends ScheduleEvent {
+interface GroupedEvent extends ScheduleEvent {
   startMs: number;
   endMs: number;
   hour: number;

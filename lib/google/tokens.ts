@@ -51,16 +51,16 @@ function base64Url(bytes: Buffer): string {
 }
 
 /** Stateless-page-random verifier; 64 chars, well within PKCE's 43-128 range. */
-export function generateCodeVerifier(): string {
+function generateCodeVerifier(): string {
   return base64Url(randomBytes(48));
 }
 
 /** S256 challenge = base64url(sha256(verifier)), as OAuth PKCE expects. */
-export function codeChallengeFromVerifier(verifier: string): string {
+function codeChallengeFromVerifier(verifier: string): string {
   return base64Url(createHash("sha256").update(verifier).digest());
 }
 
-export function generateState(): string {
+function generateState(): string {
   return base64Url(randomBytes(24));
 }
 
@@ -155,7 +155,7 @@ export async function fetchUserInfo(accessToken: string): Promise<GoogleUserInfo
 }
 
 /** Error carrying the HTTP status so callers can branch (401, 403, 429...). */
-export class GoogleHttpError extends Error {
+class GoogleHttpError extends Error {
   constructor(
     public readonly status: number,
     public readonly url: string,

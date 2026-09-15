@@ -4,16 +4,16 @@
  * OpenAI-compatible call or a configuration error.
  */
 
-export type AIProvider = "openai" | "anthropic" | "google";
+type AIProvider = "openai" | "anthropic" | "google";
 
-export interface AIConfig {
+interface AIConfig {
   provider: AIProvider;
   apiKey: string;
   model: string;
   baseUrl?: string;
 }
 
-export function getAIConfig(): { ok: true; config: AIConfig } | { ok: false; error: string } {
+function getAIConfig(): { ok: true; config: AIConfig } | { ok: false; error: string } {
   // Prefer explicit AI_API_KEY, fall back to common provider keys
   const openaiKey = process.env.OPENAI_API_KEY ?? process.env.AI_API_KEY;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;

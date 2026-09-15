@@ -18,7 +18,7 @@ export const flashcardSchema = z.object({
 });
 export type FlashcardFormValues = z.infer<typeof flashcardSchema>;
 
-export const quizQuestionSchema = z.object({
+const quizQuestionSchema = z.object({
   questionText: z.string().trim().min(1, "Question is required").max(500),
   questionType: z.enum(["multiple_choice", "true_false", "short_answer"]),
   options: z.array(z.string().trim()).default([]),

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { CourseOption, Quiz } from "@/types/study";
+import { toCourseOptions } from "@/lib/courseView";
 
 export async function getQuizzesData(userId: string): Promise<{ quizzes: Quiz[]; courses: CourseOption[] }> {
   const supabase = await createClient();

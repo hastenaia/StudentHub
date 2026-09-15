@@ -3,13 +3,13 @@ import type { UserRole } from "@/types/database.types";
 export type { UserRole };
 
 /** Ordered role hierarchy: higher index = more privileged. */
-export const ROLE_RANK: Record<UserRole, number> = {
+const ROLE_RANK: Record<UserRole, number> = {
   student: 0,
   teacher: 1,
   admin: 2,
 };
 
-export const ROLE_LABELS: Record<UserRole, string> = {
+const ROLE_LABELS: Record<UserRole, string> = {
   student: "Student",
   teacher: "Teacher",
   admin: "Admin",
@@ -38,7 +38,7 @@ export function hasRole(role: UserRole, required: UserRole): boolean {
  * Currently no route requires elevated roles after the Students directory
  * was removed — the array is kept for future RBAC needs.
  */
-export const ROUTE_ROLES: Array<{ prefix: string; roles: UserRole[] }> = [];
+const ROUTE_ROLES: Array<{ prefix: string; roles: UserRole[] }> = [];
 
 /** Returns the roles required for `path`, or null if the path is open. */
 export function getRequiredRoles(path: string): UserRole[] | null {

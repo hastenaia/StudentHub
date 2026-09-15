@@ -64,7 +64,7 @@ export function listCourseWork(
  * The calling user's submissions for a single courseWork item. A student
  * normally has exactly one submission (or none if they never started).
  */
-export function listStudentSubmissions(
+function listStudentSubmissions(
   accessToken: string,
   courseId: string,
   courseWorkId: string

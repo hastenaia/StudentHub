@@ -24,7 +24,7 @@ export interface ScheduledItem {
   reason: string;
 }
 
-export const PRIORITY_LABEL: Record<TaskPriority, string> = {
+const PRIORITY_LABEL: Record<TaskPriority, string> = {
   urgent: "Urgent",
   high: "High",
   medium: "Medium",

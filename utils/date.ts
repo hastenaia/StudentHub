@@ -24,7 +24,7 @@ export function formatDate(iso: string | null): string {
   return DATE_FMT.format(new Date(iso));
 }
 
-export function formatDateTime(iso: string | null): string {
+function formatDateTime(iso: string | null): string {
   if (!iso) return "—";
   return DATE_TIME_FMT.format(new Date(iso));
 }

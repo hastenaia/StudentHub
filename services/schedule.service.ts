@@ -56,7 +56,7 @@ export async function getScheduleData(userId: string): Promise<ScheduleViewData>
 }
 
 // For dashboard consumption — lightweight upcoming events
-export async function getUpcomingScheduleEvents(userId: string, limit = 12): Promise<ScheduleEvent[]> {
+async function getUpcomingScheduleEvents(userId: string, limit = 12): Promise<ScheduleEvent[]> {
   const supabase = await createClient();
   const [eventsRes, coursesRes] = await Promise.all([
     supabase

@@ -1,7 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
-export function StatCardSkeleton() {
+function StatCardSkeleton() {
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -36,7 +36,7 @@ export function DashboardSkeleton() {
   );
 }
 
-export function TableSkeleton({ rows = 5 }: { rows?: number }) {
+function TableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
     <div className="space-y-2">
       {Array.from({ length: rows }).map((_, i) => (

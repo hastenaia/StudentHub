@@ -21,7 +21,3 @@ export interface CourseDraft {
   room: string;
   color: string;
 }
-
-export interface CoursesViewData {
-  courses: Course[];
-}

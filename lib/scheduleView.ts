@@ -45,7 +45,7 @@ export function calendarRowToView(row: CalendarRow): ScheduleEvent {
   };
 }
 
-export function draftToRow(draft: import("@/types/schedule").ScheduleDraft, userId: string) {
+function draftToRow(draft: import("@/types/schedule").ScheduleDraft, userId: string) {
   return {
     user_id: userId,
     course_id: draft.courseId || null,

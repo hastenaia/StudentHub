@@ -35,7 +35,7 @@ export async function getGoogleAccountView(userId: string): Promise<GoogleAccoun
   };
 }
 
-export async function getDashboardData(userId: string): Promise<DashboardData> {
+async function getDashboardData(userId: string): Promise<DashboardData> {
   const supabase = await createClient();
   const [accountView, courses, assignments, announcements, events] = await Promise.all([
     getGoogleAccountView(userId),

@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import type { Database } from "@/types/database.types";
 
-export type CookieToSet = { name: string; value: string; options: CookieOptions };
+type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 interface CookieMethods {
   getAll: () => { name: string; value: string }[];

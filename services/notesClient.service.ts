@@ -2,15 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { fail, ok, type ApiResult } from "@/types/api";
-import type { Note } from "@/types/study";
-
-export interface NoteDraft {
-  title: string;
-  content: string | null;
-  courseId?: string | null;
-  favorite?: boolean;
-  tags?: string[];
-}
+import type { Note, NoteDraft } from "@/types/study";
 
 function rowToNote(row: Record<string, unknown>, courseMap?: Map<string, { name: string; color: string | null }>): Note {
   return {

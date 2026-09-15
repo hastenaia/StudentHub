@@ -10,14 +10,14 @@ import { fail, ok, type ApiResult } from "@/types/api";
  * touching UI.
  */
 
-export interface ManualCourseInput {
+interface ManualCourseInput {
   name: string;
   section?: string | null;
   room?: string | null;
   creditHours: number;
 }
 
-export interface ManualCourseUpdate {
+interface ManualCourseUpdate {
   id: string;
   name?: string;
   creditHours?: number;

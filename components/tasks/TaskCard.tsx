@@ -18,7 +18,7 @@ const PRIORITY_BADGE: Record<TaskPriority, string> = {
   low: "bg-gray-100 text-gray-600",
 };
 
-export function PriorityBadge({ priority }: { priority: TaskPriority }) {
+function PriorityBadge({ priority }: { priority: TaskPriority }) {
   return (
     <span
       className={cn(
@@ -31,7 +31,7 @@ export function PriorityBadge({ priority }: { priority: TaskPriority }) {
   );
 }
 
-export function DueChip({ dueAt }: { dueAt: string | null }) {
+function DueChip({ dueAt }: { dueAt: string | null }) {
   if (!dueAt) return null;
   const overdue = isOverdue(dueAt);
   return (

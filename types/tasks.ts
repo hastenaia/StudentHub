@@ -9,7 +9,7 @@ export type RecurrenceFreq = "daily" | "weekly" | "monthly";
 
 export const TASK_STATUSES: TaskStatus[] = ["todo", "in_progress", "done"];
 export const TASK_PRIORITIES: TaskPriority[] = ["urgent", "high", "medium", "low"];
-export const RECURRENCE_FREQS: RecurrenceFreq[] = ["daily", "weekly", "monthly"];
+const RECURRENCE_FREQS: RecurrenceFreq[] = ["daily", "weekly", "monthly"];
 
 export interface Task {
   id: string;
