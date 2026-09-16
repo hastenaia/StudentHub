@@ -41,6 +41,20 @@ export function TasksView({ initialData }: TasksViewProps) {
   const [sortMode, setSortMode] = React.useState<SortMode>("smart");
 
   const courseMap = React.useMemo(() => new Map(courses.map((c) => [c.id, c])), [courses]);
+  const taskById = React.useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
+
+  // Lowercased search index computed once per tasks change — single includes()
+  // per task per keystroke instead of 4x toLowerCase().
+  const searchIndex = React.useMemo(
+    () =>
+      new Map(
+        tasks.map((t) =>
+          [t.id, `${t.title} ${t.description ?? ""} ${(t.tags ?? []).join(" ")} ${t.courseName ?? ""}`.toLowerCase()]
+        )
+      ),
+    [tasks]
+  );
+  const deferredQuery = React.useDeferredValue(searchQuery);
 
   const [schedule, setSchedule] = React.useState(initialData.schedule);
   const scheduleOrder = React.useMemo(
@@ -68,15 +82,9 @@ export function TasksView({ initialData }: TasksViewProps) {
 
   const filteredTasks = React.useMemo(() => {
     let result = [...tasks];
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (t) =>
-          t.title.toLowerCase().includes(q) ||
-          (t.description && t.description.toLowerCase().includes(q)) ||
-          t.tags.some((tag) => tag.toLowerCase().includes(q)) ||
-          (t.courseName && t.courseName.toLowerCase().includes(q))
-      );
+    const q = deferredQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter((t) => searchIndex.get(t.id)?.includes(q) ?? false);
     }
     if (filterStatus !== "all") {
       result = result.filter((t) => t.status === filterStatus);
@@ -92,7 +100,7 @@ export function TasksView({ initialData }: TasksViewProps) {
       }
     }
     return result;
-  }, [tasks, searchQuery, filterStatus, filterPriority, filterCourse]);
+  }, [tasks, deferredQuery, searchIndex, filterStatus, filterPriority, filterCourse]);
 
   const hasActiveFilters =
     searchQuery.trim() !== "" || filterStatus !== "all" || filterPriority !== "all" || filterCourse !== "all";
@@ -150,7 +158,7 @@ export function TasksView({ initialData }: TasksViewProps) {
   };
 
   const handleComplete = async (id: string) => {
-    const task = tasks.find((t) => t.id === id);
+    const task = taskById.get(id);
     if (!task) return;
     // Reopen if already done
     if (task.status === "done") {

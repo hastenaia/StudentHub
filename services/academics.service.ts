@@ -35,7 +35,7 @@ export async function getGoogleAccountView(userId: string): Promise<GoogleAccoun
   };
 }
 
-export async function getDashboardData(userId: string): Promise<DashboardData> {
+async function getDashboardData(userId: string): Promise<DashboardData> {
   const supabase = await createClient();
   const [accountView, courses, assignments, announcements, events] = await Promise.all([
     getGoogleAccountView(userId),
@@ -70,13 +70,27 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
   const announcementRows = announcements.data ?? [];
   const eventRows = events.data ?? [];
 
-  const now = Date.now();
+  const nowMs = Date.now();
+  // Single-pass grouping O(C+A): assignments arrive ordered by due_at, so each
+  // per-course bucket stays sorted without re-sorting.
+  type AssignmentRow = (typeof assignmentRows)[number];
+  const upcomingByCourse = new Map<string, AssignmentRow[]>();
+  const upcomingGlobalRows: { row: AssignmentRow; dueMs: number }[] = [];
+  for (const a of assignmentRows) {
+    if (!a.due_at) continue;
+    const dueMs = new Date(a.due_at).getTime();
+    if (Number.isNaN(dueMs) || dueMs < nowMs) continue;
+    const bucket = upcomingByCourse.get(a.course_id);
+    if (bucket) {
+      if (bucket.length < 3) bucket.push(a);
+    } else {
+      upcomingByCourse.set(a.course_id, [a]);
+    }
+    upcomingGlobalRows.push({ row: a, dueMs });
+  }
+
   const dashboardCourses: DashboardCourse[] = courseRows.map((course) => {
-    const upcoming = assignmentRows
-      .filter(
-        (a) => a.course_id === course.id && a.due_at && new Date(a.due_at).getTime() >= now
-      )
-      .slice(0, 3)
+    const upcoming = (upcomingByCourse.get(course.id) ?? [])
       .map((a) => toDashboardAssignment(a, course.name));
 
     return {
@@ -103,11 +117,11 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
 
   // Global "due soon" list — takes the per-course top pick, then the top 6
   // by due date across everything. Keeps the overview row tight.
-  const upcomingGlobal = assignmentRows
-    .filter((a) => a.due_at && new Date(a.due_at).getTime() >= now)
-    .map((a) => toDashboardAssignment(a, courseNameById.get(a.course_id) ?? "Unknown course"))
-    .sort((a, b) => (a.dueAt ?? "").localeCompare(b.dueAt ?? ""))
-    .slice(0, 6);
+  // upcomingGlobalRows is already filtered; numeric sort avoids localeCompare.
+  upcomingGlobalRows.sort((a, b) => a.dueMs - b.dueMs);
+  const upcomingGlobal = upcomingGlobalRows
+    .slice(0, 6)
+    .map(({ row: a }) => toDashboardAssignment(a, courseNameById.get(a.course_id) ?? "Unknown course"));
 
   const calendarEvents: CalendarEvent[] = eventRows.map((e) => ({
     id: e.id,

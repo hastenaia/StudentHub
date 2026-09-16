@@ -4,6 +4,8 @@ import { cn } from "@/utils/cn";
 import { EVENT_TYPE_COLOR } from "@/types/schedule";
 import type { ScheduleEvent } from "@/types/schedule";
 import { formatTime } from "@/utils/date";
+import * as React from "react";
+import { useGroupedEvents } from "@/hooks/useGroupedEvents";
 
 interface MonthViewProps {
   currentDate: Date;
@@ -38,21 +40,42 @@ export function MonthView({ currentDate, events, onEventClick, onDateClick }: Mo
   for (let d = 1; d <= totalDays; d++) cells.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), d));
   while (cells.length % 7 !== 0) cells.push(null);
 
+  // Start-day buckets sorted once; spanning events expanded across days in one pass.
+  const { decorated } = useGroupedEvents(events);
+  const { dayMap, countMap } = React.useMemo(() => {
+    const map = new Map<string, typeof decorated>();
+    const counts = new Map<string, number>();
+    const keyOf = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    for (const e of decorated) {
+      const startDay = new Date(e.startMs);
+      startDay.setHours(0, 0, 0, 0);
+      const endDay = new Date(e.endMs);
+      endDay.setHours(0, 0, 0, 0);
+      const spanDays = Math.min(
+        7,
+        Math.max(0, Math.round((endDay.getTime() - startDay.getTime()) / 86400000))
+      );
+      const seen = new Set<string>();
+      for (let i = 0; i <= spanDays; i++) {
+        const d = new Date(startDay.getTime() + i * 86400000);
+        const k = keyOf(d);
+        if (seen.has(k)) continue;
+        seen.add(k);
+        const bucket = map.get(k);
+        if (bucket) bucket.push(e);
+        else map.set(k, [e]);
+        counts.set(k, (counts.get(k) ?? 0) + 1);
+      }
+    }
+    for (const bucket of map.values()) bucket.sort((a, b) => a.startMs - b.startMs);
+    return { dayMap: map, countMap: counts };
+  }, [decorated]);
+
   const dayEvents = (date: Date) =>
-    events
-      .filter((e) => {
-        const s = new Date(e.startAt);
-        const eDate = new Date(e.endAt);
-        // Include if event spans this day
-        const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-        return s < dayEnd && eDate > dayStart || isSameDay(s, date);
-      })
-      .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
-      .slice(0, 3);
+    (dayMap.get(`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`) ?? []).slice(0, 3);
 
   const overflowCount = (date: Date) => {
-    const count = events.filter((e) => isSameDay(new Date(e.startAt), date)).length;
+    const count = countMap.get(`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`) ?? 0;
     return count > 3 ? count - 3 : 0;
   };
 

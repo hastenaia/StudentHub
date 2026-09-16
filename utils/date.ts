@@ -5,26 +5,28 @@
  * handlers, which avoids the classic hydration mismatch.
  */
 
+const TIME_FMT = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
+const DATE_FMT = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
+const DATE_TIME_FMT = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 export function formatTime(iso: string | null): string {
   if (!iso) return "—";
-  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(
-    new Date(iso)
-  );
+  return TIME_FMT.format(new Date(iso));
 }
 
 export function formatDate(iso: string | null): string {
   if (!iso) return "—";
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(iso));
+  return DATE_FMT.format(new Date(iso));
 }
 
-export function formatDateTime(iso: string | null): string {
+function formatDateTime(iso: string | null): string {
   if (!iso) return "—";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(iso));
+  return DATE_TIME_FMT.format(new Date(iso));
 }
 
 /**

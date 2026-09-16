@@ -32,17 +32,22 @@ export function FlashcardsTab({ initialFlashcards, courses, notes }: Props) {
   const [currentIdx, setCurrentIdx] = React.useState(0);
   const [flipped, setFlipped] = React.useState(false);
 
+  const searchIndex = React.useMemo(
+    () => new Map(cards.map((c) => [c.id, `${c.front} ${c.back} ${(c.tags ?? []).join(" ")}`.toLowerCase()])),
+    [cards]
+  );
+  const deferredSearch = React.useDeferredValue(search);
   const filtered = React.useMemo(() => {
     let r = [...cards];
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      r = r.filter((c) => [c.front, c.back, c.tags.join(" ")].join(" ").toLowerCase().includes(q));
+    const q = deferredSearch.trim().toLowerCase();
+    if (q) {
+      r = r.filter((c) => searchIndex.get(c.id)?.includes(q) ?? false);
     }
     if (filterCourse !== "all") r = r.filter((c) => c.courseId === filterCourse);
     if (filterKnown === "known") r = r.filter((c) => c.isKnown);
     if (filterKnown === "unknown") r = r.filter((c) => !c.isKnown);
     return r;
-  }, [cards, search, filterCourse, filterKnown]);
+  }, [cards, deferredSearch, searchIndex, filterCourse, filterKnown]);
 
   const studyDeck = React.useMemo(() => {
     const unknown = filtered.filter((c) => !c.isKnown);
@@ -50,7 +55,12 @@ export function FlashcardsTab({ initialFlashcards, courses, notes }: Props) {
   }, [filtered]);
 
   const current = studyDeck[currentIdx] ?? null;
-  const progress = cards.length ? Math.round((cards.filter((c) => c.isKnown).length / cards.length) * 100) : 0;
+  const progress = React.useMemo(() => {
+    if (cards.length === 0) return 0;
+    let known = 0;
+    for (const c of cards) if (c.isKnown) known++;
+    return Math.round((known / cards.length) * 100);
+  }, [cards]);
 
   const handleDelete = async (id: string) => {
     const res = await flashcardsClientService.deleteFlashcard(id);

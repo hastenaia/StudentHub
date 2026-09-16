@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { manualCourseSchema, type ManualCourseInput } from "@/lib/validations/academics";
+import { manualCourseSchema, type ManualCourseFormInput } from "@/lib/validations/academics";
 import { academicsClientService } from "@/services/academicsClient.service";
 import { useToast } from "@/hooks/useToast";
 import type { DashboardCourse } from "@/types/academics";
@@ -26,12 +26,12 @@ export function ManualCoursesCard({ courses }: ManualCoursesCardProps) {
   const { toast } = useToast();
   const [editingId, setEditingId] = React.useState<string | null>(null);
 
-  const addForm = useForm<ManualCourseInput>({
+  const addForm = useForm<ManualCourseFormInput>({
     resolver: zodResolver(manualCourseSchema),
     defaultValues: { name: "", creditHours: "3" },
   });
 
-  const editForm = useForm<ManualCourseInput>({
+  const editForm = useForm<ManualCourseFormInput>({
     resolver: zodResolver(manualCourseSchema),
   });
 
@@ -45,7 +45,7 @@ export function ManualCoursesCard({ courses }: ManualCoursesCardProps) {
     if (result.success) router.refresh();
   };
 
-  const onAdd = async (input: ManualCourseInput) => {
+  const onAdd = async (input: ManualCourseFormInput) => {
     await run(
       () =>
         academicsClientService.addManualCourse({
@@ -65,7 +65,7 @@ export function ManualCoursesCard({ courses }: ManualCoursesCardProps) {
     });
   };
 
-  const onEdit = async (input: ManualCourseInput) => {
+  const onEdit = async (input: ManualCourseFormInput) => {
     if (!editingId) return;
     await run(
       () =>

@@ -24,7 +24,7 @@ export interface ScheduledItem {
   reason: string;
 }
 
-export const PRIORITY_LABEL: Record<TaskPriority, string> = {
+const PRIORITY_LABEL: Record<TaskPriority, string> = {
   urgent: "Urgent",
   high: "High",
   medium: "Medium",
@@ -139,27 +139,63 @@ class BinaryMinHeap<T> {
 
 /**
  * Order tasks into the recommended execution sequence. Input order is
- * irrelevant; the result is fully determined by the scored min-heap.
+ * irrelevant; the result is fully determined by the scored ordering.
+ *
+ * Keys are precomputed once per task O(N), then a single Array.sort O(N log N)
+ * replaces the previous heap which recomputed keys on every comparison.
  */
 export function buildSchedule(tasks: ScheduleInput[], now: Date = new Date()): ScheduledItem[] {
   const nowMs = now.getTime();
-  const heap = new BinaryMinHeap<ScheduleInput>((a, b) => {
-    const ka = scheduleKey(a, nowMs);
-    const kb = scheduleKey(b, nowMs);
-    for (let i = 0; i < ka.length; i++) {
-      if (ka[i] !== kb[i]) return ka[i] - kb[i];
+  const scored = tasks.map((task) => ({
+    task,
+    key: scheduleKey(task, nowMs),
+    reason: reasonFor(task, nowMs),
+  }));
+  scored.sort((a, b) => {
+    for (let i = 0; i < a.key.length; i++) {
+      if (a.key[i] !== b.key[i]) return a.key[i] - b.key[i];
     }
     return 0;
   });
+  return scored.map(({ task, reason }) => ({ taskId: task.id, title: task.title, reason }));
+}
 
-  for (const task of tasks) heap.push(task);
-
-  const ordered: ScheduledItem[] = [];
-  while (heap.size > 0) {
-    const task = heap.pop()!;
-    ordered.push({ taskId: task.id, title: task.title, reason: reasonFor(task, nowMs) });
+/**
+ * Top-K variant O(N log K): only the first K items are ordered. Prefer this
+ * when callers slice (e.g. dashboard top-5) to avoid a full sort.
+ */
+export function buildTopSchedule(
+  tasks: ScheduleInput[],
+  k: number,
+  now: Date = new Date()
+): ScheduledItem[] {
+  if (k <= 0) return [];
+  if (k >= tasks.length) return buildSchedule(tasks, now);
+  const nowMs = now.getTime();
+  const scored = tasks.map((task) => ({
+    task,
+    key: scheduleKey(task, nowMs),
+    reason: reasonFor(task, nowMs),
+  }));
+  const compare = (
+    a: (typeof scored)[number],
+    b: (typeof scored)[number]
+  ): number => {
+    for (let i = 0; i < a.key.length; i++) {
+      if (a.key[i] !== b.key[i]) return a.key[i] - b.key[i];
+    }
+    return 0;
+  };
+  // Max-heap of size K over the smallest elements.
+  const heap = new BinaryMinHeap<(typeof scored)[number]>((a, b) => -compare(a, b));
+  for (const s of scored) {
+    heap.push(s);
+    if (heap.size > k) heap.pop();
   }
-  return ordered;
+  const top: (typeof scored)[number][] = [];
+  while (heap.size > 0) top.push(heap.pop()!);
+  top.sort(compare);
+  return top.map(({ task, reason }) => ({ taskId: task.id, title: task.title, reason }));
 }
 
 /**

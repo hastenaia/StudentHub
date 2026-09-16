@@ -4,7 +4,7 @@ import * as React from "react";
 
 export type ToastVariant = "default" | "success" | "error" | "warning";
 
-export interface Toast {
+interface Toast {
   id: string;
   title: string;
   description?: string;

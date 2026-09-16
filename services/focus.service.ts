@@ -46,11 +46,15 @@ function computeStreak(dates: string[]): number {
 
 export async function getFocusStats(userId: string): Promise<FocusStats> {
   const supabase = await createClient();
+  // 120-day window covers daily/weekly/monthly trends + streaks while bounding growth.
+  const windowStart = new Date(Date.now() - 120 * 86400000).toISOString();
   const { data, error } = await supabase
     .from("focus_sessions")
     .select("duration_minutes, started_at")
     .eq("user_id", userId)
-    .order("started_at", { ascending: false });
+    .gte("started_at", windowStart)
+    .order("started_at", { ascending: false })
+    .limit(2000);
 
   if (error || !data) {
     return {

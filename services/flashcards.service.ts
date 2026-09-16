@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { toCourseOptions } from "@/lib/courseView";
 import type { CourseOption, Flashcard } from "@/types/study";
 
 export async function getFlashcardsData(userId: string): Promise<{ flashcards: Flashcard[]; courses: CourseOption[] }> {
@@ -7,11 +8,7 @@ export async function getFlashcardsData(userId: string): Promise<{ flashcards: F
     supabase.from("flashcards").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
     supabase.from("courses").select("id, name, course_name, color").eq("user_id", userId).eq("archived", false).order("name"),
   ]);
-  const courses: CourseOption[] = (coursesRes.data ?? []).map((c: { id: string; name: string; course_name: string | null; color: string | null }) => ({
-    id: c.id,
-    name: c.course_name ?? c.name,
-    color: c.color,
-  }));
+  const courses: CourseOption[] = toCourseOptions(coursesRes.data);
   const courseMap = new Map(courses.map((c) => [c.id, c]));
   const flashcards: Flashcard[] = (flashRes.data ?? []).map((row) => ({
     id: row.id,

@@ -14,7 +14,7 @@ export const forgotPasswordSchema = z.object({
 });
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
-export const passwordSchema = z
+const passwordSchema = z
   .string()
   .min(8, PASSWORD_RULES[0].label)
   .regex(/[A-Z]/, PASSWORD_RULES[1].label)

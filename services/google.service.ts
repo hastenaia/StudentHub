@@ -32,6 +32,30 @@ export interface SyncResult {
 
 /** Batch size for Supabase writes (keeps payloads well under limits). */
 const CHUNK = 100;
+/** Max concurrent Google API calls (avoids 429 rate limits). */
+const GOOGLE_CONCURRENCY = 5;
+
+/** Run async tasks with bounded concurrency; failures resolve to null. */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<(R | null)[]> {
+  const results: (R | null)[] = new Array(items.length).fill(null);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const idx = next++;
+      try {
+        results[idx] = await fn(items[idx]);
+      } catch {
+        results[idx] = null;
+      }
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
 
 /**
  * Primary facade for the Google integration. Handles the OAuth handshake
@@ -229,12 +253,16 @@ async function performSync(
 
   // --- Assignments ----------------------------------------------------------
   // Grades are intentionally ignored — only informational fields are synced.
+  // Bounded-parallel fetch (was serial N+1): ~C/5 latency, tolerant of per-course failures.
   const assignmentRows: Database["public"]["Tables"]["assignments"]["Insert"][] = [];
   const syncedWorkIds = new Set<string>();
+  const coursePairs = [...courseIdByGoogle.entries()];
 
-  for (const [googleCourseId, dbCourseId] of courseIdByGoogle) {
-    const courseWork = await listCourseWork(accessToken, googleCourseId);
-    for (const cw of courseWork) {
+  const workResults = await mapWithConcurrency(coursePairs, GOOGLE_CONCURRENCY, ([googleCourseId]) =>
+    listCourseWork(accessToken, googleCourseId)
+  );
+  coursePairs.forEach(([, dbCourseId], i) => {
+    for (const cw of workResults[i] ?? []) {
       syncedWorkIds.add(cw.id);
       assignmentRows.push({
         user_id: userId,
@@ -247,7 +275,7 @@ async function performSync(
         state: null,
       });
     }
-  }
+  });
 
   for (let i = 0; i < assignmentRows.length; i += CHUNK) {
     const { error } = await supabase
@@ -275,12 +303,15 @@ async function performSync(
   }
 
   // --- Announcements ---------------------------------------------------------
+  // Bounded-parallel fetch (was serial N+1).
   const announcementRows: Database["public"]["Tables"]["announcements"]["Insert"][] = [];
   const syncedAnnouncementIds = new Set<string>();
 
-  for (const [googleCourseId, dbCourseId] of courseIdByGoogle) {
-    const announcements = await listAnnouncements(accessToken, googleCourseId);
-    for (const a of announcements) {
+  const announcementResults = await mapWithConcurrency(coursePairs, GOOGLE_CONCURRENCY, ([googleCourseId]) =>
+    listAnnouncements(accessToken, googleCourseId)
+  );
+  coursePairs.forEach(([, dbCourseId], i) => {
+    for (const a of announcementResults[i] ?? []) {
       syncedAnnouncementIds.add(a.id);
       announcementRows.push({
         user_id: userId,
@@ -291,7 +322,7 @@ async function performSync(
         publish_time: a.creationTime ?? null,
       });
     }
-  }
+  });
 
   for (let i = 0; i < announcementRows.length; i += CHUNK) {
     const { error } = await supabase

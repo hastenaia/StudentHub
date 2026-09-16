@@ -32,7 +32,7 @@ function groupByStatus(tasks: Task[]): Columns {
   for (const task of tasks) columns[task.status].push(task);
   for (const status of TASK_STATUSES) {
     columns[status].sort(
-      (a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt)
+      (a, b) => a.sortOrder - b.sortOrder || (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0)
     );
   }
   return columns;
@@ -66,12 +66,23 @@ export function KanbanBoard({ tasks, onMove, onEdit, onDelete, onComplete, onAdd
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
+  // O(1) container lookup for high-frequency dragover events.
+  const idToStatus = React.useMemo(() => {
+    const map = new Map<string, TaskStatus>();
+    for (const status of TASK_STATUSES) {
+      for (const task of columns[status]) map.set(task.id, status);
+    }
+    return map;
+  }, [columns]);
+  const taskById = React.useMemo(() => {
+    const map = new Map<string, Task>();
+    for (const t of tasks) map.set(t.id, t);
+    return map;
+  }, [tasks]);
+
   const findContainer = (id: string): TaskStatus | undefined => {
     if ((TASK_STATUSES as string[]).includes(id)) return id as TaskStatus;
-    for (const status of TASK_STATUSES) {
-      if (columns[status].some((task) => task.id === id)) return status;
-    }
-    return undefined;
+    return idToStatus.get(id);
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -132,7 +143,7 @@ export function KanbanBoard({ tasks, onMove, onEdit, onDelete, onComplete, onAdd
     setColumns(groupByStatus(tasks));
   };
 
-  const activeTask = activeId ? tasks.find((task) => task.id === activeId) : null;
+  const activeTask = activeId ? taskById.get(activeId) ?? null : null;
 
   return (
     <DndContext
