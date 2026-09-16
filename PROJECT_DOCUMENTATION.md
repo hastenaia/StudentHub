@@ -240,8 +240,7 @@ window.
 scale presets + target GPA, `AcademicSettingsCard.tsx`), and manual course CRUD
 for courses not on Google Classroom (`ManualCoursesCard.tsx`).
 
-**Placeholders** — `app/(dashboard)/dashboard/{courses,grades,schedule,students}/page.tsx`
-render a `ComingSoon` component and are not yet implemented.
+**Placeholders** — none currently; active modules are `courses`, `schedule`, `tasks`, `notes`, `analytics`, `wellness`, `achievements`, `focus` (the former `students` placeholder has been removed).
 
 ### Data flow notes
 
@@ -417,10 +416,10 @@ client-controllable and would allow a self-signed privilege escalation.
 | Client | `useRole().has("admin")` → conditional UI | `hooks/useRole.ts` |
 
 **Route access map** — `lib/rbac.ts` exports `ROUTE_ROLES`, an array of
-`{ prefix, roles }` pairs. More-specific (longer) prefixes win. Currently:
+`{ prefix, roles }` pairs. More-specific (longer) prefixes win. Currently the map is empty:
 
 ```ts
-{ prefix: "/dashboard/students", roles: ["teacher", "admin"] }
+// ROUTE_ROLES = [] — no staff-only routes; all dashboard pages are open to authenticated users.
 ```
 
 `getRequiredRoles(path)` returns the required roles for a path or `null` if the

@@ -1,5 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 
+export interface FocusCourseOption {
+  id: string;
+  name: string;
+}
+
+export interface FocusTaskOption {
+  id: string;
+  title: string;
+}
+
 export interface FocusStats {
   todayMinutes: number;
   todaySessions: number;

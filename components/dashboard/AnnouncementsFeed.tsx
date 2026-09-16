@@ -10,14 +10,14 @@ interface AnnouncementsFeedProps {
 export function AnnouncementsFeed({ announcements }: AnnouncementsFeedProps) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Megaphone className="h-5 w-5 text-brand-royal" /> Announcements
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Megaphone className="h-4 w-4 text-brand-royal" /> Announcements
         </CardTitle>
       </CardHeader>
       <CardContent>
         {announcements.length === 0 ? (
-          <p className="text-sm text-gray-500">No announcements yet.</p>
+          <p className="py-6 text-center text-sm text-gray-500">No announcements yet.</p>
         ) : (
           <ul className="space-y-4">
             {announcements.map((announcement) => (

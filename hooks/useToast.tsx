@@ -28,7 +28,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const toast = React.useCallback(
     ({ title, description, variant = "default" }: Omit<Toast, "id">) => {
-      const id = crypto.randomUUID();
+      // Fallback for environments without crypto.randomUUID (e.g. insecure context / jsdom).
+      let id: string;
+      try {
+        id = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+      } catch {
+        id = Math.random().toString(36).slice(2);
+      }
       setToasts((prev) => [...prev, { id, title, description, variant }]);
       setTimeout(() => dismiss(id), 5000);
     },
