@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, KeyRound, Plug, ShieldCheck, UserCircle, Palette, LogOut } from "lucide-react";
+import { BookOpen, KeyRound, Mail, Plug, ShieldCheck, UserCircle, Palette, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
   Card,
@@ -17,6 +17,7 @@ import { ProfileCard } from "@/components/settings/ProfileCard";
 import { PreferencesCard } from "@/components/settings/PreferencesCard";
 import { AccountCard } from "@/components/settings/AccountCard";
 import type { DashboardCourse } from "@/types/academics";
+import { getInitials } from "@/utils/validation";
 
 export const metadata: Metadata = { title: "Settings — StudentHub" };
 
@@ -85,8 +86,19 @@ export default async function SettingsPage() {
           </CardTitle>
           <CardDescription>Name, email, avatar and timezone.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <ProfileCard initialName={displayName} email={user.email ?? null} avatarUrl={avatarUrl} initialTimezone={timezone} />
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-royal text-xl font-semibold text-white">
+              {getInitials(fullName)}
+            </div>
+            <div>
+              <p className="font-medium text-brand-dark">{fullName}</p>
+              <p className="flex items-center gap-1.5 text-sm text-gray-500">
+                <Mail className="h-3.5 w-3.5" /> {user?.email}
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

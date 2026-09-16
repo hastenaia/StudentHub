@@ -12,7 +12,7 @@ export default async function CoursesPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return <p className="text-sm text-gray-500">You need to be signed in to view this page.</p>;
+    return <p className="text-sm text-gray-500">You need to be signed in to view courses.</p>;
   }
 
   let courses: Course[] = [];

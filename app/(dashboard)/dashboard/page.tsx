@@ -30,7 +30,7 @@ export default async function DashboardPage() {
   const displayName = user.user_metadata?.full_name?.split(" ")[0] || "there";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Suspense fallback={null}>
         <GoogleOAuthStatus />
       </Suspense>
@@ -53,7 +53,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <TodaysSchedule items={data.todaySchedule} />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 items-stretch auto-rows-fr">
             <FocusToday minutes={data.focus.minutes} sessions={data.focus.sessions} streak={data.focus.streak} />
             <StudyActivity
               completedTasks={data.activity.completedTasks}

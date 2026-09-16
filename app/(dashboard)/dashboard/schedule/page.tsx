@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getScheduleData } from "@/services/schedule.service";
 import { ScheduleView } from "@/components/schedule/ScheduleView";
+import { CalendarShell } from "@/components/calendar/CalendarShell";
 
 export const metadata = { title: "Schedule — StudentHub" };
 
@@ -43,6 +44,7 @@ export default async function SchedulePage() {
         </p>
       </div>
       <ScheduleView initialEvents={data.events} courses={data.courses} />
+      <CalendarShell />
     </div>
   );
 }

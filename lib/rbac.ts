@@ -38,7 +38,9 @@ export function hasRole(role: UserRole, required: UserRole): boolean {
  * Currently no route requires elevated roles after the Students directory
  * was removed — the array is kept for future RBAC needs.
  */
-export const ROUTE_ROLES: Array<{ prefix: string; roles: UserRole[] }> = [];
+export const ROUTE_ROLES: Array<{ prefix: string; roles: UserRole[] }> = [
+  // No staff-only routes currently — student area is open to all authenticated roles.
+];
 
 /** Returns the roles required for `path`, or null if the path is open. */
 export function getRequiredRoles(path: string): UserRole[] | null {
