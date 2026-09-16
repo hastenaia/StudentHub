@@ -45,7 +45,7 @@ export function ManualCoursesCard({ courses }: ManualCoursesCardProps) {
     if (result.success) router.refresh();
   };
 
-  const onAdd = async (input: ManualCourseInput) => {
+  const onAdd = async (input: ManualCourseFormInput) => {
     await run(
       () =>
         academicsClientService.addManualCourse({
@@ -65,7 +65,7 @@ export function ManualCoursesCard({ courses }: ManualCoursesCardProps) {
     });
   };
 
-  const onEdit = async (input: ManualCourseInput) => {
+  const onEdit = async (input: ManualCourseFormInput) => {
     if (!editingId) return;
     await run(
       () =>
