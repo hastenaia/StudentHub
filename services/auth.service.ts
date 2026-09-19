@@ -52,6 +52,23 @@ export const authService = {
     return ok();
   },
 
+  async signInWithGoogle(next = "/dashboard"): Promise<ApiResult> {
+    const supabase = createClient();
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    });
+
+    if (error) {
+      return fail(getAuthErrorMessage(error));
+    }
+    if (data.url) {
+      window.location.assign(data.url);
+    }
+    return ok();
+  },
+
   async logout(): Promise<ApiResult> {
     const supabase = createClient();
     const { error } = await supabase.auth.signOut();

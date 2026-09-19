@@ -27,6 +27,16 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = React.useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+    const result = await authService.signInWithGoogle(safeRedirect(searchParams.get("redirectTo")));
+    if (!result.success) {
+      toast({ title: "Google sign-in failed", description: result.message, variant: "error" });
+      setIsGoogleLoading(false);
+    }
+  };
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -135,7 +145,8 @@ export function LoginForm() {
           variant="outline"
           className="w-full"
           size="lg"
-          onClick={() => toast({ title: "Google sign-in (mock)", description: "Wire supabase.auth.signInWithOAuth({ provider: 'google' }) to enable.", variant: "success" })}
+          isLoading={isGoogleLoading}
+          onClick={handleGoogleSignIn}
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
