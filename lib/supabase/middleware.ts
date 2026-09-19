@@ -5,6 +5,29 @@ import { getRequiredRoles, hasRole, roleFromUser } from "@/lib/rbac";
 const PUBLIC_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/auth/confirm", "/change-password"];
 
 export async function updateSession(request: NextRequest) {
+  const url = request.nextUrl;
+  const hasAuthParams =
+    url.searchParams.has("code") ||
+    url.searchParams.has("token_hash") ||
+    url.searchParams.has("error");
+  const isAuthRoute =
+    url.pathname === "/auth/callback" ||
+    url.pathname === "/auth/confirm" ||
+    url.pathname === "/reset-password";
+
+  // Supabase falls back to the Site URL ("/") when the redirectTo allow-list
+  // or email template isn't configured. Rescue `?code=` / `?token_hash=`
+  // links landing anywhere else by forwarding them to /auth/callback,
+  // which exchanges the code and sends recovery flows to /reset-password.
+  if (hasAuthParams && !isAuthRoute) {
+    const rescueUrl = url.clone();
+    rescueUrl.pathname = "/auth/callback";
+    if (!rescueUrl.searchParams.get("next")) {
+      rescueUrl.searchParams.set("next", "/reset-password");
+    }
+    return NextResponse.redirect(rescueUrl);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerCookieClient({
