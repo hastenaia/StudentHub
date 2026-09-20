@@ -1,3 +1,6 @@
+"use client";
+
+import * as React from "react";
 import { Clock, CheckCircle2, BookOpen, CalendarDays, Lightbulb } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { WorkloadInfo } from "@/types/wellness";
@@ -8,6 +11,23 @@ export function WorkloadCard({ workload }: Props) {
   const { focusMinutesToday, focusSessionsToday, completedTasksToday, studySessionsToday, upcomingDeadlinesCount, suggestion } = workload;
 
   const focusHours = (focusMinutesToday / 60).toFixed(focusMinutesToday % 60 === 0 ? 0 : 1);
+  const [aiTip, setAiTip] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (focusMinutesToday < 90 && upcomingDeadlinesCount <= 3) return;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 4500);
+    fetch("/api/ai/explain", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ concept: `Give a 1-sentence wellness break tip for a student with ${focusMinutesToday} min focus and ${upcomingDeadlinesCount} deadlines` }),
+      signal: ctrl.signal,
+    })
+      .then((r) => r.json())
+      .then((d) => { if (d.success) setAiTip(d.data?.explanation ?? null); })
+      .catch(() => {})
+      .finally(() => clearTimeout(t));
+  }, [focusMinutesToday, upcomingDeadlinesCount]);
 
   return (
     <Card>
@@ -55,7 +75,7 @@ export function WorkloadCard({ workload }: Props) {
           </div>
           <div className="min-w-0">
             <p className="text-xs font-medium text-sky-900">Gentle suggestion</p>
-            <p className="mt-1 text-sm leading-relaxed text-gray-700">{suggestion}</p>
+            <p className="mt-1 text-sm leading-relaxed text-gray-700">{aiTip ?? suggestion}</p>
             <p className="mt-2 text-[11px] text-gray-400">
               This is general study habit info, not medical advice. If you need support, reach out to someone you trust or a campus resource.
             </p>

@@ -1,5 +1,5 @@
 import type { Course } from "@/types/courses";
-import type { Database } from "@/types/database.types";
+import type { CourseSource, Database } from "@/types/database.types";
 
 type CourseRow = Database["public"]["Tables"]["courses"]["Row"];
 
@@ -30,7 +30,7 @@ export function courseRowToView(row: CourseRow): Course {
     color: row.color ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
-    source: row.source,
+    source: row.source as CourseSource,
     google_course_id: row.google_course_id ?? null,
   };
 }

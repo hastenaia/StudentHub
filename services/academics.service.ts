@@ -100,7 +100,7 @@ async function getDashboardData(userId: string): Promise<DashboardData> {
       room: course.room,
       teacherName: course.teacher_name,
       color: course.color,
-      source: course.source,
+      source: course.source as DashboardCourse["source"],
       creditHours: Number(course.credit_hours ?? 0),
       upcomingAssignments: upcoming,
     };

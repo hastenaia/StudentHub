@@ -7,7 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/useToast";
-import type { Note } from "@/types/study";
+import { flashcardsClientService } from "@/services/flashcardsClient.service";
+import { quizzesClientService } from "@/services/quizzesClient.service";
+import { notesClientService } from "@/services/notesClient.service";
+import type { Note, QuestionType } from "@/types/study";
 
 type Action = "explain" | "summarize" | "flashcards" | "quiz" | "plan";
 
@@ -76,6 +79,67 @@ export function AIAssistantTab({ notes, courses }: Props) {
       if (!concept.trim()) return setError("Enter a topic for the study plan.");
       return call("/api/ai/study-plan", { topic: concept, courseId: selectedCourse || undefined, durationDays: Number(count) || 7 });
     }
+  };
+
+  const [saving, setSaving] = React.useState<null | "flashcards" | "quiz" | "summary">(null);
+
+  const withSaving = async (kind: NonNullable<typeof saving>, work: () => Promise<void>) => {
+    setSaving(kind);
+    try {
+      await work();
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const saveFlashcards = async () => {
+    const items = Array.isArray((generated as { flashcards?: unknown })?.flashcards)
+      ? (generated as { flashcards: { front?: string; back?: string }[] }).flashcards
+      : Array.isArray(generated)
+        ? (generated as { front?: string; back?: string }[])
+        : [];
+    const valid = items.filter((c) => c.front?.trim() && c.back?.trim());
+    if (!valid.length) return toast({ title: "Nothing to save", variant: "error" });
+    await withSaving("flashcards", async () => {
+      const results = await Promise.allSettled(
+        valid.map((c) =>
+          flashcardsClientService.createFlashcard({ front: c.front!.trim(), back: c.back!.trim(), tags: [], courseId: selectedCourse || null, noteId: selectedNote || null })
+        )
+      );
+      const n = results.filter((r) => r.status === "fulfilled" && r.value.success).length;
+      toast({ title: `Saved ${n} flashcards`, variant: n ? "success" : "error" });
+    });
+  };
+
+  const saveQuiz = async () => {
+    const qs = ((generated as { questions?: unknown[] })?.questions ?? []) as { question_text?: string; question_type?: string; options?: string[]; correct_answer?: string; explanation?: string }[];
+    if (!qs.length) return toast({ title: "Nothing to save", variant: "error" });
+    await withSaving("quiz", async () => {
+      const res = await quizzesClientService.createQuiz({
+        title: "AI Quiz",
+        description: null,
+        courseId: selectedCourse || null,
+        questions: qs
+          .filter((q) => q.question_text?.trim() && q.correct_answer?.trim())
+          .map((q) => ({
+            questionText: q.question_text!.trim(),
+            questionType: (["multiple_choice", "true_false", "short_answer"].includes(q.question_type ?? "") ? q.question_type : "short_answer") as QuestionType,
+            options: Array.isArray(q.options) ? q.options : [],
+            correctAnswer: q.correct_answer!.trim(),
+            explanation: q.explanation ?? null,
+          })),
+      });
+      toast({ title: res.success ? "Quiz saved" : "Save failed", description: res.success ? undefined : res.message, variant: res.success ? "success" : "error" });
+    });
+  };
+
+  const saveSummary = async () => {
+    if (!result) return;
+    await withSaving("summary", async () => {
+      const title = selectedNote ? `Summary: ${notes.find((n) => n.id === selectedNote)?.title ?? "Note"}` : "AI Summary";
+      const res = await notesClientService.createNote({ title, content: result, tags: ["ai-summary"], courseId: selectedCourse || null });
+      toast({ title: res.success ? "Summary saved as new note" : "Save failed", description: res.success ? undefined : res.message, variant: res.success ? "success" : "error" });
+    });
   };
 
   const isConfigError = error?.includes("not configured");
@@ -202,9 +266,17 @@ export function AIAssistantTab({ notes, courses }: Props) {
                   <Check className="h-4 w-4" /> AI Result
                 </div>
                 <div className="whitespace-pre-wrap rounded bg-brand-gray/30 p-3 text-sm leading-relaxed text-gray-800">{result}</div>
-                {!!generated && (action === "flashcards" || action === "quiz") && (
-                  <p className="mt-2 text-xs text-gray-500">Tip: Copy the JSON above or use it to create flashcards/quiz via the respective tabs.</p>
-                )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {action === "flashcards" && Boolean(generated) && (
+                    <Button size="sm" onClick={saveFlashcards} disabled={saving !== null}>{saving === "flashcards" ? "Saving…" : "Save as flashcards"}</Button>
+                  )}
+                  {action === "quiz" && Boolean(generated) && (
+                    <Button size="sm" onClick={saveQuiz} disabled={saving !== null}>{saving === "quiz" ? "Saving…" : "Save as quiz"}</Button>
+                  )}
+                  {action === "summarize" && result && (
+                    <Button size="sm" onClick={saveSummary} disabled={saving !== null}>{saving === "summary" ? "Saving…" : "Save as new note"}</Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}

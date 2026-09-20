@@ -21,7 +21,7 @@ function SimpleSlider({ value, onChange, disabled }: { value: number; onChange: 
   );
 }
 
-type AmbientId = "brown" | "rain" | "cafe" | "forest" | "white";
+type AmbientId = "brown" | "rain" | "cafe" | "forest" | "white" | "lofi";
 
 interface Ambient {
   id: AmbientId;
@@ -37,6 +37,7 @@ const AMBIENTS: Ambient[] = [
   { id: "cafe", name: "Café", description: "Soft chatter — generated", icon: Coffee, color: "text-orange-700 bg-orange-50" },
   { id: "forest", name: "Forest", description: "Birds & breeze — synthesis", icon: Trees, color: "text-emerald-700 bg-emerald-50" },
   { id: "white", name: "White Noise", description: "Clean hush — generated", icon: Wind, color: "text-gray-700 bg-gray-50" },
+  { id: "lofi", name: "Lo-fi", description: "Warm crackle — procedural", icon: Music, color: "text-purple-700 bg-purple-50" },
 ];
 
 export function ChillHub() {
@@ -48,6 +49,7 @@ export function ChillHub() {
     cafe: false,
     forest: false,
     white: false,
+    lofi: false,
   });
   const [volume, setVolume] = React.useState<Record<AmbientId, number>>({
     brown: 60,
@@ -55,6 +57,7 @@ export function ChillHub() {
     cafe: 40,
     forest: 45,
     white: 30,
+    lofi: 40,
   });
 
   const ensureContext = () => {
@@ -176,6 +179,23 @@ export function ChillHub() {
         setTimeout(chirp, 1000 + Math.random() * 2000);
         oscillators.push(osc);
       }
+    } else if (id === "lofi") {
+      source = createBrownNoise(ctx);
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.value = 900;
+      source.connect(lp);
+      lp.connect(gain);
+      source.start();
+      const crack = ctx.createOscillator();
+      crack.type = "square";
+      crack.frequency.value = 12;
+      const cg = ctx.createGain();
+      cg.gain.value = 0.015;
+      crack.connect(cg);
+      cg.connect(gain);
+      crack.start();
+      oscillators.push(crack);
     }
 
     nodesRef.current.set(id, { gain, source, oscillators });
