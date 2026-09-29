@@ -160,7 +160,7 @@ export async function callAI(prompt: string, systemPrompt?: string): Promise<{ t
       return { text };
     });
   } catch (e) {
-    if (e instanceof Error && e.name === "AbortError") return { error: "AI timed out (>4.5s), try again." };
+    if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) return { error: "AI timed out (>4.5s), try again." };
     return { error: e instanceof Error ? e.message : "AI request failed." };
   }
 }
