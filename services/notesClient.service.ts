@@ -60,9 +60,68 @@ export const notesClientService = {
 
   async deleteNote(id: string): Promise<ApiResult> {
     const supabase = createClient();
+    // note_attachments rows cascade with the note, but the Storage objects don't — collect paths first.
+    const { data: attachments } = await supabase.from("note_attachments").select("file_url").eq("note_id", id);
     const { error } = await supabase.from("notes").delete().eq("id", id);
     if (error) return fail(error.message);
+    const paths = (attachments ?? []).map((a) => a.file_url).filter((p) => !p.startsWith("http"));
+    if (paths.length) await supabase.storage.from("notes-pdfs").remove(paths);
     return ok("Note deleted.");
+  },
+
+  /** A note's PDFs with 1h signed URLs (the bucket is private). `path` is the storage key, or a legacy absolute URL. */
+  async getAttachments(noteId: string): Promise<{ name: string; url: string; path: string }[]> {
+    const supabase = createClient();
+    const { data, error } = await supabase.from("note_attachments").select("file_url, file_name").eq("note_id", noteId);
+    if (error || !data?.length) return [];
+    const signed = await Promise.all(
+      data.map(async (a) => {
+        const url = a.file_url.startsWith("http")
+          ? a.file_url
+          : (await supabase.storage.from("notes-pdfs").createSignedUrl(a.file_url, 3600)).data?.signedUrl;
+        return url ? { name: a.file_name, url, path: a.file_url } : null;
+      })
+    );
+    return signed.filter((a) => a !== null);
+  },
+
+  /** Best-effort cleanup of PDFs uploaded during a note edit that was never saved. */
+  async discardPdfUploads(paths: string[]): Promise<void> {
+    if (!paths.length) return;
+    await createClient().storage.from("notes-pdfs").remove(paths);
+  },
+
+  /** Deletes saved attachments (rows + Storage objects) by their storage path. */
+  async removeAttachments(noteId: string, paths: string[]): Promise<ApiResult> {
+    if (!paths.length) return ok("Nothing to remove.");
+    const supabase = createClient();
+    const { error } = await supabase.from("note_attachments").delete().eq("note_id", noteId).in("file_url", paths);
+    if (error) return fail(error.message);
+    await supabase.storage.from("notes-pdfs").remove(paths);
+    return ok("Attachments removed.");
+  },
+
+  /**
+   * Removes PDFs in the user's folder that no note_attachments row points to. Catches uploads
+   * orphaned by a closed tab mid-edit, which no unload handler can clean up reliably. The age
+   * cutoff keeps it away from uploads still pending in an open dialog (possibly another tab).
+   */
+  async sweepOrphanPdfs(minAgeMs = 24 * 60 * 60 * 1000): Promise<void> {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const [{ data: objects }, { data: rows }] = await Promise.all([
+      supabase.storage.from("notes-pdfs").list(user.id, { limit: 1000 }),
+      supabase.from("note_attachments").select("file_url"),
+    ]);
+    if (!objects || !rows) return;
+    const referenced = new Set(rows.map((r) => r.file_url));
+    const cutoff = Date.now() - minAgeMs;
+    const orphans = objects
+      .filter((o) => o.id && o.created_at && Date.parse(o.created_at) < cutoff)
+      .map((o) => `${user.id}/${o.name}`)
+      .filter((p) => !referenced.has(p));
+    if (orphans.length) await supabase.storage.from("notes-pdfs").remove(orphans);
   },
 
   async toggleFavorite(id: string, favorite: boolean): Promise<ApiResult> {

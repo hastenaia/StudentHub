@@ -18,6 +18,11 @@ import type { Note, CourseOption } from "@/types/study";
 
 interface Props { initialNotes: Note[]; courses: CourseOption[] }
 
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const toUrlMap = (list: { url: string; path: string }[]) =>
+  Object.fromEntries(list.filter((a) => !a.path.startsWith("http")).map((a) => [a.path, a.url]));
+const hasLink = (content: string, path: string) => content.includes(`(attachment:${path})`);
+
 export function NotesTab({ initialNotes, courses }: Props) {
   const { toast } = useToast();
   const [notes, setNotes] = React.useState<Note[]>(initialNotes);
@@ -29,10 +34,22 @@ export function NotesTab({ initialNotes, courses }: Props) {
   const [open, setOpen] = React.useState(false);
   const [view, setView] = React.useState<Note | null>(null);
   const [pendingPdfs, setPendingPdfs] = React.useState<{ path: string; file_name: string }[]>([]);
-  const [viewPdfs, setViewPdfs] = React.useState<{ name: string; url: string }[]>([]);
+  const [viewPdfs, setViewPdfs] = React.useState<{ name: string; url: string; path: string }[]>([]);
   const [viewContent, setViewContent] = React.useState<string | null>(null);
   const [urlCache, setUrlCache] = React.useState<Record<string, string>>({});
-  const [dialogPdfs, setDialogPdfs] = React.useState<{ name: string; url: string }[]>([]);
+  const [dialogPdfs, setDialogPdfs] = React.useState<{ name: string; url: string; path: string }[]>([]);
+
+  // Uploads from an abandoned edit: discard on in-app navigation; a closed tab is caught by the sweep.
+  const pendingRef = React.useRef(pendingPdfs);
+  React.useEffect(() => {
+    pendingRef.current = pendingPdfs;
+  }, [pendingPdfs]);
+  React.useEffect(() => {
+    void notesClientService.sweepOrphanPdfs();
+    return () => {
+      if (pendingRef.current.length) void notesClientService.discardPdfUploads(pendingRef.current.map((p) => p.path));
+    };
+  }, []);
 
   const resolveLinks = (content: string, cache: Record<string, string>) =>
     content.replace(/\[([^\]]+)\]\(attachment:([^)\s]+)\)/g, (m, label: string, p: string) => (cache[p] ? `[${label}](${cache[p]})` : label));
@@ -74,22 +91,8 @@ export function NotesTab({ initialNotes, courses }: Props) {
         tags: editing.tags.join(", "),
         courseId: editing.courseId ?? "",
       });
-      const supabase = createClient();
-      (supabase.from("note_attachments") as unknown as { select: (c: string) => { eq: (c: string, v: string) => Promise<{ data: { file_url: string; file_name: string }[] | null; error: unknown }> } }).select("file_url, file_name").eq("note_id", editing.id).then(async ({ data, error }) => {
-        if (error || !data?.length) return;
-        const out: { name: string; url: string }[] = [];
-        const fresh: Record<string, string> = {};
-        for (const a of data) {
-          const sb = createClient();
-          const url = a.file_url.startsWith("http")
-            ? a.file_url
-            : (await sb.storage.from("notes-pdfs").createSignedUrl(a.file_url, 3600)).data?.signedUrl;
-          if (url) {
-            out.push({ name: a.file_name, url });
-            if (!a.file_url.startsWith("http")) fresh[a.file_url] = url;
-          }
-        }
-        if (Object.keys(fresh).length) setUrlCache((prev) => ({ ...prev, ...fresh }));
+      notesClientService.getAttachments(editing.id).then((out) => {
+        setUrlCache((prev) => ({ ...prev, ...toUrlMap(out) }));
         setDialogPdfs(out);
       });
     } else {
@@ -110,15 +113,24 @@ export function NotesTab({ initialNotes, courses }: Props) {
       const note = res.data as Note;
       if (editing) setNotes((prev) => prev.map((n) => (n.id === editing.id ? note : n)));
       else setNotes((prev) => [note, ...prev]);
-      if (pendingPdfs.length > 0) {
+      // Attachments follow the links in the saved content: a removed link drops its PDF.
+      const content = draft.content ?? "";
+      const kept = pendingPdfs.filter((p) => hasLink(content, p.path));
+      const dropped = pendingPdfs.filter((p) => !hasLink(content, p.path)).map((p) => p.path);
+      if (dropped.length) void notesClientService.discardPdfUploads(dropped);
+      if (kept.length > 0) {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          for (const p of pendingPdfs) {
-            await (supabase.from("note_attachments") as unknown as { insert: (v: Record<string, string>) => Promise<unknown> }).insert({ user_id: user.id, note_id: note.id, file_url: p.path, file_name: p.file_name });
-          }
-        }
-        setPendingPdfs([]);
+        const { error } = user
+          ? await supabase.from("note_attachments").insert(kept.map((p) => ({ user_id: user.id, note_id: note.id, file_url: p.path, file_name: p.file_name })))
+          : { error: { message: "Not signed in." } };
+        if (error) toast({ title: "PDF link not saved", description: error.message, variant: "error" });
+      }
+      setPendingPdfs([]);
+      if (editing) {
+        const unlinked = dialogPdfs.filter((a) => !a.path.startsWith("http") && !hasLink(content, a.path)).map((a) => a.path);
+        const removed = await notesClientService.removeAttachments(note.id, unlinked);
+        if (!removed.success) toast({ title: "Could not remove PDF", description: removed.message, variant: "error" });
       }
       toast({ title: editing ? "Note updated" : "Note created", variant: "success" });
       setOpen(false);
@@ -126,6 +138,19 @@ export function NotesTab({ initialNotes, courses }: Props) {
     } else {
       toast({ title: "Failed", description: res.message, variant: "error" });
     }
+  };
+
+  const unlinkPdf = (path: string) => {
+    const cur = form.getValues("content") ?? "";
+    const next = cur.replace(new RegExp(`\\n*\\[[^\\]]*\\]\\(attachment:${escapeRegExp(path)}\\)`, "g"), "");
+    form.setValue("content", next, { shouldDirty: true });
+  };
+
+  const closeDialog = () => {
+    if (pendingPdfs.length) void notesClientService.discardPdfUploads(pendingPdfs.map((p) => p.path));
+    setPendingPdfs([]);
+    setOpen(false);
+    setEditing(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -156,22 +181,16 @@ export function NotesTab({ initialNotes, courses }: Props) {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return toast({ title: "You must be signed in.", variant: "error" });
-    const path = `${user.id}/${Date.now()}-${f.name}`;
+    // Storage keys and the `attachment:` link regex both break on spaces/parens, so keep the key to safe chars.
+    const path = `${user.id}/${Date.now()}-${f.name.replace(/[^\w.-]+/g, "_")}`;
     const { error } = await supabase.storage.from("notes-pdfs").upload(path, f, { contentType: "application/pdf" });
     if (error) return toast({ title: "Upload failed", description: error.message, variant: "error" });
     const { data: fresh } = await supabase.storage.from("notes-pdfs").createSignedUrl(path, 3600);
     if (fresh?.signedUrl) setUrlCache((prev) => ({ ...prev, [path]: fresh.signedUrl }));
-    const insertRow = async (noteId: string | null) => {
-      if (!noteId) return;
-      await (supabase.from("note_attachments") as unknown as { insert: (v: Record<string, string>) => Promise<unknown> }).insert({ user_id: user.id, note_id: noteId, file_url: path, file_name: f.name });
-    };
     const cur = form.getValues("content") ?? "";
     form.setValue("content", cur + `\n\n[PDF: ${f.name}](attachment:${path})`, { shouldDirty: true });
-    if (editing) {
-      await insertRow(editing.id);
-    } else {
-      setPendingPdfs((prev) => [...prev, { path, file_name: f.name }]);
-    }
+    // The row is written on save; closeDialog removes the file if the edit is abandoned.
+    setPendingPdfs((prev) => [...prev, { path, file_name: f.name }]);
     toast({ title: "PDF attached (max 10MB)", variant: "success" });
   };
 
@@ -179,25 +198,9 @@ export function NotesTab({ initialNotes, courses }: Props) {
     setView(note);
     setViewContent(note.content ?? "");
     setViewPdfs([]);
-    const supabase = createClient();
-    const { data, error } = await (supabase.from("note_attachments") as unknown as { select: (c: string) => { eq: (c: string, v: string) => Promise<{ data: { file_url: string; file_name: string }[] | null; error: unknown }> } }).select("file_url, file_name").eq("note_id", note.id);
-    if (error || !data?.length) {
-      setViewContent(resolveLinks(note.content ?? "", urlCache));
-      return;
-    }
-    const out: { name: string; url: string }[] = [];
-    const fresh: Record<string, string> = {};
-    for (const a of data) {
-      const url = a.file_url.startsWith("http")
-        ? a.file_url
-        : (await supabase.storage.from("notes-pdfs").createSignedUrl(a.file_url, 3600)).data?.signedUrl;
-      if (url) {
-        out.push({ name: a.file_name, url });
-        if (!a.file_url.startsWith("http")) fresh[a.file_url] = url;
-      }
-    }
-    const merged = { ...urlCache, ...fresh };
-    if (Object.keys(fresh).length) setUrlCache(merged);
+    const out = await notesClientService.getAttachments(note.id);
+    const merged = { ...urlCache, ...toUrlMap(out) };
+    setUrlCache(merged);
     setViewContent(resolveLinks(note.content ?? "", merged));
     setViewPdfs(out);
   };
@@ -307,7 +310,7 @@ export function NotesTab({ initialNotes, courses }: Props) {
       )}
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4" onClick={closeDialog}>
           <div className="my-8 w-full max-w-lg rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold">{editing ? "Edit note" : "New note"}</h3>
             <Form {...form}>
@@ -335,15 +338,33 @@ export function NotesTab({ initialNotes, courses }: Props) {
                     <div className="mt-2">
                       <label className="text-xs font-medium text-gray-700">Attach PDF (max 10MB)</label>
                       <input type="file" accept="application/pdf" className="mt-1 block text-xs" onChange={(e) => handlePdfAttach(e.target.files?.[0] ?? null)} />
-                      {dialogPdfs.length > 0 && (
-                        <div className="mt-1 space-y-1">
-                          {dialogPdfs.map((a) => (
-                            <a key={a.url} href={a.url} target="_blank" rel="noopener" className="block text-xs text-brand-royal underline">
-                              {a.name}
-                            </a>
-                          ))}
-                        </div>
-                      )}
+                      {(() => {
+                        const content = field.value ?? "";
+                        const linked = [
+                          ...dialogPdfs.filter((a) => a.path.startsWith("http") || hasLink(content, a.path)),
+                          ...pendingPdfs.filter((p) => hasLink(content, p.path)).map((p) => ({ name: p.file_name, url: urlCache[p.path] ?? "", path: p.path })),
+                        ];
+                        if (!linked.length) return null;
+                        return (
+                          <div className="mt-1 space-y-1">
+                            {linked.map((a) => (
+                              <div key={a.path} className="flex items-center gap-2">
+                                {a.url ? (
+                                  <a href={a.url} target="_blank" rel="noopener" className="text-xs text-brand-royal underline">{a.name}</a>
+                                ) : (
+                                  <span className="text-xs text-gray-700">{a.name}</span>
+                                )}
+                                {!a.path.startsWith("http") && (
+                                  <button type="button" aria-label={`Remove ${a.name}`} onClick={() => unlinkPdf(a.path)} className="text-gray-400 hover:text-red-600">
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            <p className="text-[11px] text-gray-500">Removed PDFs are deleted when you save.</p>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </FormItem>
                 )} />
@@ -359,7 +380,7 @@ export function NotesTab({ initialNotes, courses }: Props) {
                   <FormItem className="flex items-center gap-2"><FormControl><input type="checkbox" checked={field.value} onChange={(e) => field.onChange(e.target.checked)} className="h-4 w-4" /></FormControl><FormLabel className="!m-0">Favorite</FormLabel></FormItem>
                 )} />
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+                  <Button type="button" variant="ghost" onClick={closeDialog}>Cancel</Button>
                   <Button type="submit" isLoading={form.formState.isSubmitting}>{editing ? "Save" : "Create"}</Button>
                 </div>
               </form>

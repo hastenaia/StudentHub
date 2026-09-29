@@ -12,22 +12,38 @@ session explicitly via `auth.getUser()`.
 | Method | `GET` |
 | File | `app/auth/callback/route.ts` |
 | Auth | None (public) |
-| Purpose | Exchanges a Supabase auth code for a session (password-reset and OAuth sign-in flows) |
+| Purpose | Exchanges a Supabase auth code or OTP token for a session (password reset, email confirmation, Google sign-in) |
 
 **Query params**
 
 | Param | Description |
 |---|---|
-| `code` | The Supabase authorization code |
+| `code` | Supabase authorization code (PKCE flows) |
+| `token_hash`, `type` | OTP link token (e.g. `type=recovery`) |
+| `error`, `error_description` | Set by Supabase when a link is expired or invalid |
 | `next` | (optional) safe redirect target; sanitized by `utils/safeRedirect.ts` (defaults to `/dashboard`) |
 
 **Behavior**
 
-1. Reads `code` and `next`.
-2. Calls `supabase.auth.exchangeCodeForSession(code)`.
-3. On success → `302` redirect to `${origin}${next}`.
-4. On failure or missing code → `302` redirect to
-   `${origin}/login?error=auth-callback-failed`.
+1. If `error` is present without `code`/`token_hash`: `302` to `next` with
+   the error params forwarded.
+2. With `code`: `exchangeCodeForSession(code)`.
+3. With `token_hash` + `type`: `verifyOtp({ token_hash, type })`.
+4. On success: `302` to `${origin}${next}`. On failure: `302` to `next`
+   with `?error=auth-callback-failed` (plus `error_description` for OTP).
+5. With none of the above: `302` to `/login?error=auth-callback-failed`.
+
+The proxy forwards stray `?code=` / `?token_hash=` links that land on other
+paths to this route (see [auth.md](auth.md#proxy-protection)).
+
+## `/auth/confirm`
+
+| | |
+|---|---|
+| Method | `GET` |
+| File | `app/auth/confirm/route.ts` |
+| Auth | None (public) |
+| Purpose | Supabase-recommended OTP endpoint; thin alias of `/auth/callback` for `token_hash` links, with `next` defaulting to `/reset-password` |
 
 ## `/api/google/auth`
 
@@ -120,11 +136,41 @@ session explicitly via `auth.getUser()`.
 Consumed by the Sync Now button (`components/dashboard/SyncNowButton.tsx`),
 which then calls `router.refresh()` to re-render the server component tree.
 
+## AI routes
+
+All five routes live under `app/api/ai/` and share the same shape:
+
+- `POST` with a JSON body; session required (`401` otherwise), `400` on
+  invalid JSON or missing input.
+- Where a `noteId` is accepted, the note is loaded with
+  `.eq("user_id", user.id)` (`404` if not found) and its content replaces
+  `content`. Content is truncated to 6000 characters in the prompt.
+- The prompt goes to `callAI(prompt, system)` in `lib/ai/provider.ts`, which
+  picks the first configured provider (`OPENAI_API_KEY`/`AI_API_KEY`, then
+  `ANTHROPIC_API_KEY`, then `GOOGLE_AI_API_KEY`/`GEMINI_API_KEY`) and aborts
+  after 4.5 seconds.
+- Errors: `503` when no provider is configured, `502` for provider errors,
+  timeouts or unparseable JSON output. Responses are
+  `{ success, message?, data? }`.
+
+| Route | Body | `data` on success |
+|---|---|---|
+| `/api/ai/explain` | `{ concept, courseId? }` | `{ explanation }` |
+| `/api/ai/summarize` | `{ noteId?, content?, title? }` (content ≥ 20 chars) | `{ summary, title }` |
+| `/api/ai/generate-flashcards` | `{ noteId?, content?, count? }` (content ≥ 30 chars, count 1–10, default 5) | `{ flashcards: { front, back }[] }` |
+| `/api/ai/generate-quiz` | `{ noteId?, content?, count?, title? }` (content ≥ 30 chars, count 1–8, default 5) | `{ questions: { question_text, question_type, options?, correct_answer, explanation }[] }` |
+| `/api/ai/study-plan` | `{ topic, courseId?, durationDays? }` (1–30, default 7) | `{ plan, topic, durationDays }` |
+
+The routes only generate content; saving flashcards/quizzes happens
+client-side through `flashcardsClientService` / `quizzesClientService`.
+
 ## Summary
 
 | Route | Method | Auth | Purpose |
 |---|---|---|---|
-| `/auth/callback` | GET | none | Exchange Supabase auth code for session |
+| `/auth/callback` | GET | none | Exchange Supabase auth code / OTP token for session |
+| `/auth/confirm` | GET | none | OTP-link alias of `/auth/callback` |
+| `/api/ai/*` | POST | session | Explain, summarize, generate flashcards/quizzes, study plans |
 | `/api/google/auth` | GET | session | Start Google OAuth consent flow |
 | `/api/google/callback` | GET | session | Finalize Google link + initial sync |
 | `/api/dashboard/sync` | POST | session | Pull Google data into the Supabase cache |

@@ -15,3 +15,6 @@ docs/sprints.md
 docs/unit-testing.md
 docs/vc-control.md
 .fallow-review/
+
+# Supabase CLI local state (linked project, pooler URL, versions)
+supabase/.temp/
