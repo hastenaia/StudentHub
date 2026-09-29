@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, ListTodo } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { activeCoursesQuery } from "@/lib/supabase/queries";
+import { toCourseOptions } from "@/lib/courseView";
 
 export const metadata: Metadata = { title: "Focus — StudentHub" };
 
@@ -31,7 +33,7 @@ export default async function FocusPage({ searchParams }: FocusPageProps) {
   const [stats, tasksRes, coursesRes, recentRes] = await Promise.all([
     getFocusStats(user.id),
     supabase.from("tasks").select("id, title, description, status, priority, due_at, course_id, created_at").eq("user_id", user.id).neq("status", "done").order("created_at", { ascending: false }).limit(20),
-    supabase.from("courses").select("id, name, course_name, color").eq("user_id", user.id).eq("archived", false).order("name"),
+    activeCoursesQuery(supabase, user.id),
     supabase.from("focus_sessions").select("id, duration_minutes, started_at, ended_at, task_id, course_id").eq("user_id", user.id).order("started_at", { ascending: false }).limit(10),
   ]);
 
@@ -56,11 +58,7 @@ export default async function FocusPage({ searchParams }: FocusPageProps) {
   }));
 
   // Enrich tasks with course names
-  const courses = (coursesRes.data ?? []).map((c: { id: string; name: string; course_name: string | null; color: string | null }) => ({
-    id: c.id,
-    name: c.course_name ?? c.name,
-    color: c.color,
-  }));
+  const courses = toCourseOptions(coursesRes.data);
   const courseMap = new Map(courses.map((c) => [c.id, c.name]));
   const courseColorMap = new Map(courses.map((c) => [c.id, c.color]));
   const enrichedTasks = tasks.map((t) => ({

@@ -1,18 +1,9 @@
 import { Timer, CalendarDays, Clock, Flame } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import type { AnalyticsData } from "@/services/analytics.service";
 
 interface Props {
-  data: {
-    dailyMinutes: number;
-    dailySessions: number;
-    weeklyMinutes: number;
-    weeklySessions: number;
-    monthlyMinutes: number;
-    monthlySessions: number;
-    averageMinutes: number;
-    dailyTrend: { date: string; label: string; minutes: number }[];
-    weeklyTrend: { week: string; minutes: number }[];
-  };
+  data: AnalyticsData["focus"];
 }
 
 function BarChart({ data, max, color }: { data: { label: string; minutes: number }[]; max: number; color: string }) {

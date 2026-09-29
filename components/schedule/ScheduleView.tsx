@@ -41,7 +41,7 @@ function endOfMonth(date: Date): Date {
 }
 
 export function ScheduleView({ initialEvents, courses }: ScheduleViewProps) {
-  const { toast } = useToast();
+  const { notify } = useToast();
   const [events, setEvents] = React.useState<ScheduleEvent[]>(initialEvents);
   const [view, setView] = React.useState<CalendarView>("month");
   const [currentDate, setCurrentDate] = React.useState<Date>(() => new Date());
@@ -103,10 +103,6 @@ export function ScheduleView({ initialEvents, courses }: ScheduleViewProps) {
     }
     return { userCount: u, googleCount: g };
   }, [events]);
-
-  const notify = (success: boolean, title: string, description?: string) => {
-    toast({ title, description, variant: success ? "success" : "error" });
-  };
 
   const handleCreate = async (draft: ScheduleDraft) => {
     const result = await scheduleClientService.createEvent(draft);

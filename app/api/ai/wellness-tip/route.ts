@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { callAI } from "@/lib/ai/provider";
+import { jsonError, runAI, startAIRoute } from "@/lib/ai/route";
 
 const MAX_TIP_CHARS = 220;
 
@@ -18,31 +17,22 @@ function toOneSentence(text: string): string {
 }
 
 export async function POST(req: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ success: false, message: "Not authenticated." }, { status: 401 });
+  const ctx = await startAIRoute<{ focusMinutesToday?: unknown; upcomingDeadlinesCount?: unknown }>(req);
+  if (ctx.response) return ctx.response;
+  const { body } = ctx;
 
-  let body: { focusMinutesToday?: unknown; upcomingDeadlinesCount?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ success: false, message: "Invalid JSON." }, { status: 400 });
-  }
   const focus = clampInt(body.focusMinutesToday, 24 * 60);
   const deadlines = clampInt(body.upcomingDeadlinesCount, 1000);
   if (focus === null || deadlines === null) {
-    return NextResponse.json({ success: false, message: "focusMinutesToday and upcomingDeadlinesCount must be numbers." }, { status: 400 });
+    return jsonError("focusMinutesToday and upcomingDeadlinesCount must be numbers.", 400);
   }
 
   const system = "You are a supportive student wellness coach. Reply with exactly one short, practical sentence in plain text: no markdown, no lists, no headings, no medical advice.";
   const prompt = `A student has focused for ${focus} minutes today and has ${deadlines} upcoming deadlines. Suggest one specific break or pacing tip.`;
 
-  const result = await callAI(prompt, system);
-  if ("error" in result) {
-    const isConfig = result.error.includes("not configured");
-    return NextResponse.json({ success: false, message: result.error }, { status: isConfig ? 503 : 502 });
-  }
-  const tip = toOneSentence(result.text);
-  if (!tip) return NextResponse.json({ success: false, message: "AI returned an empty tip." }, { status: 502 });
+  const ai = await runAI(prompt, system);
+  if (ai.response) return ai.response;
+  const tip = toOneSentence(ai.text);
+  if (!tip) return jsonError("AI returned an empty tip.", 502);
   return NextResponse.json({ success: true, data: { tip } });
 }

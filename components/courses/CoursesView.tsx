@@ -16,7 +16,7 @@ interface CoursesViewProps {
 }
 
 export function CoursesView({ initialCourses }: CoursesViewProps) {
-  const { toast } = useToast();
+  const { notify } = useToast();
   const [courses, setCourses] = React.useState<Course[]>(initialCourses);
   const [search, setSearch] = React.useState("");
   const [formOpen, setFormOpen] = React.useState(false);
@@ -37,10 +37,6 @@ export function CoursesView({ initialCourses }: CoursesViewProps) {
         .includes(q)
     );
   }, [courses, search]);
-
-  const notify = (success: boolean, title: string, description?: string) => {
-    toast({ title, description, variant: success ? "success" : "error" });
-  };
 
   const handleCreate = async (draft: CourseDraft) => {
     setIsLoading(true);

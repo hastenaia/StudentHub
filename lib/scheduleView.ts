@@ -45,27 +45,3 @@ export function calendarRowToView(row: CalendarRow): ScheduleEvent {
   };
 }
 
-function draftToRow(draft: import("@/types/schedule").ScheduleDraft, userId: string) {
-  return {
-    user_id: userId,
-    course_id: draft.courseId || null,
-    title: draft.title.trim(),
-    description: draft.description?.trim() || null,
-    location: draft.location?.trim() || null,
-    event_type: draft.eventType,
-    start_at: draft.allDay ? toDateOnly(draft.startAt) : draft.startAt,
-    end_at: draft.allDay ? toDateOnly(draft.endAt, true) : draft.endAt,
-    all_day: draft.allDay,
-    color: draft.color || null,
-  };
-}
-
-function toDateOnly(iso: string, endOfDay = false): string {
-  const d = new Date(iso);
-  if (endOfDay) {
-    // For all-day, end is exclusive next day at midnight; keep as given
-    return d.toISOString();
-  }
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-}

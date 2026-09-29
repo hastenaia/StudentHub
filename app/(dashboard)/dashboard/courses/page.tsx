@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCoursesData } from "@/services/courses.service";
 import { CoursesView } from "@/components/courses/CoursesView";
 import type { Course } from "@/types/courses";
+import { PageHeader, PageLoadError } from "@/components/common/PageHeader";
 
 export const metadata = { title: "Courses — StudentHub" };
 
@@ -24,27 +25,12 @@ export default async function CoursesPage() {
   }
 
   if (error) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-xl font-semibold text-brand-dark sm:text-2xl">Courses</h2>
-          <p className="mt-1 text-sm text-gray-500">Manage your enrolled courses.</p>
-        </div>
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
-        </div>
-      </div>
-    );
+    return <PageLoadError title="Courses" description="Manage your enrolled courses." error={error} />;
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-brand-dark sm:text-2xl">Courses</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Manage your courses — add, edit, search, and organize.
-        </p>
-      </div>
+      <PageHeader title="Courses" description="Manage your courses — add, edit, search, and organize." />
       <CoursesView initialCourses={courses} />
     </div>
   );

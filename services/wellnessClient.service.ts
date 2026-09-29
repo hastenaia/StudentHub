@@ -3,10 +3,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { fail, ok, type ApiResult } from "@/types/api";
 import type { WellnessEntry } from "@/types/wellness";
-
-function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
+import { toDateStr } from "@/lib/dates";
 
 export const wellnessClientService = {
   async upsertEntry(mood: number, journal: string | null): Promise<ApiResult<WellnessEntry>> {

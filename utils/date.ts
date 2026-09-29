@@ -7,12 +7,6 @@
 
 const TIME_FMT = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
 const DATE_FMT = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
-const DATE_TIME_FMT = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-});
 
 export function formatTime(iso: string | null): string {
   if (!iso) return "—";
@@ -22,11 +16,6 @@ export function formatTime(iso: string | null): string {
 export function formatDate(iso: string | null): string {
   if (!iso) return "—";
   return DATE_FMT.format(new Date(iso));
-}
-
-function formatDateTime(iso: string | null): string {
-  if (!iso) return "—";
-  return DATE_TIME_FMT.format(new Date(iso));
 }
 
 /**

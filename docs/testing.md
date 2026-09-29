@@ -25,11 +25,13 @@ npx vitest run -t "nextRecurrence"        # tests whose name matches
 | File | Area under test |
 |---|---|
 | `lib/scheduling.test.ts` | `buildSchedule` min-heap ordering, `nextRecurrence`, `formatRecurrenceLabel` |
+| `lib/dates.test.ts` | `startOfDay`/`endOfDay`, `toDateStr`, `computeStreak` |
 | `lib/rbac.test.ts` | Role hierarchy (`hasRole`, `ROLE_RANK`), `roleFromUser`, route access map (`getRequiredRoles`) |
 | `lib/validations/auth.test.ts` | Login, signup, forgot-password, and change-password Zod schemas |
 | `lib/validations/academics.test.ts` | Manual course Zod schema |
 | `lib/validations/tasks.test.ts` | `taskFormSchema`, `taskFormToDraft`, `toLocalInputValue` |
 | `lib/supabase/errors.test.ts` | Friendly auth error message mapping |
+| `components/study/MarkdownPreview.test.ts` | Markdown link scheme allow-list, attribute escaping, formatting inside URLs |
 | `utils/cn.test.ts` | `cn()` class-name merging |
 | `utils/safeRedirect.test.ts` | Open-redirect prevention in redirect targets |
 | `utils/validation.test.ts` | Email validation, password strength rules, initials helper |

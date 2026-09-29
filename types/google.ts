@@ -33,19 +33,6 @@ export interface GoogleCourseWork {
   updateTime?: string;
 }
 
-/** The student's own submission, which carries the assigned grade. */
-export interface GoogleStudentSubmission {
-  id: string;
-  courseId: string;
-  courseWorkId: string;
-  userId: string;
-  state: "NEW" | "CREATED" | "TURNED_IN" | "RETURNED" | "RECLAIMED_BY_STUDENT" | string;
-  assignedGrade?: number | null;
-  late?: boolean;
-  creationTime?: string;
-  updateTime?: string;
-}
-
 export interface GoogleAnnouncement {
   id: string;
   courseId: string;

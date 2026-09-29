@@ -9,12 +9,6 @@ const ROLE_RANK: Record<UserRole, number> = {
   admin: 2,
 };
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  student: "Student",
-  teacher: "Teacher",
-  admin: "Admin",
-};
-
 /**
  * Resolves a user's role from `app_metadata`. We deliberately read from
  * `app_metadata` (JWT-backed, only writable via the service role / admin) and

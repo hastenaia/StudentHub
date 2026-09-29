@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/set-state-in-effect, react-hooks/purity, react-hooks/exhaustive-deps */
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import * as React from "react";
@@ -63,7 +63,7 @@ export function PomodoroTimer({ initialTask, tasks = [] }: PomodoroTimerProps) {
   const selectedTask = React.useMemo(() => tasks.find((t) => t.id === selectedTaskId) ?? initialTask ?? null, [tasks, selectedTaskId, initialTask]);
 
   // Initialize from preset
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+   
   React.useEffect(() => {
     if (preset === "25/5") {
       setFocusMinutes(25);
@@ -77,7 +77,7 @@ export function PomodoroTimer({ initialTask, tasks = [] }: PomodoroTimerProps) {
   }, [preset, isRunning]);
 
   // Custom preset handling
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+   
   React.useEffect(() => {
     if (preset === "custom") {
       const f = parseInt(customFocus, 10);
@@ -130,7 +130,7 @@ export function PomodoroTimer({ initialTask, tasks = [] }: PomodoroTimerProps) {
       }
       if (saved.taskId) setSelectedTaskId(saved.taskId);
     } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // Persist state

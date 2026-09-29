@@ -1,9 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { WellnessEntry, WeeklyMoodPoint, WorkloadInfo } from "@/types/wellness";
-
-function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
+import { toDateStr } from "@/lib/dates";
 
 export async function getWellnessData(userId: string): Promise<{
   todayEntry: WellnessEntry | null;

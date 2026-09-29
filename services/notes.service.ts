@@ -1,16 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
-import { toCourseOptions } from "@/lib/courseView";
 import type { CourseOption, Note } from "@/types/study";
+import { withActiveCourses } from "@/lib/supabase/queries";
 
 export async function getNotesData(userId: string): Promise<{ notes: Note[]; courses: CourseOption[] }> {
   const supabase = await createClient();
-  const [notesRes, coursesRes] = await Promise.all([
-    supabase.from("notes").select("*").eq("user_id", userId).order("updated_at", { ascending: false }),
-    supabase.from("courses").select("id, name, course_name, color").eq("user_id", userId).eq("archived", false).order("name"),
-  ]);
-  const courses: CourseOption[] = toCourseOptions(coursesRes.data);
-  const courseMap = new Map(courses.map((c) => [c.id, c]));
-  const notes: Note[] = (notesRes.data ?? []).map((row) => ({
+  const { rows, courses, courseMap } = await withActiveCourses(
+    supabase,
+    userId,
+    supabase.from("notes").select("*").eq("user_id", userId).order("updated_at", { ascending: false })
+  );
+  const notes: Note[] = rows.map((row) => ({
     id: row.id,
     title: row.title,
     content: row.content,

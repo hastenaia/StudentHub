@@ -3,6 +3,9 @@ import { buildTopSchedule } from "@/lib/scheduling";
 import { taskRowToView } from "@/lib/taskView";
 import { scheduleRowToView, calendarRowToView } from "@/lib/scheduleView";
 import type { Task } from "@/types/tasks";
+import { computeStreak, endOfDay, startOfDay } from "@/lib/dates";
+import { activeCoursesQuery } from "@/lib/supabase/queries";
+import { toCourseOptions } from "@/lib/courseView";
 
 export interface DashboardFocus {
   minutes: number;
@@ -60,82 +63,67 @@ export interface ProductivityDashboardData {
   lastSyncedAt: string | null;
 }
 
-function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
+type CourseEntry = { id: string; name: string; color: string | null };
+type CourseMap = Map<string, CourseEntry>;
+
+interface DashboardWindows {
+  todayStart: string;
+  todayEnd: string;
+  nowIso: string;
+  nowMs: number;
+  todayStr: string;
+  focusWindowStart: string;
+  assignmentsSince: string;
 }
 
-function endOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(23, 59, 59, 999);
-  return x;
+function dashboardWindows(now: Date = new Date()): DashboardWindows {
+  const nowMs = now.getTime();
+  const nowIso = now.toISOString();
+  return {
+    todayStart: startOfDay(now).toISOString(),
+    todayEnd: endOfDay(now).toISOString(),
+    nowIso,
+    nowMs,
+    todayStr: nowIso.slice(0, 10),
+    focusWindowStart: new Date(nowMs - 90 * 86400000).toISOString(),
+    assignmentsSince: new Date(nowMs - 86400000).toISOString(),
+  };
 }
 
-function computeStreak(dates: string[]): number {
-  if (dates.length === 0) return 0;
-  const uniq = Array.from(new Set(dates.map((s) => s.slice(0, 10)))).sort();
-  let streak = 0;
-  const today = new Date().toISOString().slice(0, 10);
-  let cursor = today;
-  const set = new Set(uniq);
-  while (set.has(cursor)) {
-    streak++;
-    const d = new Date(cursor);
-    d.setDate(d.getDate() - 1);
-    cursor = d.toISOString().slice(0, 10);
-  }
-  // If today has no activity but yesterday does, show yesterday's streak? Spec says current streak -> today inclusive
-  return streak;
+type ServerClient = Awaited<ReturnType<typeof createClient>>;
+
+async function fetchDashboardRows(supabase: ServerClient, userId: string, w: DashboardWindows) {
+  return Promise.all([
+    supabase.from("schedule_events").select("*").eq("user_id", userId).gte("start_at", w.todayStart).lte("start_at", w.todayEnd).order("start_at"),
+    supabase.from("calendar_events").select("*").eq("user_id", userId).gte("start_at", w.todayStart).lte("start_at", w.todayEnd).order("start_at"),
+    supabase.from("tasks").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(1000),
+    activeCoursesQuery(supabase, userId),
+    // Only upcoming (≥ now − 24h) rows are used; filter in SQL so years of past Classroom work can't fill the cap.
+    supabase.from("assignments").select("*").eq("user_id", userId).gte("due_at", w.assignmentsSince).order("due_at").limit(500),
+    supabase.from("announcements").select("*").eq("user_id", userId).order("publish_time", { ascending: false }).limit(6),
+    supabase.from("focus_sessions").select("*").eq("user_id", userId).gte("started_at", w.focusWindowStart).order("started_at", { ascending: false }).limit(2000),
+    supabase.from("notes").select("id, created_at").eq("user_id", userId),
+    supabase.from("google_accounts").select("last_synced_at, needs_reconnect").eq("user_id", userId).maybeSingle(),
+    supabase
+      .from("schedule_events")
+      .select("*")
+      .eq("user_id", userId)
+      .gte("start_at", w.nowIso)
+      .in("event_type", ["assignment", "exam"])
+      .order("start_at")
+      .limit(5),
+    supabase
+      .from("schedule_events")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("event_type", "study_session"),
+  ]);
 }
 
-export async function getProductivityDashboardData(userId: string): Promise<ProductivityDashboardData> {
-  const supabase = await createClient();
+type DashboardRows = Awaited<ReturnType<typeof fetchDashboardRows>>;
 
-  const today = new Date();
-  const todayStart = startOfDay(today).toISOString();
-  const todayEnd = endOfDay(today).toISOString();
-  const nowIso = today.toISOString();
-  const nowMs = today.getTime();
-  const todayStr = nowIso.slice(0, 10);
-  const focusWindowStart = new Date(nowMs - 90 * 86400000).toISOString();
-
-  const [scheduleRes, calendarRes, tasksRes, coursesRes, assignmentsRes, announcementsRes, focusRes, notesRes, googleAccountRes, futureScheduleRes, studySessionsRes] =
-    await Promise.all([
-      supabase.from("schedule_events").select("*").eq("user_id", userId).gte("start_at", todayStart).lte("start_at", todayEnd).order("start_at"),
-      supabase.from("calendar_events").select("*").eq("user_id", userId).gte("start_at", todayStart).lte("start_at", todayEnd).order("start_at"),
-      supabase.from("tasks").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(1000),
-      supabase.from("courses").select("id, name, course_name, color").eq("user_id", userId).eq("archived", false),
-      // Only upcoming (≥ now − 24h) rows are used; filter in SQL so years of past Classroom work can't fill the cap.
-      supabase.from("assignments").select("*").eq("user_id", userId).gte("due_at", new Date(nowMs - 86400000).toISOString()).order("due_at").limit(500),
-      supabase.from("announcements").select("*").eq("user_id", userId).order("publish_time", { ascending: false }).limit(6),
-      supabase.from("focus_sessions").select("*").eq("user_id", userId).gte("started_at", focusWindowStart).order("started_at", { ascending: false }).limit(2000),
-      supabase.from("notes").select("id, created_at").eq("user_id", userId),
-      supabase.from("google_accounts").select("last_synced_at, needs_reconnect").eq("user_id", userId).maybeSingle(),
-      supabase
-        .from("schedule_events")
-        .select("*")
-        .eq("user_id", userId)
-        .gte("start_at", nowIso)
-        .in("event_type", ["assignment", "exam"])
-        .order("start_at")
-        .limit(5),
-      supabase
-        .from("schedule_events")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("event_type", "study_session"),
-    ]);
-
-  const courses = (coursesRes.data ?? []).map((c: { id: string; name: string; course_name: string | null; color: string | null }) => ({
-    id: c.id,
-    name: c.course_name ?? c.name,
-    color: c.color,
-  }));
-  const courseMap = new Map(courses.map((c) => [c.id, c]));
-
-  // Today's schedule: merge schedule_events + calendar_events for today
-  const userToday: TodayScheduleItem[] = (scheduleRes.data ?? []).map((row) => {
+function buildTodaySchedule(scheduleRows: unknown, calendarRows: unknown, courseMap: CourseMap): TodayScheduleItem[] {
+  const userToday: TodayScheduleItem[] = ((scheduleRows as never[] | null | undefined) ?? []).map((row) => {
     const v = scheduleRowToView(row as never, courseMap as never);
     return {
       id: v.id,
@@ -149,7 +137,7 @@ export async function getProductivityDashboardData(userId: string): Promise<Prod
       courseName: v.courseName,
     };
   });
-  const googleToday: TodayScheduleItem[] = (calendarRes.data ?? []).map((row) => {
+  const googleToday: TodayScheduleItem[] = ((calendarRows as never[] | null | undefined) ?? []).map((row) => {
     const v = calendarRowToView(row as never);
     return {
       id: v.id,
@@ -163,21 +151,29 @@ export async function getProductivityDashboardData(userId: string): Promise<Prod
       courseName: null,
     };
   });
-  const todaySchedule = [...userToday, ...googleToday]
+  return [...userToday, ...googleToday]
     .map((item) => ({ item, startMs: item.startAt ? Date.parse(item.startAt) || 0 : 0 }))
     .sort((a, b) => a.startMs - b.startMs)
     .map(({ item }) => item);
+}
 
-  // Tasks — single partition pass instead of 3x filter
-  const taskRows = tasksRes.data ?? [];
-  const tasks: Task[] = taskRows.map((row) => taskRowToView(row as never, courseMap as unknown as Map<string, { id: string; name: string; color: string | null }>));
+function toDashboardTasks(taskRows: unknown, courseMap: CourseMap): Task[] {
+  return ((taskRows as never[] | null | undefined) ?? []).map((row) =>
+    taskRowToView(row as never, courseMap as unknown as Map<string, { id: string; name: string; color: string | null }>)
+  );
+}
 
+function partitionTasks(tasks: Task[]): { unfinished: Task[]; completedTasks: number } {
   const unfinished: Task[] = [];
   let completedTasks = 0;
   for (const t of tasks) {
     if (t.status === "done") completedTasks++;
     else unfinished.push(t);
   }
+  return { unfinished, completedTasks };
+}
+
+function selectPriorityTasks(unfinished: Task[]): { priorityTasks: Task[]; reasonByTaskId: Map<string, string> } {
   // Top-K only (callers slice to 5) — O(N log K) instead of full sort.
   const schedule = buildTopSchedule(
     unfinished.map((t) => ({ id: t.id, title: t.title, priority: t.priority, dueAt: t.dueAt, estimateMinutes: t.estimateMinutes })),
@@ -185,11 +181,17 @@ export async function getProductivityDashboardData(userId: string): Promise<Prod
   );
   const reasonByTaskId = new Map(schedule.map((s) => [s.taskId, s.reason]));
   const priorityTaskIds = new Set(schedule.map((s) => s.taskId));
-  const priorityTasks = unfinished.filter((t) => priorityTaskIds.has(t.id));
+  return { priorityTasks: unfinished.filter((t) => priorityTaskIds.has(t.id)), reasonByTaskId };
+}
 
-  // Upcoming deadlines: tasks + assignments + future schedule events (exam/assignment types)
+function buildUpcomingDeadlines(
+  unfinished: Task[],
+  assignmentRows: unknown,
+  futureEventRows: unknown,
+  courseMap: CourseMap,
+  nowMs: number
+): UpcomingDeadline[] {
   const upcomingDeadlines: UpcomingDeadline[] = [];
-
   for (const t of unfinished) {
     if (t.dueAt) {
       upcomingDeadlines.push({
@@ -203,20 +205,19 @@ export async function getProductivityDashboardData(userId: string): Promise<Prod
       });
     }
   }
-  for (const a of assignmentsRes.data ?? []) {
+  for (const a of (assignmentRows as { id: string; title: string; course_id: string | null; due_at: string | null }[] | null | undefined) ?? []) {
     if (a.due_at && new Date(a.due_at).getTime() >= nowMs - 24 * 60 * 60 * 1000) {
-      const cname = courseMap.get(a.course_id)?.name ?? "Unknown course";
       upcomingDeadlines.push({
         id: a.id,
         title: a.title,
-        courseName: cname,
+        courseName: courseMap.get(a.course_id ?? "")?.name ?? "Unknown course",
         dueAt: a.due_at,
         kind: "assignment",
       });
     }
   }
   // Future schedule events that are deadline-like (already fetched in batch)
-  for (const e of futureScheduleRes.data ?? []) {
+  for (const e of (futureEventRows as never[] | null | undefined) ?? []) {
     const v = scheduleRowToView(e as never, courseMap as never);
     upcomingDeadlines.push({
       id: v.id,
@@ -227,40 +228,62 @@ export async function getProductivityDashboardData(userId: string): Promise<Prod
     });
   }
   upcomingDeadlines.sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt));
-  const topDeadlines = upcomingDeadlines.slice(0, 5);
+  return upcomingDeadlines.slice(0, 5);
+}
 
-  // Focus today — todayStr hoisted, no per-row toISOString()
-  const focusRows = focusRes.data ?? [];
-  let focusMinutes = 0;
-  let focusSessions = 0;
-  const focusDates: string[] = [];
-  for (const r of focusRows as { started_at: string; duration_minutes: number }[]) {
-    focusDates.push(r.started_at);
+function summarizeFocusToday(focusRows: unknown, todayStr: string): { minutes: number; sessions: number; dates: string[] } {
+  // todayStr hoisted, no per-row toISOString()
+  let minutes = 0;
+  let sessions = 0;
+  const dates: string[] = [];
+  for (const r of (focusRows as { started_at: string; duration_minutes: number }[] | null | undefined) ?? []) {
+    dates.push(r.started_at);
     if (r.started_at.slice(0, 10) === todayStr) {
-      focusMinutes += r.duration_minutes ?? 0;
-      focusSessions++;
+      minutes += r.duration_minutes ?? 0;
+      sessions++;
     }
   }
-  const focusStreak = computeStreak(focusDates);
+  return { minutes, sessions, dates };
+}
 
-  // Study activity
+function pickRecommendation(priorityTasks: Task[], unfinished: Task[], reasonByTaskId: Map<string, string>): DashboardRecommendation {
+  if (priorityTasks.length > 0) {
+    const top = priorityTasks[0];
+    return {
+      task: top,
+      reason: reasonByTaskId.get(top.id) ?? "Highest priority",
+      estimateLabel: top.estimateMinutes ? `~${top.estimateMinutes} minutes` : null,
+    };
+  }
+  if (unfinished.length > 0) {
+    const top = unfinished[0];
+    return { task: top, reason: "Next up", estimateLabel: top.estimateMinutes ? `~${top.estimateMinutes} minutes` : null };
+  }
+  return { task: null, reason: "No tasks yet — create one to get a recommendation.", estimateLabel: null };
+}
+
+export async function getProductivityDashboardData(userId: string): Promise<ProductivityDashboardData> {
+  const supabase = await createClient();
+  const w = dashboardWindows();
+
+  const [scheduleRes, calendarRes, tasksRes, coursesRes, assignmentsRes, announcementsRes, focusRes, notesRes, googleAccountRes, futureScheduleRes, studySessionsRes]: DashboardRows =
+    await fetchDashboardRows(supabase, userId, w);
+
+  const courses = toCourseOptions(coursesRes.data);
+  const courseMap: CourseMap = new Map(courses.map((c) => [c.id, c]));
+
+  const todaySchedule = buildTodaySchedule(scheduleRes.data, calendarRes.data, courseMap);
+  const tasks = toDashboardTasks(tasksRes.data, courseMap);
+  const { unfinished, completedTasks } = partitionTasks(tasks);
+  const { priorityTasks, reasonByTaskId } = selectPriorityTasks(unfinished);
+  const topDeadlines = buildUpcomingDeadlines(unfinished, assignmentsRes.data, futureScheduleRes.data, courseMap, w.nowMs);
+  const focusToday = summarizeFocusToday(focusRes.data, w.todayStr);
+  const focusStreak = computeStreak(focusToday.dates);
+
   const studySessions = studySessionsRes.count ?? 0;
   const notesCreated = (notesRes.data ?? []).length;
 
-  // Smart recommendation: top of priorityTasks
-  let recommendation: DashboardRecommendation = { task: null, reason: "No tasks yet — create one to get a recommendation.", estimateLabel: null };
-  if (priorityTasks.length > 0) {
-    const top = priorityTasks[0];
-    const reason = reasonByTaskId.get(top.id) ?? "Highest priority";
-    recommendation = {
-      task: top,
-      reason,
-      estimateLabel: top.estimateMinutes ? `~${top.estimateMinutes} minutes` : null,
-    };
-  } else if (unfinished.length > 0) {
-    const top = unfinished[0];
-    recommendation = { task: top, reason: "Next up", estimateLabel: top.estimateMinutes ? `~${top.estimateMinutes} minutes` : null };
-  }
+  const recommendation = pickRecommendation(priorityTasks, unfinished, reasonByTaskId);
 
   // Announcements (preserve) — reuse courseMap, no duplicate Map
   const announcements = (announcementsRes.data ?? []).map((a) => ({
@@ -279,7 +302,7 @@ export async function getProductivityDashboardData(userId: string): Promise<Prod
     todaySchedule,
     priorityTasks,
     upcomingDeadlines: topDeadlines,
-    focus: { minutes: focusMinutes, sessions: focusSessions, streak: focusStreak },
+    focus: { minutes: focusToday.minutes, sessions: focusToday.sessions, streak: focusStreak },
     activity: { completedTasks, studySessions, notesCreated },
     recommendation,
     announcements,

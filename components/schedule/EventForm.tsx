@@ -16,6 +16,8 @@ import {
   type ScheduleEventType,
 } from "@/types/schedule";
 import { scheduleEventSchema, type ScheduleFormValues } from "@/lib/validations/schedule";
+import { toLocalInputValue } from "@/lib/validations/tasks";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 interface EventFormProps {
   open: boolean;
@@ -62,13 +64,7 @@ function toForm(draft: ScheduleDraft | null, defaultDate?: string): ScheduleForm
   return EMPTY;
 }
 
-function toLocal(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  // datetime-local expects local time without timezone, so we pad
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
+const toLocal = (iso: string): string => (iso ? toLocalInputValue(iso) : "");
 
 function fromLocal(local: string): string {
   return new Date(local).toISOString();
@@ -101,14 +97,7 @@ export function EventForm({ open, initialDraft, courses, defaultDate, onClose, o
     form.reset(toForm(initialDraft, defaultDate));
   }, [open, initialDraft, defaultDate, form]);
 
-  React.useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  useEscapeKey(open, onClose);
 
   if (!open) return null;
 

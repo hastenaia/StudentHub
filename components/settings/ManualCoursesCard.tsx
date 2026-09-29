@@ -21,6 +21,38 @@ interface ManualCoursesCardProps {
  * Manual course management. Students who aren't (fully) on Google Classroom
  * can still track courses here.
  */
+/** Name + credit-hours inputs; bound to whichever `<Form>` (add or edit) encloses them. */
+function CourseFields({ nameLabel, namePlaceholder }: { nameLabel: string; namePlaceholder?: string }) {
+  return (
+    <>
+      <FormField
+        name="name"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{nameLabel}</FormLabel>
+            <FormControl>
+              <Input placeholder={namePlaceholder} {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        name="creditHours"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Credits</FormLabel>
+            <FormControl>
+              <Input type="number" step="0.5" min="0.5" max="20" {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </>
+  );
+}
+
 export function ManualCoursesCard({ courses }: ManualCoursesCardProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -88,30 +120,7 @@ export function ManualCoursesCard({ courses }: ManualCoursesCardProps) {
           className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] lg:grid-cols-[2fr_1fr_auto]"
           noValidate
         >
-          <FormField
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Course name</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g. Advanced Calculus" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            name="creditHours"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Credits</FormLabel>
-                <FormControl>
-                  <Input type="number" step="0.5" min="0.5" max="20" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <CourseFields nameLabel="Course name" namePlaceholder="e.g. Advanced Calculus" />
           <Button type="submit" className="self-end" isLoading={addForm.formState.isSubmitting}>
             <Plus className="h-4 w-4" /> Add
           </Button>
@@ -138,30 +147,7 @@ export function ManualCoursesCard({ courses }: ManualCoursesCardProps) {
                     className="grid w-full grid-cols-1 gap-3 sm:grid-cols-[2fr_1fr_auto_auto] sm:items-end"
                     noValidate
                   >
-                    <FormField
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Name</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      name="creditHours"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Credits</FormLabel>
-                          <FormControl>
-                            <Input type="number" step="0.5" min="0.5" max="20" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <CourseFields nameLabel="Name" />
                     <Button type="submit" size="sm" isLoading={editForm.formState.isSubmitting}>
                       <Save className="h-4 w-4" /> Save
                     </Button>

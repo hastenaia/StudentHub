@@ -16,7 +16,7 @@ npm run typegen      # regenerate types/database.types.ts from Supabase project 
 npm run db:migrate   # supabase db push (applies supabase/migrations/)
 ```
 
-Tests run in jsdom with globals and the `@` → repo-root alias (`vitest.config.mts`). They cover only pure/validation code (`lib/*.test.ts`, `lib/validations/*.test.ts`, `utils/*.test.ts`); services, route handlers and components are not unit-tested.
+Tests run in jsdom with globals and the `@` → repo-root alias (`vitest.config.mts`). They cover only pure/validation code (`lib/*.test.ts`, `lib/validations/*.test.ts`, `utils/*.test.ts`, plus the exported `renderMarkdown` in `components/study/MarkdownPreview.test.ts`); services, route handlers and components are not unit-tested.
 
 ## Architecture
 
@@ -27,11 +27,11 @@ Tests run in jsdom with globals and the `@` → repo-root alias (`vitest.config.
 **Server/client service split** — each feature domain has two service files:
 - `services/<domain>.service.ts` — server-only reads. A page (`app/(dashboard)/dashboard/<feature>/page.tsx`, an async Server Component) gets the user, calls e.g. `getTasksData(user.id)`, and passes the assembled view model as `initialData` to a client `components/<feature>/<Feature>View.tsx`.
 - `services/<domain>Client.service.ts` — `"use client"` writes, exported as an object (e.g. `tasksClientService`), returning `ApiResult<T>` built with `ok()`/`fail()` from `types/api.ts`. Components go through these, never call Supabase directly. After mutating, components update optimistically and/or `router.refresh()`.
-- Row → view-model mapping lives in `lib/*View.ts` (`taskView.ts`, `courseView.ts`, `scheduleView.ts`); pure algorithms in `lib/scheduling.ts` (min-heap task ordering, recurrence) and `lib/focus.ts`. Zod schemas per domain in `lib/validations/`, domain types in `types/<domain>.ts`.
+- Row → view-model mapping lives in `lib/*View.ts` (`taskView.ts`, `courseView.ts`, `scheduleView.ts`); pure algorithms in `lib/scheduling.ts` (min-heap task ordering, recurrence) and `lib/dates.ts` (day bounds, reporting windows, streaks). Server services load a page's rows plus course options with `withActiveCourses` (`lib/supabase/queries.ts`). Zod schemas per domain in `lib/validations/`, domain types in `types/<domain>.ts`.
 
 **Google integration**: dashboard pages only read Supabase cache tables. `POST /api/dashboard/sync` (via `services/google.service.ts` → `classroom.service.ts` / `calendar.service.ts`) is the *only* code path that calls Google APIs; it upserts courses/assignments/announcements/calendar_events. OAuth (authorization code + PKCE) is `app/api/google/auth` → `app/api/google/callback`; tokens are AES-256-GCM encrypted at rest (`lib/google/crypto.ts`, key `GOOGLE_TOKEN_ENCRYPTION_KEY`). Supabase auth callbacks (email links, Google sign-in) are the separate `app/auth/callback` and `app/auth/confirm` routes.
 
-**AI (Study Hub / notes)**: `app/api/ai/*` route handlers authenticate the user, build a prompt, and call `callAI()` in `lib/ai/provider.ts` — a raw-`fetch` abstraction that picks the first configured provider (`OPENAI_API_KEY`/`AI_API_KEY` → `ANTHROPIC_API_KEY` → `GOOGLE_AI_API_KEY`/`GEMINI_API_KEY`) with a hard ~4.5s timeout. When unconfigured it returns an error (routes respond 503); it must never return fake output.
+**AI (Study Hub / notes)**: `app/api/ai/*` route handlers use the helpers in `lib/ai/route.ts` (`startAIRoute`, `resolveNoteSource`, `runAI`) to authenticate the user, build a prompt, and call `callAI()` in `lib/ai/provider.ts` — a raw-`fetch` abstraction that picks the first configured provider (`OPENAI_API_KEY`/`AI_API_KEY` → `ANTHROPIC_API_KEY` → `GOOGLE_AI_API_KEY`/`GEMINI_API_KEY`) with a hard ~4.5s timeout. When unconfigured it returns an error (routes respond 503); it must never return fake output.
 
 **Mocks**: `lib/mocks/` still backs some UI (the notes page and `CalendarViews`); most modules now read real Supabase data.
 

@@ -89,14 +89,21 @@ export function KanbanBoard({ tasks, onMove, onEdit, onDelete, onComplete, onAdd
     setActiveId(event.active.id as string);
   };
 
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over) return;
+  /** Ids and columns of the dragged card and its drop target, or null when either is unresolved. */
+  const resolveDrag = ({ active, over }: DragOverEvent | DragEndEvent) => {
+    if (!over) return null;
     const activeId = active.id as string;
     const overId = over.id as string;
     const activeContainer = findContainer(activeId);
     const overContainer = findContainer(overId);
-    if (!activeContainer || !overContainer || activeContainer === overContainer) return;
+    if (!activeContainer || !overContainer) return null;
+    return { activeId, overId, activeContainer, overContainer };
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const drag = resolveDrag(event);
+    if (!drag || drag.activeContainer === drag.overContainer) return;
+    const { activeId, overId, activeContainer, overContainer } = drag;
 
     setColumns((prev) => {
       const activeItems = [...prev[activeContainer]];
@@ -112,13 +119,9 @@ export function KanbanBoard({ tasks, onMove, onEdit, onDelete, onComplete, onAdd
 
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveId(null);
-    const { active, over } = event;
-    if (!over) return;
-    const activeId = active.id as string;
-    const overId = over.id as string;
-    const activeContainer = findContainer(activeId);
-    const overContainer = findContainer(overId);
-    if (!activeContainer || !overContainer) return;
+    const drag = resolveDrag(event);
+    if (!drag) return;
+    const { activeId, overId, activeContainer, overContainer } = drag;
 
     if (activeContainer === overContainer) {
       const items = columns[activeContainer];

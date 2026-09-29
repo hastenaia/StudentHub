@@ -1,21 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
-import { toCourseOptions } from "@/lib/courseView";
 import type { CourseOption, Quiz } from "@/types/study";
+import { withActiveCourses } from "@/lib/supabase/queries";
 
 export async function getQuizzesData(userId: string): Promise<{ quizzes: Quiz[]; courses: CourseOption[] }> {
   const supabase = await createClient();
-  const [quizzesRes, coursesRes] = await Promise.all([
-    supabase.from("quizzes").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
-    supabase.from("courses").select("id, name, course_name, color").eq("user_id", userId).eq("archived", false).order("name"),
-  ]);
-  const courses: CourseOption[] = (coursesRes.data ?? []).map((c: { id: string; name: string; course_name: string | null; color: string | null }) => ({
-    id: c.id,
-    name: c.course_name ?? c.name,
-    color: c.color,
-  }));
-  const courseMap = new Map(courses.map((c) => [c.id, c]));
+  const { rows: quizRows, courses, courseMap } = await withActiveCourses(
+    supabase,
+    userId,
+    supabase.from("quizzes").select("*").eq("user_id", userId).order("created_at", { ascending: false })
+  );
 
-  const quizRows = quizzesRes.data ?? [];
   // Single batched fetch O(2) roundtrips instead of N+1.
   const quizIds = quizRows.map((q) => q.id);
   type QuestionRow = {

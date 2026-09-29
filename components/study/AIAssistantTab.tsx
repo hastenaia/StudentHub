@@ -16,6 +16,24 @@ type Action = "explain" | "summarize" | "flashcards" | "quiz" | "plan";
 
 interface Props { notes: Note[]; courses: { id: string; name: string }[] }
 
+function CourseSelect({ courses, value, onChange }: { courses: Props["courses"]; value: string; onChange: (v: string) => void }) {
+  return (
+    <Select value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">No course</option>
+      {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+    </Select>
+  );
+}
+
+function NoteSelect({ notes, value, onChange }: { notes: Note[]; value: string; onChange: (v: string) => void }) {
+  return (
+    <Select value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">— pick a note —</option>
+      {notes.map((n) => <option key={n.id} value={n.id}>{n.title}</option>)}
+    </Select>
+  );
+}
+
 export function AIAssistantTab({ notes, courses }: Props) {
   const { toast } = useToast();
   const [action, setAction] = React.useState<Action>("explain");
@@ -179,19 +197,13 @@ export function AIAssistantTab({ notes, courses }: Props) {
                 <label className="text-xs font-medium text-gray-700">Concept to explain *</label>
                 <Input value={concept} onChange={(e) => setConcept(e.target.value)} placeholder="e.g. Photosynthesis, Bayes theorem" />
                 <label className="text-xs font-medium text-gray-700">Course (optional)</label>
-                <Select value={selectedCourse} onChange={(e) => setSelectedCourse(e.target.value)}>
-                  <option value="">No course</option>
-                  {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </Select>
+                <CourseSelect courses={courses} value={selectedCourse} onChange={setSelectedCourse} />
               </>
             )}
             {action === "summarize" && (
               <>
                 <label className="text-xs font-medium text-gray-700">Select note to summarize</label>
-                <Select value={selectedNote} onChange={(e) => setSelectedNote(e.target.value)}>
-                  <option value="">— pick a note —</option>
-                  {notes.map((n) => <option key={n.id} value={n.id}>{n.title}</option>)}
-                </Select>
+                <NoteSelect notes={notes} value={selectedNote} onChange={setSelectedNote} />
                 <p className="text-xs text-gray-400">Or paste content below (if no note selected)</p>
                 <textarea rows={3} value={concept} onChange={(e) => setConcept(e.target.value)} placeholder="Paste note content to summarize…" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
               </>
@@ -199,18 +211,12 @@ export function AIAssistantTab({ notes, courses }: Props) {
             {(action === "flashcards" || action === "quiz") && (
               <>
                 <label className="text-xs font-medium text-gray-700">Source note</label>
-                <Select value={selectedNote} onChange={(e) => setSelectedNote(e.target.value)}>
-                  <option value="">— pick a note —</option>
-                  {notes.map((n) => <option key={n.id} value={n.id}>{n.title}</option>)}
-                </Select>
+                <NoteSelect notes={notes} value={selectedNote} onChange={setSelectedNote} />
                 <textarea rows={3} value={concept} onChange={(e) => setConcept(e.target.value)} placeholder="Or paste content here…" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-medium">Count</label>
                   <Input type="number" min={1} max={10} value={count} onChange={(e) => setCount(e.target.value)} className="w-20" />
-                  <Select value={selectedCourse} onChange={(e) => setSelectedCourse(e.target.value)}>
-                    <option value="">No course</option>
-                    {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </Select>
+                  <CourseSelect courses={courses} value={selectedCourse} onChange={setSelectedCourse} />
                 </div>
               </>
             )}
@@ -219,10 +225,7 @@ export function AIAssistantTab({ notes, courses }: Props) {
                 <label className="text-xs font-medium">Topic *</label>
                 <Input value={concept} onChange={(e) => setConcept(e.target.value)} placeholder="e.g. Final exam revision, Chapter 1-3" />
                 <div className="flex gap-2">
-                  <Select value={selectedCourse} onChange={(e) => setSelectedCourse(e.target.value)}>
-                    <option value="">No course</option>
-                    {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </Select>
+                  <CourseSelect courses={courses} value={selectedCourse} onChange={setSelectedCourse} />
                   <Input type="number" min={1} max={30} value={count} onChange={(e) => setCount(e.target.value)} className="w-24" placeholder="Days" />
                 </div>
               </>
