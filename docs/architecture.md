@@ -2,163 +2,194 @@
 
 ## Overview
 
-StudentHub is a Next.js App Router application with a Supabase backend. Pages
-are Server Components that read a Supabase cache; a single route handler
-(`POST /api/dashboard/sync`) is the only code path that talks to Google. This
-keeps page loads fast, deterministic, and immune to flaky third-party APIs.
+StudentHub is a Next.js 16 App Router application with a Supabase backend
+(Auth, PostgreSQL with Row Level Security, Storage). Pages are async Server
+Components that read Supabase and hand a view model to a client component;
+client components write back through per-domain client services. Google data
+is cached in Supabase and refreshed only through `POST /api/dashboard/sync`.
+AI features go through server-only route handlers under `/api/ai/*`.
 
 ```
 Browser
-  │  Next.js middleware (lib/supabase/middleware.ts)
+  │  proxy.ts → lib/supabase/middleware.ts (updateSession)
+  │    • rescue stray ?code= / ?token_hash= auth links → /auth/callback
   │    • refresh session cookie
-  │    • redirect unauthenticated users
+  │    • redirect unauthenticated users to /login
   │    • force first-login password change
   │    • enforce route-level RBAC
   ▼
-Server Components (app/**/page.tsx)
-  │  lib/supabase/server.ts ──► Supabase (RLS-protected cache tables)
-  │  services/academics.service.ts  (view assembly + GPA math)
+Server Components (app/(dashboard)/dashboard/**/page.tsx)
+  │  services/<domain>.service.ts ──► Supabase (RLS-protected tables)
+  │  passes initialData to components/<domain>/<Domain>View.tsx
   ▼
-User → "Sync now" button ──► POST /api/dashboard/sync ──► Google APIs
-                                    (the only Google caller)
+Client components
+  ├─ services/<domain>Client.service.ts ──► Supabase (writes, ApiResult)
+  ├─ POST /api/dashboard/sync ──► Google APIs (the only Google caller)
+  └─ POST /api/ai/*            ──► AI provider (lib/ai/provider.ts)
 ```
 
 ## Directory map
 
 ```
 app/
-  (auth)/                Public auth routes (login, forgot-password, change-password)
-  (dashboard)/           Authenticated app shell + pages
-  auth/callback/         Route handler exchanging a Supabase auth code for a session
+  (auth)/                Public auth pages: login, signup, forgot-password,
+                         reset-password, change-password
+  (dashboard)/           Authenticated shell + dashboard/* feature pages
+  auth/callback/         Exchanges a Supabase auth code / OTP token for a session
+  auth/confirm/          OTP (token_hash) alias of /auth/callback
   api/
-    google/auth/         Starts the Google OAuth consent flow
-    google/callback/     Receives the Google redirect, stores tokens, initial sync
+    google/auth/         Starts the Google OAuth (Classroom/Calendar) consent flow
+    google/callback/     Stores encrypted Google tokens, runs an initial sync
     dashboard/sync/      On-demand sync of Google data into the cache
-  layout.tsx             Root layout: fonts, ToastProvider, Toaster
-  error.tsx              Root error boundary
-  not-found.tsx          404 page
+    ai/*/                explain, summarize, generate-flashcards, generate-quiz, study-plan
 components/
-  ui/                    Reusable primitives (Button, Input, Card, Form, Toaster, ...)
-  layout/                Sidebar, MobileSidebar, Navbar, DashboardShell
-  auth/                  LoginForm, ForgotPasswordForm, ChangePasswordForm
-  dashboard/             Dashboard cards (TodayOverview, CourseSnapshot, GPA card, ...)
-  settings/              Google connection, academic settings, manual courses
-  common/                ErrorBoundary, Skeletons, ComingSoon
-hooks/                   useAuth, useToast, useMediaQuery, useRole
+  ui/                    Primitives (Button, Input, Card, Form, Select, Skeleton, Toaster)
+  layout/                Sidebar, Navbar, DashboardShell
+  <domain>/              Feature components: auth, dashboard, courses, schedule,
+                         tasks, study, focus, analytics, wellness, gamification, settings
+  common/                ErrorBoundary, Skeletons
+hooks/                   useAuth, useToast, useGroupedEvents
 lib/
-  supabase/              Browser client, server client, middleware helper, error mapping
+  supabase/              Browser/server clients, shared cookie factory, session
+                         middleware, error mapping
   rbac.ts                Role hierarchy + route-level access map
-  requireRole.ts         Server-side role guard (redirects)
-  gpa.ts                 Pure GPA + projection math (unit-tested)
+  ai/provider.ts         Server-only multi-provider AI call with timeout
   google/                OAuth token mechanics + AES-256-GCM token encryption
-  validations/           Zod schemas (auth, academics)
+  scheduling.ts          Min-heap task ordering + recurrence math (unit-tested)
+  focus.ts               Focus/Pomodoro helpers
+  taskView.ts, courseView.ts, scheduleView.ts   DB row → view-model mappers
+  validations/           Zod schemas per domain
+  mocks/                 Mock data still used by a few legacy components
 services/
-  auth.service.ts        All Supabase Auth calls (client-side)
-  academics.service.ts   Server-side dashboard view assembly
-  academicsClient.service.ts  Client-side academic writes (manual courses, settings)
-  google.service.ts      Google facade: OAuth storage + sync pipeline
-  classroom.service.ts   Thin Google Classroom API client (pagination)
-  calendar.service.ts    Thin Google Calendar API client (rolling window)
-types/                   Database + domain + API result types
-utils/                   cn(), validation + date helpers (+ unit tests)
-middleware.ts            Next middleware entry point (matcher config)
+  <domain>.service.ts        Server-side reads / view assembly
+  <domain>Client.service.ts  Client-side writes returning ApiResult
+  auth.service.ts            All Supabase Auth calls (client-side)
+  google.service.ts          Google OAuth storage + sync pipeline
+  classroom.service.ts, calendar.service.ts   Thin Google API clients
+types/                   Generated database types + domain + ApiResult types
+utils/                   cn(), validation, date, safeRedirect helpers (+ tests)
+proxy.ts                 Next 16 request proxy (formerly middleware.ts) + matcher
 supabase/
-  schema.sql             Consolidated schema for fresh setups
-  migrations/            Timestamped migration files (offline-managed)
+  migrations/            Timestamped migrations: the schema source of truth
+  schema.sql, consolidated.sql   Older single-file snapshots (see data-model.md)
 ```
+
+## Feature modules
+
+Every page under `app/(dashboard)/dashboard/` is listed in the sidebar
+(`components/layout/Sidebar.tsx`).
+
+| Route | Server read | Main tables |
+|---|---|---|
+| `/dashboard` | `dashboard.service.ts` → `getProductivityDashboardData` | tasks, schedule_events, calendar_events, assignments, announcements, courses, focus_sessions, notes, google_accounts |
+| `/dashboard/courses` | `courses.service.ts` | courses |
+| `/dashboard/schedule` | `schedule.service.ts` | schedule_events (editable) + calendar_events (Google, read-only) |
+| `/dashboard/tasks` | `tasks.service.ts` (runs the min-heap scheduler) | tasks, courses |
+| `/dashboard/study` | `notes.service.ts`, `flashcards.service.ts`, `quizzes.service.ts` | notes, note_attachments, flashcards, quizzes, quiz_questions, quiz_attempts |
+| `/dashboard/focus` | `focus.service.ts` | focus_sessions |
+| `/dashboard/analytics` | `analytics.service.ts` | tasks, focus_sessions, notes, flashcards, quiz_attempts, schedule_events, wellness_entries |
+| `/dashboard/wellness` | `wellness.service.ts` | wellness_entries |
+| `/dashboard/achievements` | client-side in `BadgeGrid` | tasks, focus_sessions, notes, quiz_attempts |
+| `/dashboard/settings` | `academics.service.ts` → `getGoogleAccountView` | profiles, google_accounts, courses |
+| `/dashboard/notes` | none: client page on `lib/mocks/notes` | none (real notes live in Study Hub) |
+
+Known leftovers: `/dashboard/notes` is still mock-backed, and the Schedule page
+renders a mock-backed `CalendarShell` below the real `ScheduleView`.
 
 ## Request lifecycle
 
-1. **Middleware** (`middleware.ts` → `lib/supabase/middleware.ts`) runs on every
-   request. It creates a Supabase cookie client from the incoming request,
-   calls `auth.getUser()`, then applies four checks in order:
-   - unauthenticated + non-public route → redirect to `/login?redirectTo=<path>`
-   - authenticated + visiting `/login` or `/` → redirect to `/dashboard`
-   - `must_change_password === true` in user metadata and not on
-     `/change-password` → redirect to `/change-password`
-   - route requires roles and the user lacks them → redirect to `/dashboard`
-2. **Server Component** (`app/(dashboard)/dashboard/page.tsx`) reads the user
-   and calls `getDashboardData(userId)` + `getAcademicSettings(userId)` from
-   `services/academics.service.ts`. All reads go to Supabase; the service
-   assembles view models and runs the pure GPA math from `lib/gpa.ts`.
-3. **Client interactions** (manual course edits, settings, sync button) call
-   `services/academicsClient.service.ts` or `POST /api/dashboard/sync`, then
-   `router.refresh()` re-renders the Server Component tree with fresh data.
+1. **Proxy** (`proxy.ts` → `updateSession` in `lib/supabase/middleware.ts`)
+   runs on every non-static request. It first redirects any request carrying
+   `?code=`, `?token_hash=` or `?error=` outside the auth routes to
+   `/auth/callback` (Supabase falls back to the Site URL when the redirect
+   allow-list isn't configured). It then creates a cookie-bound Supabase
+   client, calls `auth.getUser()`, and applies the checks described in
+   [auth.md](auth.md#proxy-protection).
+2. **Server Component** loads the user with `lib/supabase/server.ts`, calls its
+   domain's `get<Domain>Data(userId)` and passes the result as `initialData`
+   to the client view.
+3. **Client interactions** call `<domain>ClientService` methods (which return
+   `ApiResult<T>` from `types/api.ts`), update local state optimistically, and
+   call `router.refresh()` where server data must be re-read.
 
 ## Client vs. server
 
 | Concern | Server | Client |
 |---|---|---|
 | Supabase client | `lib/supabase/server.ts` (via `cookies()`) | `lib/supabase/client.ts` (`createBrowserClient`) |
-| Middleware session | `lib/supabase/factory.ts` (cookie adapter) | — |
-| Auth calls | — | `services/auth.service.ts` |
-| Dashboard data | `services/academics.service.ts` | — |
-| Academic writes | — | `services/academicsClient.service.ts` |
-| Google network calls | `services/google.service.ts` (route handlers only) | — |
+| Proxy session | `lib/supabase/factory.ts` (cookie adapter) | none |
+| Auth calls | none | `services/auth.service.ts` |
+| Page data | `services/<domain>.service.ts` | none |
+| Writes | none | `services/<domain>Client.service.ts` |
+| Google network calls | `services/google.service.ts` (route handlers only) | none |
+| AI calls | `lib/ai/provider.ts` (route handlers only) | `fetch("/api/ai/...")` |
 
-The shared cookie plumbing for server clients lives in
-`lib/supabase/factory.ts` (`createServerCookieClient`), so Server Components,
-Route Handlers, and middleware all use the same `@supabase/ssr`
-`createServerClient` wiring.
+Server Components, Route Handlers and the proxy all build their Supabase
+client via `createServerCookieClient` in `lib/supabase/factory.ts`.
 
 ## Modules
 
 ### Authentication & RBAC
-- Email/password sign in and password reset via Supabase Auth
-  (`services/auth.service.ts`).
-- Session persistence via SSR-safe cookies refreshed in middleware
-  (`lib/supabase/middleware.ts`).
-- First-login forced password change driven by the `must_change_password` flag.
-- Role model: `public.user_role` enum (`student` / `teacher` / `admin`), a
-  role-rank hierarchy in `lib/rbac.ts`, a route-level access map, a server
-  guard (`lib/requireRole.ts`), and a client hook (`hooks/useRole.ts`).
-- The role is always read from `app_metadata` (JWT-backed, admin-only
-  writable) — never from client-controllable `user_metadata`.
+Email/password and Google sign-in via Supabase Auth, a forced first-login
+password change, and a `student`/`teacher`/`admin` role model enforced in the
+proxy. See [auth.md](auth.md).
 
-### Academic dashboard
-- Server-rendered from the Supabase cache (`services/academics.service.ts`).
-- GPA projection math is pure functions in `lib/gpa.ts`, unit-tested with
-  Vitest.
-- The sync endpoint is the only Google caller; it upserts courses,
-  assignments, announcements, and a rolling calendar window.
+### Google Classroom & Calendar
+Read-only OAuth link, encrypted token storage, and an idempotent sync into
+cache tables. See [google-integration.md](google-integration.md).
+
+### Tasks
+Kanban + list views with dnd-kit, priorities, tags, recurrence
+(`nextRecurrence`), and a "Suggested Order" computed by the min-heap in
+`lib/scheduling.ts` (`buildSchedule`; `buildTopSchedule` for the dashboard).
+
+### Study Hub
+Notes (Markdown preview, tags, favorites, PDF attachments stored in the
+private `notes-pdfs` Storage bucket), flashcards, quizzes with attempts, and an
+AI assistant tab. AI results can be saved as flashcards/quizzes.
+
+### AI
+`/api/ai/*` handlers authenticate the user, optionally load a note by
+`noteId`, build a prompt and call `callAI()` in `lib/ai/provider.ts`. See
+[api.md](api.md#ai-routes).
+
+### Focus, Wellness, Analytics, Achievements
+Pomodoro timer with ambient sounds (`ChillHub`, procedurally generated), daily
+mood check-ins with journal, cross-module analytics, and badges/XP/streaks
+computed from real activity.
 
 ### Settings
-- Google connection management (`components/settings/GoogleConnectionCard.tsx`).
-- Academic settings: grading scale presets + target GPA
-  (`components/settings/AcademicSettingsCard.tsx`).
-- Manual course CRUD for courses not on Google Classroom
-  (`components/settings/ManualCoursesCard.tsx`).
-
-### Placeholders
-No placeholders remain — all dashboard modules (`courses`, `schedule`, `tasks`, `notes`, `analytics`, `wellness`, `achievements`, `focus`) are implemented; the former `students` module has been removed.
+Profile, preferences (timezone, theme, default calendar/task views,
+notifications, stored on `profiles`), the Google connection, and manually
+tracked courses.
 
 ## Data flow notes
 
-- The dashboard never calls Google per page load — it reads only the Supabase
-  cache tables.
-- `POST /api/dashboard/sync` is the sole path that contacts Google for the
-  signed-in user; it is idempotent and safe to re-run.
+- Pages never call Google. They read cache tables only.
+- `POST /api/dashboard/sync` is the only path that contacts Google for the
+  signed-in user. It is idempotent and safe to re-run.
 - Google OAuth tokens are encrypted at rest (AES-256-GCM) before being stored
-  in `google_accounts` (`lib/google/crypto.ts`); the plaintext never touches
+  in `google_accounts` (`lib/google/crypto.ts`). The plaintext never touches
   Postgres or the browser.
+- AI keys are server-only. When no provider is configured, the AI routes
+  return a 503 with a configuration message, never fake output.
 
 ## Design system
 
 Tokens are defined in `tailwind.config.ts` under `theme.extend.colors.brand`
-and mapped to Tailwind utilities (e.g. `bg-brand-royal`, `text-brand-dark`).
+and used as Tailwind utilities (e.g. `bg-brand-royal`, `text-brand-dark`).
 
 | Token | Value |
 |---|---|
-| Royal Blue (primary) | `#0033A0` |
-| Royal Blue dark | `#002478` |
-| Sky Blue (accent) | `#87CEEB` |
-| White | `#FFFFFF` |
-| Gray (surface) | `#F4F6F9` |
-| Dark (text) | `#1A1A1A` |
+| `brand-royal` (primary) | `#0033A0` |
+| `brand-royal-dark` | `#002478` |
+| `brand-sky` (accent) | `#87CEEB` |
+| `brand-white` | `#FFFFFF` |
+| `brand-gray` (surface) | `#F4F6F9` |
+| `brand-dark` (text) | `#1A1A1A` |
 
 Additional Tailwind color roles (primary/secondary/muted/accent/card) map onto
 these brand values; `border`/`input`/`ring`/`background`/`foreground` use CSS
 variables from `app/globals.css`. The Inter font is loaded via
-`next/font/google` and exposed as `--font-inter`. Border radius scale is
-0.375/0.5/0.75rem, and two animations are defined: `accordion-down/up` and
-`fade-in`.
+`next/font/google` and exposed as `--font-inter`. Classes are merged with
+`cn()` from `utils/cn.ts`.

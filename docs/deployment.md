@@ -13,6 +13,9 @@ real values.
 | `GOOGLE_CLIENT_SECRET` | Google features only | Google OAuth client secret |
 | `GOOGLE_REDIRECT_URI` | Google features only | Must match an authorized redirect URI on the OAuth client (e.g. `https://<domain>/api/google/callback`) |
 | `GOOGLE_TOKEN_ENCRYPTION_KEY` | Google features only | Used to AES-256-GCM encrypt Google tokens at rest |
+| `OPENAI_API_KEY` (or `AI_API_KEY`) | AI features only | OpenAI-compatible key; optional `OPENAI_BASE_URL`, `AI_MODEL` / `OPENAI_MODEL` (default `gpt-4o-mini`) |
+| `ANTHROPIC_API_KEY` | AI alternative | Used if no OpenAI key is set; optional `ANTHROPIC_MODEL` |
+| `GOOGLE_AI_API_KEY` (or `GEMINI_API_KEY`) | AI alternative | Used if neither of the above is set; optional `GOOGLE_AI_MODEL` |
 
 Generate the token encryption key:
 
@@ -20,19 +23,36 @@ Generate the token encryption key:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-The app runs without the Google variables unless the Academic Dashboard Google
+The app runs without the Google variables unless the Classroom/Calendar
 integration is used; the OAuth config helper (`lib/google/tokens.ts`) fails
 fast with a descriptive message when they're missing.
+
+The AI variables are checked in order (OpenAI, then Anthropic, then Google)
+by `lib/ai/provider.ts`; the first key found wins. Without any of them the
+Study Hub AI features return a "not configured" error (HTTP 503).
 
 ## Supabase setup
 
 1. Create a Supabase project at <https://supabase.com/>.
 2. Set the two `NEXT_PUBLIC_SUPABASE_*` variables.
-3. Apply the schema one of two ways:
-   - **Fresh setup:** run `supabase/schema.sql` in the Supabase SQL Editor.
-   - **Incremental / CLI:** `npm run db:migrate` (requires the Supabase CLI,
-     linked to the project). Migrations live in `supabase/migrations/`.
-4. `npm run typegen` regenerates `types/database.types.ts` from the project
+3. Apply the schema from `supabase/migrations/`:
+   - **CLI:** `npm run db:migrate` (requires the Supabase CLI linked to the
+     project).
+   - **SQL Editor:** paste each migration file in timestamp order.
+   `supabase/schema.sql` and `supabase/consolidated.sql` are older snapshots
+   that stop at the Google tables; don't use them on their own.
+   The last migration also creates the private `notes-pdfs` Storage bucket
+   used for note PDF attachments.
+4. **Authentication → URL Configuration:** set the Site URL
+   (`http://localhost:3000` in dev, your production URL in prod) and add
+   `http://localhost:3000/**` and `https://<your-domain>/**` to Redirect URLs.
+   Without this, password-reset and confirmation links fall back to the Site
+   URL (the proxy rescues them, but the allow-list is the proper fix).
+5. **Authentication → Providers → Google** (optional): enable it for
+   "Continue with Google" sign-in. This uses its own OAuth client, with
+   Supabase's callback URL
+   (`https://<project-ref>.supabase.co/auth/v1/callback`) as the redirect URI.
+6. `npm run typegen` regenerates `types/database.types.ts` from the project
    (requires the CLI).
 
 ### Creating a test user with the first-login flow
@@ -43,7 +63,7 @@ email/password and set `must_change_password: true` in the user's metadata
 
 ## Google Cloud setup (once per environment)
 
-The Academic Dashboard uses a server-side OAuth 2.0 flow with read-only scopes.
+The Classroom/Calendar integration uses a server-side OAuth 2.0 flow with read-only scopes.
 Set it up once per environment:
 
 1. Go to <https://console.cloud.google.com/> and create a project (or reuse one).
@@ -89,7 +109,8 @@ npm run build
 npm start
 ```
 
-The build runs ESLint and TypeScript type checking. `next.config.mjs` enables
+The build runs TypeScript type checking. Next.js 16 no longer runs ESLint
+during `next build`, so run `npm run lint` separately (e.g. in CI). `next.config.mjs` enables
 `reactStrictMode` and allows images from the Supabase storage hostname
 (`cbdxebzizvgzoupdplvs.supabase.co`); update the remote pattern if you use a
 different Supabase project host.
@@ -97,7 +118,8 @@ different Supabase project host.
 ## Notes & caveats
 
 - **Secrets:** `NEXT_PUBLIC_*` vars are public (embedded in the client bundle);
-  keep the anon key, not the service role key. `GOOGLE_*` vars are server-only.
+  keep the anon key, not the service role key. `GOOGLE_*` and AI key vars are
+  server-only.
 - **Google quota:** sync is on-demand and respects Google's rate limits; a
   `429` surfaces as a friendly message.
 - **Token rotation:** rotating `GOOGLE_TOKEN_ENCRYPTION_KEY` invalidates all

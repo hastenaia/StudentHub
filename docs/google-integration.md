@@ -1,14 +1,19 @@
 # Google Integration
 
-The Academic Dashboard integrates with **Google Classroom** and **Google
+StudentHub integrates with **Google Classroom** and **Google
 Calendar** through a server-side OAuth 2.0 **authorization-code + PKCE** flow
 with read-only scopes. Google data is pulled on demand into a local Supabase
-cache; the dashboard itself never calls Google per page load.
+cache; pages never call Google per page load.
+
+This is separate from **Google sign-in** (Supabase OAuth provider, see
+[auth.md](auth.md#google-sign-in)). Signing in with Google does not grant
+Classroom/Calendar access; the user links it separately from the dashboard
+banner or Settings.
 
 ## Architecture
 
 ```
-Settings → "Connect Google" → GET /api/google/auth
+Settings / dashboard banner → "Connect Google" → GET /api/google/auth
     sets httpOnly cookies: google_oauth_state, google_oauth_verifier
     redirects to Google consent screen
         ▼
@@ -18,7 +23,7 @@ Google redirects to GET /api/google/callback?code=...&state=...
     encrypts tokens (AES-256-GCM) → google_accounts
     triggers an initial sync
         ▼
-GET /api/dashboard/sync  (or the Sync Now button)
+POST /api/dashboard/sync  (Sync Now button)
     refreshes token if near expiry
     pulls Classroom courses/courseWork/announcements + rolling Calendar window
     upserts into courses, assignments, announcements, calendar_events
@@ -90,7 +95,7 @@ callback). It is idempotent and safe to re-run.
    `needs_reconnect`.
 2. Obtains a valid access token (reuse or refresh).
 3. **Courses** — `listCourses` (active courses only) → upserted into `courses`
-   with `source='classroom'` and `credit_hours=3` (adjustable in settings),
+   with `source='classroom'` and `credit_hours=3`,
    keyed on `(user_id, google_course_id)`. Classroom courses that no longer
    exist on Google's side are deleted.
 4. **Assignments** — for each course, `listCourseWork` + the student's
@@ -135,12 +140,20 @@ responses (`GoogleCourse`, `GoogleCourseWork`, `GoogleStudentSubmission`,
 sync layer is robust against fields Google adds that StudentHub doesn't care
 about.
 
-## Dashboard reads (no Google)
+## Reads (no Google)
 
-`services/academics.service.ts` builds all dashboard views purely from the
-Supabase cache tables. `GET /dashboard` never calls Google. A cache is
-considered **stale** after 12 hours (`STALENESS_MS`), which triggers the
-"Sync now" nudge on the dashboard (`SyncNowCard`).
+Pages read only the Supabase cache:
+
+- `services/dashboard.service.ts` (`getProductivityDashboardData`) merges
+  `assignments`, `announcements` and `calendar_events` with the user's own
+  tasks and `schedule_events` for the dashboard cards.
+- `services/schedule.service.ts` shows `calendar_events` as read-only entries
+  next to editable `schedule_events`.
+- `services/academics.service.ts` (`getGoogleAccountView`) powers the Settings
+  connection card.
+
+The cache is considered **stale** 12 hours after `last_synced_at`, which makes
+the dashboard's `SyncNowCard` nudge the user to sync.
 
 ## Disconnecting
 
