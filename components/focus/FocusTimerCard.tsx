@@ -228,15 +228,18 @@ export function FocusTimerCard({ courses, openTasks }: FocusTimerCardProps) {
 
         const completedFocusCount = state.phase === "focus" ? state.completedFocusCount + 1 : state.completedFocusCount;
         const next = nextPhase(state.phase, completedFocusCount);
+        const nextSeconds = phaseDurationMinutes(next, d) * 60;
+        // Breaks roll on automatically; starting focus again is deliberate.
+        const autoStart = next !== "focus";
 
         return {
           ...state,
           phase: next,
           completedFocusCount,
-          remainingSeconds: phaseDurationMinutes(next, d) * 60,
-          endAtMs: null,
-          // Breaks roll on automatically; starting focus again is deliberate.
-          running: next !== "focus",
+          remainingSeconds: nextSeconds,
+          // The tick loop only runs with a deadline, so an auto-started break needs one or it freezes.
+          endAtMs: autoStart ? Date.now() + nextSeconds * 1000 : null,
+          running: autoStart,
           pendingRetry: null,
           durations: d,
         };

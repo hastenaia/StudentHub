@@ -42,25 +42,26 @@ export function MonthView({ currentDate, events, onEventClick, onDateClick }: Mo
 
   // Start-day buckets sorted once; spanning events expanded across days in one pass.
   const { decorated } = useGroupedEvents(events);
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
   const { dayMap, countMap } = React.useMemo(() => {
     const map = new Map<string, typeof decorated>();
     const counts = new Map<string, number>();
     const keyOf = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    // Only this month's cells are rendered, so clamp each span to it (no fixed day cap needed).
+    const firstMs = new Date(year, month, 1).getTime();
+    const lastMs = new Date(year, month + 1, 0).getTime();
     for (const e of decorated) {
       const startDay = new Date(e.startMs);
       startDay.setHours(0, 0, 0, 0);
-      const endDay = new Date(e.endMs);
+      // End is exclusive: an event ending exactly at 00:00 (e.g. Google all-day events) doesn't touch that day.
+      const endDay = new Date(Math.max(e.startMs, e.endMs - 1));
       endDay.setHours(0, 0, 0, 0);
-      const spanDays = Math.min(
-        7,
-        Math.max(0, Math.round((endDay.getTime() - startDay.getTime()) / 86400000))
-      );
-      const seen = new Set<string>();
-      for (let i = 0; i <= spanDays; i++) {
-        const d = new Date(startDay.getTime() + i * 86400000);
+      const from = new Date(Math.max(startDay.getTime(), firstMs));
+      const toMs = Math.min(endDay.getTime(), lastMs);
+      // Step with setDate, not +24h, so DST changes can't skip or repeat a day.
+      for (const d = from; d.getTime() <= toMs; d.setDate(d.getDate() + 1)) {
         const k = keyOf(d);
-        if (seen.has(k)) continue;
-        seen.add(k);
         const bucket = map.get(k);
         if (bucket) bucket.push(e);
         else map.set(k, [e]);
@@ -69,7 +70,7 @@ export function MonthView({ currentDate, events, onEventClick, onDateClick }: Mo
     }
     for (const bucket of map.values()) bucket.sort((a, b) => a.startMs - b.startMs);
     return { dayMap: map, countMap: counts };
-  }, [decorated]);
+  }, [decorated, year, month]);
 
   const dayEvents = (date: Date) =>
     (dayMap.get(`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`) ?? []).slice(0, 3);

@@ -106,7 +106,8 @@ export async function getProductivityDashboardData(userId: string): Promise<Prod
       supabase.from("calendar_events").select("*").eq("user_id", userId).gte("start_at", todayStart).lte("start_at", todayEnd).order("start_at"),
       supabase.from("tasks").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(1000),
       supabase.from("courses").select("id, name, course_name, color").eq("user_id", userId).eq("archived", false),
-      supabase.from("assignments").select("*").eq("user_id", userId).order("due_at").limit(500),
+      // Only upcoming (≥ now − 24h) rows are used; filter in SQL so years of past Classroom work can't fill the cap.
+      supabase.from("assignments").select("*").eq("user_id", userId).gte("due_at", new Date(nowMs - 86400000).toISOString()).order("due_at").limit(500),
       supabase.from("announcements").select("*").eq("user_id", userId).order("publish_time", { ascending: false }).limit(6),
       supabase.from("focus_sessions").select("*").eq("user_id", userId).gte("started_at", focusWindowStart).order("started_at", { ascending: false }).limit(2000),
       supabase.from("notes").select("id, created_at").eq("user_id", userId),

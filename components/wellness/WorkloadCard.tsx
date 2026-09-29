@@ -16,17 +16,22 @@ export function WorkloadCard({ workload }: Props) {
   React.useEffect(() => {
     if (focusMinutesToday < 90 && upcomingDeadlinesCount <= 3) return;
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 4500);
-    fetch("/api/ai/explain", {
+    // Server caps the AI call at 4.5s; allow for the round trip so a slow-but-successful tip isn't dropped.
+    const t = setTimeout(() => ctrl.abort(), 6000);
+    fetch("/api/ai/wellness-tip", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ concept: `Give a 1-sentence wellness break tip for a student with ${focusMinutesToday} min focus and ${upcomingDeadlinesCount} deadlines` }),
+      body: JSON.stringify({ focusMinutesToday, upcomingDeadlinesCount }),
       signal: ctrl.signal,
     })
       .then((r) => r.json())
-      .then((d) => { if (d.success) setAiTip(d.data?.explanation ?? null); })
+      .then((d) => { if (d.success) setAiTip(d.data?.tip ?? null); })
       .catch(() => {})
       .finally(() => clearTimeout(t));
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
   }, [focusMinutesToday, upcomingDeadlinesCount]);
 
   return (

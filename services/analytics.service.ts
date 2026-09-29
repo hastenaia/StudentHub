@@ -153,7 +153,9 @@ export async function getAnalyticsData(userId: string): Promise<AnalyticsData> {
     // daily trend
     if (dailyTrendMap.has(dateStr)) dailyTrendMap.set(dateStr, (dailyTrendMap.get(dateStr) ?? 0) + mins);
     // weekly trend - bucket by weeks
-    const diffDays = Math.floor((todayStartMs - startedMs) / 86400000);
+    // Compare day starts, not the raw timestamp: a session started today must be 0 days ago, not -1.
+    // Math.round absorbs 23h/25h DST days between the two midnights.
+    const diffDays = Math.round((todayStartMs - startOfDay(new Date(startedMs)).getTime()) / 86400000);
     if (diffDays >= 0 && diffDays < 28) {
       const weekIdx = Math.floor(diffDays / 7);
       const weekLabel = `W${4 - weekIdx}`;

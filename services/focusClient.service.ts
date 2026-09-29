@@ -39,10 +39,13 @@ export const focusClientService = {
     if (input.kind !== "focus" && input.kind !== "break") {
       return fail("Invalid session kind.");
     }
+    const durationMinutes = Math.max(1, Math.round(input.durationSeconds / 60));
+    // focus_sessions has no kind column and every reader (analytics, streaks, badges, wellness)
+    // counts its rows as focus time, so a break must not be stored there.
+    if (input.kind === "break") return ok(`Logged ${durationMinutes} min break.`);
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return fail("You must be signed in.");
-    const durationMinutes = Math.max(1, Math.round(input.durationSeconds / 60));
     const { error } = await supabase.from("focus_sessions").insert({
       user_id: user.id,
       duration_minutes: durationMinutes,
