@@ -34,6 +34,7 @@ which wraps `supabase.auth.*` calls and returns a consistent `ApiResult`
 | `/auth/callback` | Yes | Exchange a Supabase auth code / OTP token for a session |
 | `/auth/confirm` | Yes | Verify a Supabase OTP token (`?token_hash=&type=`) |
 | `/change-password` | Yes* | Change password (first-login forced or on demand) |
+| `/api/health` | Yes | Liveness probe for uptime monitors (`{ ok, time }`, no data access) |
 | `/dashboard/*` | No | Authenticated app |
 
 `*` `/change-password` and `/reset-password` are public so a user following

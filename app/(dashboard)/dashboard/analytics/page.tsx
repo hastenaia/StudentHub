@@ -52,6 +52,7 @@ export default async function AnalyticsPage() {
           data={data.focus.dailyTrend.map((d) => ({ label: d.label, value: d.minutes }))}
           color="bg-brand-royal"
           valueLabel="m"
+          emptyText="No focus sessions this week — start a Pomodoro on the Focus page."
         />
         <BarChart
           title="Task velocity"
@@ -59,6 +60,7 @@ export default async function AnalyticsPage() {
           data={data.productivity.taskTrend.map((d) => ({ label: d.label, value: d.count }))}
           color="bg-emerald-500"
           valueLabel=""
+          emptyText="No tasks completed this week — tick one off in Tasks."
         />
       </div>
 

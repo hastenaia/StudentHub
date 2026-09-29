@@ -164,6 +164,12 @@ All five routes live under `app/api/ai/` and share the same shape:
 The routes only generate content; saving flashcards/quizzes happens
 client-side through `flashcardsClientService` / `quizzesClientService`.
 
+## `/api/health`
+
+`GET` → `200 { "ok": true, "time": "<ISO timestamp>" }` with `Cache-Control: no-store`.
+Public (listed in `PUBLIC_ROUTES`) so uptime monitors can call it without a
+session; it reads no user data and makes no Supabase queries itself.
+
 ## Summary
 
 | Route | Method | Auth | Purpose |
@@ -174,3 +180,4 @@ client-side through `flashcardsClientService` / `quizzesClientService`.
 | `/api/google/auth` | GET | session | Start Google OAuth consent flow |
 | `/api/google/callback` | GET | session | Finalize Google link + initial sync |
 | `/api/dashboard/sync` | POST | session | Pull Google data into the Supabase cache |
+| `/api/health` | GET | none | Liveness probe (`{ ok, time }`) |

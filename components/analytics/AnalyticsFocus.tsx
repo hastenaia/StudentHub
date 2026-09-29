@@ -44,7 +44,7 @@ export function AnalyticsFocus({ data }: Props) {
         <CardTitle className="flex items-center gap-2 text-base">
           <Timer className="h-4 w-4 text-emerald-600" /> Focus
         </CardTitle>
-        <CardDescription>Daily, weekly, monthly and averages from focus_sessions</CardDescription>
+        <CardDescription>{data.monthlySessions === 0 ? "No focus sessions yet — start a Pomodoro to see trends" : "Daily, weekly, monthly and averages from focus_sessions"}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

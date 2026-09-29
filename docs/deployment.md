@@ -113,7 +113,10 @@ The build runs TypeScript type checking. Next.js 16 no longer runs ESLint
 during `next build`, so run `npm run lint` separately (e.g. in CI). `next.config.mjs` enables
 `reactStrictMode` and allows images from the Supabase storage hostname
 (`cbdxebzizvgzoupdplvs.supabase.co`); update the remote pattern if you use a
-different Supabase project host.
+different Supabase project host. It also sends
+`Strict-Transport-Security: max-age=63072000; includeSubDomains` on every
+route (browsers ignore it over plain `http://localhost`). Point an uptime
+monitor at `GET /api/health`, which returns `{ ok: true }` without a session.
 
 ## Notes & caveats
 

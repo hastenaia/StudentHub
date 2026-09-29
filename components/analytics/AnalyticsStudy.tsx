@@ -13,7 +13,7 @@ export function AnalyticsStudy({ data }: Props) {
         <CardTitle className="flex items-center gap-2 text-base">
           <BookOpen className="h-4 w-4 text-brand-royal" /> Study
         </CardTitle>
-        <CardDescription>Notes, flashcards, quizzes and study sessions</CardDescription>
+        <CardDescription>{data.notesCreated + data.flashcardsTotal + data.quizzesCompleted + data.studySessions === 0 ? "Nothing yet — create a note or flashcards in Study Hub" : "Notes, flashcards, quizzes and study sessions"}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
