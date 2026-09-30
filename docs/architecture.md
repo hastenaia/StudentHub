@@ -61,6 +61,7 @@ lib/
   scheduling.ts          Min-heap task ordering + recurrence math (unit-tested)
   focus.ts               Focus/Pomodoro helpers
   dates.ts               startOfDay/endOfDay, reporting windows, streaks (unit-tested)
+  wellness.ts, taskSort.ts, aiRequests.ts   Pure page logic pulled out of services/components (unit-tested)
   taskView.ts, courseView.ts, scheduleView.ts   DB row → view-model mappers
   validations/           Zod schemas per domain
   mocks/                 Mock data still used by a few legacy components

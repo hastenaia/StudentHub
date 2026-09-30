@@ -20,6 +20,18 @@ describe("safeRedirect", () => {
     expect(safeRedirect("//evil.com")).toBe("/dashboard");
   });
 
+  it("rejects backslash and control-character tricks browsers resolve off-site", () => {
+    // Browsers treat `\` like `/` and strip tabs/newlines, so these all become `//evil.com`.
+    expect(safeRedirect("/\\evil.com")).toBe("/dashboard");
+    expect(safeRedirect("/\\/evil.com")).toBe("/dashboard");
+    expect(safeRedirect("/\t/evil.com")).toBe("/dashboard");
+    expect(safeRedirect("/\n/evil.com")).toBe("/dashboard");
+  });
+
+  it("keeps same-origin paths with query strings and encoded characters", () => {
+    expect(safeRedirect("/dashboard?tab=notes&x=%2F")).toBe("/dashboard?tab=notes&x=%2F");
+  });
+
   it("rejects non-slash prefixes", () => {
     expect(safeRedirect("dashboard")).toBe("/dashboard");
   });

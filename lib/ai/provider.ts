@@ -14,10 +14,10 @@ interface AIConfig {
 }
 
 function getAIConfig(): { ok: true; config: AIConfig } | { ok: false; error: string } {
-  // Prefer explicit AI_API_KEY, fall back to common provider keys
-  const openaiKey = process.env.OPENAI_API_KEY ?? process.env.AI_API_KEY;
+  // `||`, not `??`: an empty `KEY=` line in .env.local must count as unset, not hide the fallback.
+  const openaiKey = process.env.OPENAI_API_KEY || process.env.AI_API_KEY;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  const googleKey = process.env.GOOGLE_AI_API_KEY ?? process.env.GEMINI_API_KEY;
+  const googleKey = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
 
   if (openaiKey) {
     return {
@@ -25,8 +25,8 @@ function getAIConfig(): { ok: true; config: AIConfig } | { ok: false; error: str
       config: {
         provider: "openai",
         apiKey: openaiKey,
-        model: process.env.AI_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini",
-        baseUrl: process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
+        model: process.env.AI_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini",
+        baseUrl: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
       },
     };
   }
@@ -36,7 +36,7 @@ function getAIConfig(): { ok: true; config: AIConfig } | { ok: false; error: str
       config: {
         provider: "anthropic",
         apiKey: anthropicKey,
-        model: process.env.ANTHROPIC_MODEL ?? "claude-3-haiku-20240307",
+        model: process.env.ANTHROPIC_MODEL || "claude-3-haiku-20240307",
       },
     };
   }
@@ -46,7 +46,7 @@ function getAIConfig(): { ok: true; config: AIConfig } | { ok: false; error: str
       config: {
         provider: "google",
         apiKey: googleKey,
-        model: process.env.GOOGLE_AI_MODEL ?? "gemini-1.5-flash",
+        model: process.env.GOOGLE_AI_MODEL || "gemini-1.5-flash",
       },
     };
   }

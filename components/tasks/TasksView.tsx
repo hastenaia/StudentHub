@@ -16,12 +16,13 @@ import { TaskForm } from "@/components/tasks/TaskForm";
 import { cn } from "@/utils/cn";
 import type { Task, TaskDraft, TaskPriority, TaskStatus, TasksViewData } from "@/types/tasks";
 import { TASK_PRIORITIES, TASK_STATUSES } from "@/types/tasks";
+import type { TaskSortMode } from "@/lib/taskSort";
 
 interface TasksViewProps {
   initialData: TasksViewData;
 }
 
-type SortMode = "smart" | "deadline" | "priority" | "effort" | "created";
+type SortMode = TaskSortMode;
 
 /** Client shell for the To-Do Tracker: view toggle, search, filters, sorting, mutations, local state. */
 export function TasksView({ initialData }: TasksViewProps) {

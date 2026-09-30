@@ -16,11 +16,11 @@ npm run typegen      # regenerate types/database.types.ts from Supabase project 
 npm run db:migrate   # supabase db push (applies supabase/migrations/)
 ```
 
-Tests run in jsdom with globals and the `@` → repo-root alias (`vitest.config.mts`). They cover only pure/validation code (`lib/*.test.ts`, `lib/validations/*.test.ts`, `utils/*.test.ts`, plus the exported `renderMarkdown` in `components/study/MarkdownPreview.test.ts`); services, route handlers and components are not unit-tested.
+Tests run in jsdom with globals and the `@` → repo-root alias (`vitest.config.mts`). They cover mostly pure/validation code (`lib/**/*.test.ts`, `utils/*.test.ts`), plus `callAI` and the auth redirect helpers with mocks, two hooks and a couple of components; services and most route handlers/components are not unit-tested — move logic into pure `lib/*.ts` modules and test it there. Tests needing Node APIs use `// @vitest-environment node`.
 
 ## Architecture
 
-**Request gate is `proxy.ts`, not `middleware.ts`** (Next 16 renamed it). It delegates to `updateSession` in `lib/supabase/middleware.ts`, which in order: rescues stray `?code=`/`?token_hash=` auth links by forwarding them to `/auth/callback`; refreshes the session via `auth.getUser()`; redirects unauthenticated users on non-`PUBLIC_ROUTES` to `/login?redirectTo=`; forces `/change-password` when `user_metadata.must_change_password` is true; enforces route RBAC from `lib/rbac.ts`. Roles (`student`/`teacher`/`admin`) are read from `app_metadata` only — never `user_metadata` (client-writable). New public pages must be added to `PUBLIC_ROUTES`.
+**Request gate is `proxy.ts`, not `middleware.ts`** (Next 16 renamed it). It delegates to `updateSession` in `lib/supabase/middleware.ts`, which applies the pure, unit-tested rules in `lib/authGate.ts` in order: rescues stray `?code=`/`?token_hash=` auth links by forwarding them to `/auth/callback`; refreshes the session via `auth.getUser()`; redirects unauthenticated users on non-`PUBLIC_ROUTES` to `/login?redirectTo=`; forces `/change-password` when `user_metadata.must_change_password` is true; enforces route RBAC from `lib/rbac.ts`. Roles (`student`/`teacher`/`admin`) are read from `app_metadata` only — never `user_metadata` (client-writable). New public pages must be added to `PUBLIC_ROUTES` in `lib/authGate.ts`.
 
 **Supabase clients**: `lib/supabase/server.ts` (Server Components / route handlers, cookie-based) and `lib/supabase/client.ts` (browser). Both share cookie wiring in `lib/supabase/factory.ts`. DB types come from the generated `types/database.types.ts`.
 
