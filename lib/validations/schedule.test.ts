@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { scheduleEventSchema } from "@/lib/validations/schedule";
+import { EMPTY_SCHEDULE_FORM, scheduleDraftToForm, scheduleEventSchema, scheduleFormToDraft } from "@/lib/validations/schedule";
+import { toLocalInputValue } from "@/lib/validations/tasks";
 
 const base = {
   title: "Lecture",
@@ -42,5 +43,49 @@ describe("scheduleEventSchema", () => {
     expect(parse({ title: "x".repeat(121) }).success).toBe(false);
     expect(parse({ description: "x".repeat(501) }).success).toBe(false);
     expect(parse({ location: "x".repeat(101) }).success).toBe(false);
+  });
+});
+
+describe("schedule form mapping", () => {
+  const draft = {
+    title: "Lecture",
+    description: null,
+    location: "Room 1",
+    eventType: "class" as const,
+    startAt: "2026-09-15T09:00:00.000Z",
+    endAt: "2026-09-15T10:00:00.000Z",
+    allDay: false,
+    color: null,
+    courseId: null,
+  };
+
+  it("maps a draft to form values, blanking nulls", () => {
+    expect(scheduleDraftToForm(draft)).toEqual({
+      title: "Lecture",
+      description: "",
+      location: "Room 1",
+      eventType: "class",
+      startAt: toLocalInputValue(draft.startAt),
+      endAt: toLocalInputValue(draft.endAt),
+      allDay: false,
+      color: "",
+      courseId: "",
+    });
+  });
+
+  it("starts a new event empty, or at 09:00–10:00 local on a default date", () => {
+    expect(scheduleDraftToForm(null)).toBe(EMPTY_SCHEDULE_FORM);
+    const form = scheduleDraftToForm(null, "2026-09-20T15:30:00");
+    expect(form.startAt).toBe("2026-09-20T09:00");
+    expect(form.endAt).toBe("2026-09-20T10:00");
+  });
+
+  it("maps form values back to a draft, trimming and nulling blanks", () => {
+    const back = scheduleFormToDraft({ ...scheduleDraftToForm(draft), title: " Lecture ", location: "  ", color: " red ", courseId: "c1" });
+    expect(back).toEqual({ ...draft, location: null, color: "red", courseId: "c1" });
+  });
+
+  it("maps an empty draft end-to-end", () => {
+    expect(scheduleDraftToForm({ ...draft, startAt: "", endAt: "" })).toMatchObject({ startAt: "", endAt: "" });
   });
 });

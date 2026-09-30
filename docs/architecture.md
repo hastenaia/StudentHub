@@ -96,7 +96,6 @@ Every page under `app/(dashboard)/dashboard/` is listed in the sidebar
 | `/dashboard/wellness` | `wellness.service.ts` | wellness_entries |
 | `/dashboard/achievements` | `gamification.service.ts` | profiles, badges, user_badges |
 | `/dashboard/settings` | `academics.service.ts` → `getGoogleAccountView`, `gamification.service.ts` | profiles, google_accounts, courses, badges, user_badges |
-| `/dashboard/notes` | `notes.service.ts` (categories via `lib/noteCategories.ts`; reuses Study Hub's `AIAssistantTab`) | notes (same rows as Study Hub), courses |
 
 Known leftovers: the Schedule page renders a mock-backed `CalendarShell` below
 the real `ScheduleView`.
@@ -150,8 +149,8 @@ Kanban + list views with dnd-kit, priorities, tags, recurrence
 `buildTopSchedule` keeps a bounded binary heap for the dashboard top-5 (O(N log K)).
 
 ### Study Hub
-Notes (Markdown preview, tags, favorites, PDF attachments stored in the
-private `notes-pdfs` Storage bucket), flashcards, quizzes with attempts, and an
+Notes (Markdown preview, tags, categories via `lib/noteCategories.ts`, favorites,
+PDF attachments stored in the private `notes-pdfs` Storage bucket), flashcards, quizzes with attempts, and an
 AI assistant tab. AI results can be saved as flashcards/quizzes.
 
 ### AI

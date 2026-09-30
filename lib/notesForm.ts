@@ -1,5 +1,8 @@
 import type { NoteFormValues } from "@/lib/validations/study";
-import type { NoteDraft } from "@/types/study";
+import type { Note, NoteDraft } from "@/types/study";
+import { matchesCategoryFilter, normalizeCategory } from "@/lib/noteCategories";
+import { matchesCourseFilter } from "@/lib/courseView";
+import { parseTags } from "@/utils/text";
 
 export interface PendingPdf {
   path: string;
@@ -22,14 +25,14 @@ const hasLink = (content: string, path: string) => content.includes(`(attachment
 export const resolveLinks = (content: string, cache: Record<string, string>) =>
   content.replace(/\[([^\]]+)\]\(attachment:([^)\s]+)\)/g, (m, label: string, p: string) => (cache[p] ? `[${label}](${cache[p]})` : label));
 
-// No `category`: the Study Hub form doesn't edit it, and omitting it leaves the stored value alone on update.
-export function toNoteDraft(values: NoteFormValues): Omit<Required<NoteDraft>, "category"> {
+export function toNoteDraft(values: NoteFormValues): Required<NoteDraft> {
   return {
     title: values.title,
     content: values.content || null,
     favorite: values.favorite ?? false,
-    tags: values.tags ? values.tags.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 10) : [],
+    tags: parseTags(values.tags),
     courseId: values.courseId || null,
+    category: normalizeCategory(values.category),
   };
 }
 
@@ -59,4 +62,79 @@ export function linkedAttachments(
     ...dialog.filter((a) => a.path.startsWith("http") || hasLink(content, a.path)),
     ...pending.filter((p) => hasLink(content, p.path)).map((p) => ({ name: p.file_name, url: urlCache[p.path] ?? "", path: p.path })),
   ];
+}
+
+export const MAX_PDF_BYTES = 10 * 1024 * 1024;
+
+/** Why a file can't be attached, or null when it can. */
+export function validatePdf(file: { type: string; size: number }): string | null {
+  if (file.type !== "application/pdf") return "Only PDF allowed";
+  return file.size > MAX_PDF_BYTES ? "PDF exceeds 10MB limit" : null;
+}
+
+/** Storage keys and the `attachment:` link regex both break on spaces/parens, so keep the key to safe chars. */
+export function pdfStoragePath(userId: string, fileName: string, now: number): string {
+  return `${userId}/${now}-${fileName.replace(/[^\w.-]+/g, "_")}`;
+}
+
+export function appendAttachmentLink(content: string, fileName: string, path: string): string {
+  return `${content}\n\n[PDF: ${fileName}](attachment:${path})`;
+}
+
+/** Wraps the selected range (or the whole text when there's no textarea) in `before`/`after`; an empty selection becomes "text". */
+export function wrapSelection(
+  content: string,
+  selection: { selectionStart: number; selectionEnd: number } | null,
+  before: string,
+  after: string
+): string {
+  const { selectionStart: s, selectionEnd: e } = selection ?? { selectionStart: 0, selectionEnd: content.length };
+  return content.slice(0, s) + before + (content.slice(s, e) || "text") + after + content.slice(e);
+}
+
+/** Form values for editing `note`, or a blank form in `defaultCategory` for a new one. */
+export function noteToFormValues(note: Note | null, defaultCategory: string | null): NoteFormValues {
+  if (!note) return { title: "", content: "", favorite: false, tags: "", courseId: "", category: defaultCategory ?? "" };
+  return {
+    title: note.title,
+    content: note.content ?? "",
+    favorite: note.favorite,
+    tags: note.tags.join(", "),
+    courseId: note.courseId ?? "",
+    category: note.category ?? "",
+  };
+}
+
+export interface NoteFilters {
+  query: string;
+  favorite: boolean;
+  /** "all", "none" (no course) or a course id. */
+  course: string;
+  /** "all" or a tag. */
+  tag: string;
+  /** "all", `UNCATEGORIZED_FILTER` or a category name. */
+  category: string;
+}
+
+export const EMPTY_NOTE_FILTERS: NoteFilters = { query: "", favorite: false, course: "all", tag: "all", category: "all" };
+
+export function hasActiveFilters(f: NoteFilters): boolean {
+  return f.query !== "" || f.favorite || f.course !== "all" || f.tag !== "all" || f.category !== "all";
+}
+
+/** Lower-cased searchable text per note id, built once per notes change rather than per keystroke. */
+export function buildNoteSearchIndex(notes: Note[]): Map<string, string> {
+  return new Map(notes.map((n) => [n.id, [n.title, n.content, n.tags.join(" "), n.courseName, n.category].filter(Boolean).join(" ").toLowerCase()]));
+}
+
+export function filterStudyNotes(notes: Note[], index: Map<string, string>, f: NoteFilters): Note[] {
+  const q = f.query.trim().toLowerCase();
+  return notes.filter(
+    (n) =>
+      (!q || (index.get(n.id) ?? "").includes(q)) &&
+      (!f.favorite || n.favorite) &&
+      matchesCourseFilter(n.courseId, f.course) &&
+      (f.tag === "all" || n.tags.includes(f.tag)) &&
+      matchesCategoryFilter(n.category, f.category)
+  );
 }

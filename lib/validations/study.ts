@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_CATEGORY_LENGTH } from "@/lib/noteCategories";
 
 export const noteSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(120, "Title is too long"),
@@ -6,6 +7,7 @@ export const noteSchema = z.object({
   favorite: z.boolean().optional(),
   tags: z.string().max(300, "Tags are too long").optional().or(z.literal("")),
   courseId: z.string().optional().or(z.literal("")).or(z.null()),
+  category: z.string().max(MAX_CATEGORY_LENGTH, "Category is too long").optional().or(z.literal("")),
 });
 export type NoteFormValues = z.infer<typeof noteSchema>;
 

@@ -245,7 +245,7 @@ Study Hub notes (Markdown content).
 | `course_id` | `uuid` | references `courses(id)` on delete set null |
 | `title` | `text` | |
 | `content` | `text` | |
-| `category` | `text` | nullable, 1–40 chars; user-defined label (`/dashboard/notes`) |
+| `category` | `text` | nullable, 1–40 chars; user-defined label (Study Hub Notes tab) |
 | `favorite` | `boolean` | default `false` |
 | `tags` | `text[]` | default `{}` (GIN-indexed) |
 | `created_at` / `updated_at` | `timestamptz` | |

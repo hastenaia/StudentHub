@@ -3,20 +3,21 @@
 import * as React from "react";
 import { X } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { CourseSelectField, TextField } from "@/components/common/FormFields";
 import { cn } from "@/utils/cn";
+import { EVENT_TYPE_LABEL, type ScheduleCourseOption, type ScheduleDraft } from "@/types/schedule";
 import {
-  EVENT_TYPE_LABEL,
-  type ScheduleCourseOption,
-  type ScheduleDraft,
-  type ScheduleEventType,
-} from "@/types/schedule";
-import { scheduleEventSchema, type ScheduleFormValues } from "@/lib/validations/schedule";
-import { toLocalInputValue } from "@/lib/validations/tasks";
+  EMPTY_SCHEDULE_FORM,
+  scheduleDraftToForm,
+  scheduleEventSchema,
+  scheduleFormToDraft,
+  type ScheduleFormValues,
+} from "@/lib/validations/schedule";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 interface EventFormProps {
@@ -28,73 +29,17 @@ interface EventFormProps {
   onSubmit: (draft: ScheduleDraft) => Promise<void>;
 }
 
-const EMPTY: ScheduleFormValues = {
-  title: "",
-  description: "",
-  location: "",
-  eventType: "other",
-  startAt: "",
-  endAt: "",
-  allDay: false,
-  color: "",
-  courseId: "",
-};
-
-function toForm(draft: ScheduleDraft | null, defaultDate?: string): ScheduleFormValues {
-  if (draft) {
-    return {
-      title: draft.title,
-      description: draft.description ?? "",
-      location: draft.location ?? "",
-      eventType: draft.eventType,
-      startAt: toLocal(draft.startAt),
-      endAt: toLocal(draft.endAt),
-      allDay: draft.allDay,
-      color: draft.color ?? "",
-      courseId: draft.courseId ?? "",
-    };
-  }
-  // For new events, prefill with defaultDate if provided
-  if (defaultDate) {
-    const start = new Date(defaultDate);
-    start.setHours(9, 0, 0, 0);
-    const end = new Date(start.getTime() + 60 * 60 * 1000);
-    return { ...EMPTY, startAt: toLocal(start.toISOString()), endAt: toLocal(end.toISOString()) };
-  }
-  return EMPTY;
-}
-
-const toLocal = (iso: string): string => (iso ? toLocalInputValue(iso) : "");
-
-function fromLocal(local: string): string {
-  return new Date(local).toISOString();
-}
-
-function toDraft(values: ScheduleFormValues): ScheduleDraft {
-  return {
-    title: values.title.trim(),
-    description: values.description?.trim() || null,
-    location: values.location?.trim() || null,
-    eventType: values.eventType as ScheduleEventType,
-    startAt: fromLocal(values.startAt),
-    endAt: fromLocal(values.endAt),
-    allDay: values.allDay,
-    color: values.color?.trim() || null,
-    courseId: values.courseId || null,
-  };
-}
-
 export function EventForm({ open, initialDraft, courses, defaultDate, onClose, onSubmit }: EventFormProps) {
   const form = useForm<ScheduleFormValues>({
     resolver: zodResolver(scheduleEventSchema) as never,
-    defaultValues: EMPTY,
+    defaultValues: EMPTY_SCHEDULE_FORM,
   });
 
-  const allDay = form.watch("allDay");
+  const allDay = useWatch({ control: form.control, name: "allDay" });
 
   React.useEffect(() => {
     if (!open) return;
-    form.reset(toForm(initialDraft, defaultDate));
+    form.reset(scheduleDraftToForm(initialDraft, defaultDate));
   }, [open, initialDraft, defaultDate, form]);
 
   useEscapeKey(open, onClose);
@@ -102,7 +47,7 @@ export function EventForm({ open, initialDraft, courses, defaultDate, onClose, o
   if (!open) return null;
 
   const handleSubmit = async (values: ScheduleFormValues) => {
-    await onSubmit(toDraft(values as ScheduleFormValues));
+    await onSubmit(scheduleFormToDraft(values));
   };
 
   return (
@@ -125,18 +70,7 @@ export function EventForm({ open, initialDraft, courses, defaultDate, onClose, o
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4" noValidate>
-            <FormField
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Title *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. Calculus lecture" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <TextField name="title" label="Title *" placeholder="e.g. Calculus lecture" />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
@@ -157,25 +91,7 @@ export function EventForm({ open, initialDraft, courses, defaultDate, onClose, o
                   </FormItem>
                 )}
               />
-              <FormField
-                name="courseId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Course</FormLabel>
-                    <FormControl>
-                      <Select {...field}>
-                        <option value="">No course</option>
-                        {courses.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <CourseSelectField courses={courses} />
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -222,18 +138,7 @@ export function EventForm({ open, initialDraft, courses, defaultDate, onClose, o
               )}
             />
 
-            <FormField
-              name="location"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Location</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. Room 204" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <TextField name="location" label="Location" placeholder="e.g. Room 204" />
 
             <FormField
               name="description"
