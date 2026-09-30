@@ -4,22 +4,8 @@ import { createClient } from "@/lib/supabase/client";
 import { fail, ok, type ApiResult } from "@/types/api";
 import type { Note, NoteDraft } from "@/types/study";
 import { normalizeCategory } from "@/lib/noteCategories";
-
-function rowToNote(row: Record<string, unknown>, courseMap?: Map<string, { name: string; color: string | null }>): Note {
-  return {
-    id: row.id as string,
-    title: row.title as string,
-    content: row.content as string | null,
-    favorite: (row.favorite as boolean) ?? false,
-    tags: (row.tags as string[]) ?? [],
-    category: (row.category as string | null) ?? null,
-    courseId: row.course_id as string | null,
-    courseName: row.course_id ? courseMap?.get(row.course_id as string)?.name ?? null : null,
-    courseColor: row.course_id ? courseMap?.get(row.course_id as string)?.color ?? null : null,
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
-  };
-}
+import { pdfStoragePath, type PendingPdf } from "@/lib/notesForm";
+import { findOrphanPdfs, noteDraftToColumns, noteRowToView } from "@/lib/noteView";
 
 export const notesClientService = {
   async createNote(draft: NoteDraft): Promise<ApiResult<Note>> {
@@ -28,39 +14,23 @@ export const notesClientService = {
     if (!user) return fail("You must be signed in.");
     const { data, error } = await supabase
       .from("notes")
-      .insert({
-        user_id: user.id,
-        title: draft.title.trim(),
-        content: draft.content?.trim() || null,
-        course_id: draft.courseId || null,
-        favorite: draft.favorite ?? false,
-        tags: draft.tags ?? [],
-        category: normalizeCategory(draft.category),
-      })
+      .insert({ ...noteDraftToColumns(draft), user_id: user.id })
       .select()
       .single();
     if (error) return fail(error.message);
-    return ok("Note created.", rowToNote(data as Record<string, unknown>));
+    return ok("Note created.", noteRowToView(data));
   },
 
   async updateNote(id: string, draft: NoteDraft): Promise<ApiResult<Note>> {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("notes")
-      .update({
-        title: draft.title.trim(),
-        content: draft.content?.trim() || null,
-        course_id: draft.courseId || null,
-        favorite: draft.favorite,
-        tags: draft.tags ?? [],
-        // undefined is dropped from the payload, so callers that don't know about categories keep the stored one.
-        category: draft.category === undefined ? undefined : normalizeCategory(draft.category),
-      })
+      .update(noteDraftToColumns(draft))
       .eq("id", id)
       .select()
       .single();
     if (error) return fail(error.message);
-    return ok("Note updated.", rowToNote(data as Record<string, unknown>));
+    return ok("Note updated.", noteRowToView(data));
   },
 
   async deleteNote(id: string): Promise<ApiResult> {
@@ -88,6 +58,33 @@ export const notesClientService = {
       })
     );
     return signed.filter((a) => a !== null);
+  },
+
+  /**
+   * Uploads a PDF for a note being edited. Its note_attachments row is written on save
+   * (`linkAttachments`); an abandoned upload is removed by `discardPdfUploads` or the sweep.
+   */
+  async uploadPdf(file: File): Promise<ApiResult<{ path: string; url?: string }>> {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return fail("You must be signed in.");
+    const path = pdfStoragePath(user.id, file.name, Date.now());
+    const { error } = await supabase.storage.from("notes-pdfs").upload(path, file, { contentType: "application/pdf" });
+    if (error) return fail(error.message);
+    const { data } = await supabase.storage.from("notes-pdfs").createSignedUrl(path, 3600);
+    return ok("PDF attached.", { path, url: data?.signedUrl });
+  },
+
+  /** Records uploaded PDFs as attachments of a saved note. */
+  async linkAttachments(noteId: string, files: PendingPdf[]): Promise<ApiResult> {
+    if (!files.length) return ok("Nothing to link.");
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return fail("Not signed in.");
+    const { error } = await supabase
+      .from("note_attachments")
+      .insert(files.map((p) => ({ user_id: user.id, note_id: noteId, file_url: p.path, file_name: p.file_name })));
+    return error ? fail(error.message) : ok("Attachments saved.");
   },
 
   /** Best-effort cleanup of PDFs uploaded during a note edit that was never saved. */
@@ -120,13 +117,7 @@ export const notesClientService = {
       supabase.from("note_attachments").select("file_url"),
     ]);
     if (!objects || !rows) return;
-    const referenced = new Set(rows.map((r) => r.file_url));
-    const cutoff = Date.now() - minAgeMs;
-    const orphans = objects
-      .filter((o) => o.id && o.created_at && Date.parse(o.created_at) < cutoff)
-      .map((o) => `${user.id}/${o.name}`)
-      .filter((p) => !referenced.has(p));
-    if (orphans.length) await supabase.storage.from("notes-pdfs").remove(orphans);
+    await notesClientService.discardPdfUploads(findOrphanPdfs(user.id, objects, new Set(rows.map((r) => r.file_url)), Date.now() - minAgeMs));
   },
 
   /** Renames a category across all of the user's notes, or clears it (`to` = null) — the notes themselves are kept. */

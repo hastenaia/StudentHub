@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { TaskDraft } from "@/types/tasks";
+import { parseTags } from "@/utils/text";
 
 /**
  * Form schema + converters for the task dialog. Numeric/date fields stay as
@@ -58,11 +59,7 @@ export function taskFormToDraft(values: TaskFormValues): TaskDraft {
     description: values.description ? values.description : null,
     status: values.status,
     priority: values.priority,
-    tags: values.tags
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean)
-      .slice(0, 10),
+    tags: parseTags(values.tags),
     dueAt: values.dueAt ? new Date(values.dueAt).toISOString() : null,
     estimateMinutes: values.estimateMinutes ? Number(values.estimateMinutes) : null,
     recurrenceFreq: values.recurrenceFreq === "none" ? null : values.recurrenceFreq,

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { CourseSelectField, TextField } from "@/components/common/FormFields";
 import { cn } from "@/utils/cn";
 import { RecurrencePicker } from "@/components/tasks/RecurrencePicker";
 import { taskDraftToForm, taskFormSchema, taskFormToDraft, type TaskFormValues } from "@/lib/validations/tasks";
@@ -91,18 +92,7 @@ export function TaskForm({ open, initialDraft, defaultStatus, courses, onClose, 
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4" noValidate>
-            <FormField
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. Finish calculus problem set" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <TextField name="title" label="Title" placeholder="e.g. Finish calculus problem set" />
 
             <FormField
               name="description"
@@ -192,38 +182,9 @@ export function TaskForm({ open, initialDraft, defaultStatus, courses, onClose, 
               />
             </div>
 
-            <FormField
-              name="courseId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Course</FormLabel>
-                  <FormControl>
-                    <Select {...field}>
-                      <option value="">No course</option>
-                      {courses.map((course) => (
-                        <option key={course.id} value={course.id}>
-                          {course.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <CourseSelectField courses={courses} />
 
-            <FormField
-              name="tags"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tags</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. exam, group project (comma separated)" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <TextField name="tags" label="Tags" placeholder="e.g. exam, group project (comma separated)" />
 
             <RecurrencePicker />
 

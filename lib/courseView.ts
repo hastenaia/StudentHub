@@ -34,3 +34,9 @@ export function courseRowToView(row: CourseRow): Course {
     google_course_id: row.google_course_id ?? null,
   };
 }
+
+/** List filter by course: "all", "none" (no course) or a course id. */
+export function matchesCourseFilter(courseId: string | null, filter: string): boolean {
+  if (filter === "all") return true;
+  return filter === "none" ? !courseId : courseId === filter;
+}

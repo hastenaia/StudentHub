@@ -9,6 +9,10 @@ const nextConfig = {
       },
     ],
   },
+  // The standalone Notes page was merged into Study Hub's Notes tab.
+  async redirects() {
+    return [{ source: "/dashboard/notes", destination: "/dashboard/study", permanent: true }];
+  },
   // NFR-03: browsers only honour HSTS over HTTPS, so this is inert on http://localhost.
   async headers() {
     return [

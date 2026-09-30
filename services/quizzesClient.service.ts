@@ -3,6 +3,8 @@
 import { createClient } from "@/lib/supabase/client";
 import { fail, ok, type ApiResult } from "@/types/api";
 import type { Quiz, QuizDraft, QuizAttempt } from "@/types/study";
+import { quizDraftToQuestionRows, quizRowToView } from "@/lib/quizView";
+import { trimOrNull } from "@/utils/text";
 
 export const quizzesClientService = {
   async createQuiz(draft: QuizDraft): Promise<ApiResult<Quiz>> {
@@ -14,28 +16,18 @@ export const quizzesClientService = {
       .insert({
         user_id: user.id,
         title: draft.title.trim(),
-        description: draft.description?.trim() || null,
-        course_id: draft.courseId || null,
+        description: trimOrNull(draft.description),
+        course_id: draft.courseId,
       })
       .select()
       .single();
-    if (error || !quiz) return fail(error?.message ?? "Failed to create quiz");
-    const quizId = (quiz as { id: string }).id;
-    const inserts = draft.questions.map((q, idx) => ({
-      quiz_id: quizId,
-      question_text: q.questionText.trim(),
-      question_type: q.questionType,
-      options: q.questionType === "multiple_choice" ? q.options : null,
-      correct_answer: q.correctAnswer.trim(),
-      explanation: q.explanation?.trim() || null,
-      position: idx,
-    }));
-    const { error: qError } = await supabase.from("quiz_questions").insert(inserts);
+    if (error) return fail(error.message);
+    const { data: questions, error: qError } = await supabase.from("quiz_questions").insert(quizDraftToQuestionRows(quiz.id, draft)).select();
     if (qError) {
-      await supabase.from("quizzes").delete().eq("id", quizId);
+      await supabase.from("quizzes").delete().eq("id", quiz.id);
       return fail(qError.message);
     }
-    return ok("Quiz created.", quiz as unknown as Quiz);
+    return ok("Quiz created.", quizRowToView(quiz, questions));
   },
 
   async deleteQuiz(id: string): Promise<ApiResult> {

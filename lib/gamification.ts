@@ -88,3 +88,8 @@ export function formatXpToast(result: AwardResult | null | undefined): string | 
   if (result.newBadges.length > 0) parts.push(`Badge: ${result.newBadges.join(", ")}`);
   return parts.join(" · ");
 }
+
+/** A mutation's message followed by its XP award, when there is one. */
+export function withXpToast(message: string | undefined, result: AwardResult | null | undefined): string {
+  return [message, formatXpToast(result)].filter(Boolean).join(" · ");
+}

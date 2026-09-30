@@ -35,9 +35,13 @@ npx vitest run -t "nextRecurrence"        # tests whose name matches
 | `lib/wellness.test.ts` | Weekly mood points, today's activity/deadline counts, workload suggestion rules |
 | `lib/aiRequests.test.ts` | AI tab request building per action (validation, note vs pasted text, count defaults) and result text |
 | `lib/taskSort.test.ts` | Task list sort modes (smart, deadline, priority, effort, created); done tasks sink |
+| `lib/taskFilters.test.ts` | Task search/status/priority/course filtering, scheduler inputs, reopen/completion helpers, shared `matchesCourseFilter`, `withXpToast` |
 | `lib/authGate.test.ts` | Request-gate rules: auth-link rescue (incl. `/api/*` and `/login?error` exclusions), sign-in redirect, public routes, first-login password change |
-| `lib/notesForm.test.ts` | Note PDF-attachment link helpers (pending/unlinked attachments, link stripping) |
+| `lib/notesForm.test.ts` | Note PDF-attachment link helpers (pending/unlinked attachments, link stripping, PDF validation, storage keys), Markdown selection wrapping, note ↔ form mapping, Study Hub note search/filters |
 | `lib/views.test.ts` | Row → view mappers: `courseView`, `taskView` (+ `taskToDraft`), `scheduleView` / `calendarRowToView` fallbacks |
+| `lib/noteView.test.ts` | Notes row → view mapping, draft → column payload (omitted category left alone), orphan PDF detection |
+| `lib/flashcardView.test.ts` | Flashcard row → view mapping, form ↔ draft, write payloads and review counters, filters, study deck, known %, deck wrap-around |
+| `lib/quizView.test.ts` | Quiz + question row mapping (position order, grouping), form → draft → question rows, grading, filters |
 | `lib/google/crypto.test.ts` | AES-256-GCM token encryption: round-trip, per-call IV, tamper and wrong-key rejection, missing key |
 | `lib/ai/provider.test.ts` | `callAI` with mocked `fetch`: provider priority, unconfigured error, empty env vars treated as unset, HTTP/empty/timeout errors |
 | `lib/ai/route.test.ts` | `tryParseAIJson` fence stripping and shape validation |
@@ -47,14 +51,21 @@ npx vitest run -t "nextRecurrence"        # tests whose name matches
 | `lib/validations/academics.test.ts` | Manual course Zod schema |
 | `lib/validations/tasks.test.ts` | `taskFormSchema`, `taskFormToDraft`, `toLocalInputValue` |
 | `lib/validations/courses.test.ts` | Course schema: required/trimmed name, field length limits, palette colors |
-| `lib/validations/schedule.test.ts` | Event schema: required fields, event types, end-after-start, length limits |
+| `lib/validations/schedule.test.ts` | Event schema: required fields, event types, end-after-start, length limits; draft ↔ form mapping (09:00–10:00 default on a picked date) |
 | `lib/validations/wellness.test.ts` | Mood 1–5 and journal length |
 | `lib/supabase/errors.test.ts` | Friendly auth error message mapping |
 | `components/study/MarkdownPreview.test.ts` | Markdown link scheme allow-list, attribute escaping, formatting inside URLs |
 | `hooks/hooks.test.tsx` | `useGroupedEvents` day/hour bucketing and memoization; `useEscapeKey` activation and cleanup |
 | `lib/google/autoSync.test.ts` | Sign-in auto-sync rule: skips unlinked / needs-reconnect / recently synced accounts |
-| `lib/noteCategories.test.ts` | Category normalization (trim/collapse/length cap), per-category counts, category + text filtering |
-| `components/notes/NoteMarkdown.test.tsx` | `react-markdown` + GFM rendering, raw HTML and `javascript:` links not rendered, empty placeholder |
+| `lib/noteCategories.test.ts` | Category normalization (trim/collapse/length cap), per-category counts, category + text filtering, string category filters, bulk rename |
+| `components/study/NoteCategoryFilter.test.tsx` | Study Hub category filter: selection, rename (normalized, unchanged skipped, failure keeps form), stale rename reset, confirmed remove |
+| `components/study/NoteEditorDialog.test.tsx` | Study Hub note editor (service mocked): create/update with course names, failed save, attachment-save warning, PDF attach/remove, toolbar formatting, close behaviour |
+| `components/study/NoteParts.test.tsx` | `NoteCard` chips and actions, `NotesFilterBar` filter patches and Clear, `NoteViewDialog` attachment link resolution |
+| `hooks/useNoteAttachments.test.tsx` | Note PDF lifecycle (service mocked): load, validation, upload failures, commit links kept / discards dropped / prunes unlinked, discard on unmount |
+| `components/tasks/TasksParts.test.tsx` | `TaskViewToggle`, `TasksToolbar` filter patches / clear / sort / match count, `TasksContent` empty states and board vs list |
+| `components/study/FlashcardParts.test.tsx` | `FlashcardCard`, `FlashcardStudy` flip / advance / wrap / failed mark, `FlashcardDialog` create/update/failure (service mocked) |
+| `components/study/QuizParts.test.tsx` | `QuizPlayer` answer inputs per type, `QuizReview` summary, `QuizCard`, `QuizDialog` create / add-remove questions / failure (service mocked) |
+| `utils/text.test.ts` | `parseTags` and `upsertById` |
 | `utils/cn.test.ts` | `cn()` class-name merging |
 | `utils/date.test.ts` | Date formatters with a fixed clock (incl. due-day labels for late-in-day times) and `trimOrNull` |
 | `utils/safeRedirect.test.ts` | Open-redirect prevention in redirect targets (incl. backslash / control-character bypasses) |

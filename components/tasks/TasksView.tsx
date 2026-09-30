@@ -1,182 +1,107 @@
 "use client";
 
 import * as React from "react";
-import { LayoutGrid, ListChecks, ListTodo, Plus, Search, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { useToast } from "@/hooks/useToast";
 import { tasksClientService } from "@/services/tasksClient.service";
 import { buildSchedule } from "@/lib/scheduling";
-import { formatXpToast } from "@/lib/gamification";
+import { formatXpToast, withXpToast } from "@/lib/gamification";
 import { taskRowToView, taskToDraft } from "@/lib/taskView";
-import { KanbanBoard } from "@/components/tasks/KanbanBoard";
-import { ListView } from "@/components/tasks/ListView";
+import {
+  buildTaskSearchIndex,
+  completionToastTitle,
+  EMPTY_TASK_FILTERS,
+  filterTasks,
+  reopenedTask,
+  toScheduleInputs,
+  type TaskFilters,
+} from "@/lib/taskFilters";
 import { SuggestedOrderPanel } from "@/components/tasks/SuggestedOrderPanel";
 import { TaskForm } from "@/components/tasks/TaskForm";
-import { cn } from "@/utils/cn";
-import type { Task, TaskDraft, TaskPriority, TaskStatus, TasksViewData } from "@/types/tasks";
-import { TASK_PRIORITIES, TASK_STATUSES } from "@/types/tasks";
+import { TasksContent } from "@/components/tasks/TasksContent";
+import { TasksToolbar, TaskViewToggle, type TaskViewMode } from "@/components/tasks/TasksToolbar";
+import type { Task, TaskDraft, TaskStatus, TasksViewData } from "@/types/tasks";
 import type { TaskSortMode } from "@/lib/taskSort";
 
 interface TasksViewProps {
   initialData: TasksViewData;
 }
 
-type SortMode = TaskSortMode;
-
 /** Client shell for the To-Do Tracker: view toggle, search, filters, sorting, mutations, local state. */
 export function TasksView({ initialData }: TasksViewProps) {
   const { notify } = useToast();
   const [tasks, setTasks] = React.useState<Task[]>(initialData.tasks);
-  const [courses] = React.useState(initialData.courses);
-  const [view, setView] = React.useState<"kanban" | "list">("kanban");
+  const courses = initialData.courses;
+  const [view, setView] = React.useState<TaskViewMode>("kanban");
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Task | null>(null);
   const [defaultStatus, setDefaultStatus] = React.useState<TaskStatus>("todo");
-
-  // Search, filter, sort
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [filterStatus, setFilterStatus] = React.useState<TaskStatus | "all">("all");
-  const [filterPriority, setFilterPriority] = React.useState<TaskPriority | "all">("all");
-  const [filterCourse, setFilterCourse] = React.useState<string>("all");
-  const [sortMode, setSortMode] = React.useState<SortMode>("smart");
+  const [filters, setFilters] = React.useState<TaskFilters>(EMPTY_TASK_FILTERS);
+  const [sortMode, setSortMode] = React.useState<TaskSortMode>("smart");
 
   const courseMap = React.useMemo(() => new Map(courses.map((c) => [c.id, c])), [courses]);
   const taskById = React.useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
-
-  // Lowercased search index computed once per tasks change — single includes()
-  // per task per keystroke instead of 4x toLowerCase().
-  const searchIndex = React.useMemo(
-    () =>
-      new Map(
-        tasks.map((t) =>
-          [t.id, `${t.title} ${t.description ?? ""} ${(t.tags ?? []).join(" ")} ${t.courseName ?? ""}`.toLowerCase()]
-        )
-      ),
-    [tasks]
-  );
-  const deferredQuery = React.useDeferredValue(searchQuery);
+  const searchIndex = React.useMemo(() => buildTaskSearchIndex(tasks), [tasks]);
+  const deferredFilters = React.useDeferredValue(filters);
+  const filteredTasks = React.useMemo(() => filterTasks(tasks, searchIndex, deferredFilters), [tasks, searchIndex, deferredFilters]);
 
   const [schedule, setSchedule] = React.useState(initialData.schedule);
-  const scheduleOrder = React.useMemo(
-    () => new Map(schedule.map((item, index) => [item.taskId, index])),
-    [schedule]
-  );
+  const scheduleOrder = React.useMemo(() => new Map(schedule.map((item, index) => [item.taskId, index])), [schedule]);
 
   /** Apply a tasks change and re-run the scheduler in one commit. */
   const applyTasks = (next: Task[]) => {
     setTasks(next);
-    setSchedule(
-      buildSchedule(
-        next
-          .filter((task) => task.status !== "done")
-          .map((task) => ({
-            id: task.id,
-            title: task.title,
-            priority: task.priority,
-            dueAt: task.dueAt,
-            estimateMinutes: task.estimateMinutes,
-          }))
-      )
-    );
+    setSchedule(buildSchedule(toScheduleInputs(next)));
   };
-
-  const filteredTasks = React.useMemo(() => {
-    let result = [...tasks];
-    const q = deferredQuery.trim().toLowerCase();
-    if (q) {
-      result = result.filter((t) => searchIndex.get(t.id)?.includes(q) ?? false);
-    }
-    if (filterStatus !== "all") {
-      result = result.filter((t) => t.status === filterStatus);
-    }
-    if (filterPriority !== "all") {
-      result = result.filter((t) => t.priority === filterPriority);
-    }
-    if (filterCourse !== "all") {
-      if (filterCourse === "none") {
-        result = result.filter((t) => !t.courseId);
-      } else {
-        result = result.filter((t) => t.courseId === filterCourse);
-      }
-    }
-    return result;
-  }, [tasks, deferredQuery, searchIndex, filterStatus, filterPriority, filterCourse]);
-
-  const hasActiveFilters =
-    searchQuery.trim() !== "" || filterStatus !== "all" || filterPriority !== "all" || filterCourse !== "all";
+  const replaceTask = (id: string, next: Task) => applyTasks(tasks.map((t) => (t.id === id ? next : t)));
 
   const clearFilters = () => {
-    setSearchQuery("");
-    setFilterStatus("all");
-    setFilterPriority("all");
-    setFilterCourse("all");
+    setFilters(EMPTY_TASK_FILTERS);
     setSortMode("smart");
   };
 
   const handleCreate = async (draft: TaskDraft) => {
     const result = await tasksClientService.createTask(draft);
-    const row = result.data;
-    if (result.success && row) {
-      applyTasks([...tasks, taskRowToView(row, courseMap)]);
-      setFormOpen(false);
-      notify(true, "Task created", result.message);
-    } else {
-      notify(false, "Couldn't create task", result.message);
-    }
+    if (!result.success || !result.data) return notify(false, "Couldn't create task", result.message);
+    applyTasks([...tasks, taskRowToView(result.data, courseMap)]);
+    setFormOpen(false);
+    notify(true, "Task created", result.message);
   };
 
   const handleEdit = async (draft: TaskDraft) => {
     if (!editing) return;
     const result = await tasksClientService.updateTask(editing.id, draft);
-    const row = result.data;
-    if (result.success && row) {
-      applyTasks(tasks.map((task) => (task.id === editing.id ? taskRowToView(row, courseMap) : task)));
-      setFormOpen(false);
-      setEditing(null);
-      notify(true, "Task updated", [result.message, formatXpToast(result.xp)].filter(Boolean).join(" · "));
-    } else {
-      notify(false, "Couldn't update task", result.message);
-    }
+    if (!result.success || !result.data) return notify(false, "Couldn't update task", result.message);
+    replaceTask(editing.id, taskRowToView(result.data, courseMap));
+    closeForm();
+    notify(true, "Task updated", withXpToast(result.message, result.xp));
   };
 
   const handleDelete = async (id: string) => {
     const result = await tasksClientService.deleteTask(id);
-    if (result.success) {
-      applyTasks(tasks.filter((task) => task.id !== id));
-      notify(true, "Task deleted", result.message);
-    } else {
-      notify(false, "Couldn't delete task", result.message);
-    }
+    if (!result.success) return notify(false, "Couldn't delete task", result.message);
+    applyTasks(tasks.filter((task) => task.id !== id));
+    notify(true, "Task deleted", result.message);
   };
 
+  const reopen = async (task: Task) => {
+    const result = await tasksClientService.moveTask(task.id, "todo", 0);
+    if (!result.success) return notify(false, "Couldn't reopen task", result.message);
+    replaceTask(task.id, reopenedTask(task));
+    notify(true, "Task reopened", "Moved back to To do.");
+  };
+
+  const complete = async (id: string) => {
+    const result = await tasksClientService.completeTask(id);
+    if (!result.success || !result.data) return notify(false, "Couldn't complete task", result.message);
+    replaceTask(id, taskRowToView(result.data, courseMap));
+    notify(true, completionToastTitle(result.data.status), withXpToast(result.message, result.xp));
+  };
+
+  /** Toggles completion: a done task is reopened. */
   const handleComplete = async (id: string) => {
     const task = taskById.get(id);
     if (!task) return;
-    // Reopen if already done
-    if (task.status === "done") {
-      const result = await tasksClientService.moveTask(id, "todo", 0);
-      if (result.success) {
-        applyTasks(tasks.map((t) => (t.id === id ? { ...t, status: "todo" as TaskStatus, completedAt: null, sortOrder: 0 } : t)));
-        notify(true, "Task reopened", "Moved back to To do.");
-      } else {
-        notify(false, "Couldn't reopen task", result.message);
-      }
-      return;
-    }
-    const result = await tasksClientService.completeTask(id);
-    const row = result.data;
-    if (result.success && row) {
-      applyTasks(tasks.map((task) => (task.id === id ? taskRowToView(row, courseMap) : task)));
-      notify(
-        true,
-        row.status === "done" ? "Task completed" : "Next occurrence scheduled",
-        [result.message, formatXpToast(result.xp)].filter(Boolean).join(" · ")
-      );
-    } else {
-      notify(false, "Couldn't complete task", result.message);
-    }
+    await (task.status === "done" ? reopen(task) : complete(id));
   };
 
   const handleMove = async (id: string, status: TaskStatus, index: number): Promise<boolean> => {
@@ -191,15 +116,9 @@ export function TasksView({ initialData }: TasksViewProps) {
     return true;
   };
 
-  const openCreate = (status: TaskStatus = "todo") => {
-    setEditing(null);
-    setDefaultStatus(status);
-    setFormOpen(true);
-  };
-
-  const openEdit = (task: Task) => {
+  const openForm = (task: Task | null, status: TaskStatus) => {
     setEditing(task);
-    setDefaultStatus(task.status);
+    setDefaultStatus(status);
     setFormOpen(true);
   };
 
@@ -210,161 +129,39 @@ export function TasksView({ initialData }: TasksViewProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Button
-            variant={view === "kanban" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setView("kanban")}
-            aria-pressed={view === "kanban"}
-          >
-            <LayoutGrid className="h-4 w-4" /> Kanban
-          </Button>
-          <Button
-            variant={view === "list" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setView("list")}
-            aria-pressed={view === "list"}
-          >
-            <ListChecks className="h-4 w-4" /> List
-          </Button>
-        </div>
-        <Button onClick={() => openCreate()}>
-          <Plus className="h-4 w-4" /> New task
-        </Button>
-      </div>
+      <TaskViewToggle view={view} onChange={setView} onNew={() => openForm(null, "todo")} />
 
-      {/* Search, filter, sort toolbar */}
-      <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative w-full max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <Input
-              placeholder="Search tasks by title, description, tags, course…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              <X className="h-4 w-4" /> Clear filters
-            </Button>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-500">Status:</span>
-            <Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as TaskStatus | "all")}>
-              <option value="all">All</option>
-              {TASK_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s === "todo" ? "TODO" : s === "in_progress" ? "IN PROGRESS" : "COMPLETED"}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-500">Priority:</span>
-            <Select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value as TaskPriority | "all")}>
-              <option value="all">All</option>
-              {TASK_PRIORITIES.map((p) => (
-                <option key={p} value={p} className="capitalize">
-                  {p.toUpperCase()}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-500">Course:</span>
-            <Select value={filterCourse} onChange={(e) => setFilterCourse(e.target.value)}>
-              <option value="all">All</option>
-              <option value="none">No course</option>
-              {courses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-          {view === "list" && (
-            <div className="ml-auto flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-500">Sort by:</span>
-              <Select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
-                <option value="smart">Smart order</option>
-                <option value="deadline">Deadline</option>
-                <option value="priority">Priority</option>
-                <option value="effort">Estimated effort</option>
-                <option value="created">Created date</option>
-              </Select>
-            </div>
-          )}
-        </div>
-        {hasActiveFilters && (
-          <p className="text-xs text-gray-500">
-            Showing {filteredTasks.length} of {tasks.length} tasks
-          </p>
-        )}
-      </div>
+      <TasksToolbar
+        filters={filters}
+        onChange={setFilters}
+        onClear={clearFilters}
+        courses={courses}
+        showSort={view === "list"}
+        sortMode={sortMode}
+        onSortChange={setSortMode}
+        shown={filteredTasks.length}
+        total={tasks.length}
+      />
 
       <SuggestedOrderPanel schedule={schedule} />
 
-      {tasks.length === 0 ? (
-        <div
-          className={cn(
-            "flex flex-col items-center gap-3 rounded-lg border border-gray-200 bg-white py-12 text-center shadow-sm"
-          )}
-        >
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-royal/10">
-            <ListTodo className="h-6 w-6 text-brand-royal" />
-          </div>
-          <p className="text-sm text-gray-500">
-            No tasks yet. Add your first task to start planning your week.
-          </p>
-          <Button size="sm" onClick={() => openCreate()}>
-            <Plus className="h-4 w-4" /> Add a task
-          </Button>
-        </div>
-      ) : filteredTasks.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-gray-200 bg-white py-12 text-center">
-          <Search className="h-6 w-6 text-gray-400" />
-          <p className="text-sm text-gray-500">No tasks match your filters.</p>
-          <Button variant="outline" size="sm" onClick={clearFilters}>
-            Clear filters
-          </Button>
-        </div>
-      ) : view === "kanban" ? (
-        <KanbanBoard
-          tasks={filteredTasks}
-          onMove={handleMove}
-          onEdit={openEdit}
-          onDelete={handleDelete}
-          onComplete={handleComplete}
-          onAdd={openCreate}
-        />
-      ) : (
-        <ListView
-          tasks={filteredTasks}
-          order={scheduleOrder}
-          sortMode={sortMode}
-          onEdit={openEdit}
-          onDelete={handleDelete}
-          onComplete={handleComplete}
-        />
-      )}
+      <TasksContent
+        total={tasks.length}
+        tasks={filteredTasks}
+        view={view}
+        order={scheduleOrder}
+        sortMode={sortMode}
+        onMove={handleMove}
+        onEdit={(task) => openForm(task, task.status)}
+        onDelete={handleDelete}
+        onComplete={handleComplete}
+        onAdd={(status = "todo") => openForm(null, status)}
+        onClearFilters={clearFilters}
+      />
 
       <TaskForm
         open={formOpen}
-        initialDraft={editing ? taskToDraft(editing) : null}
+        initialDraft={editing && taskToDraft(editing)}
         defaultStatus={defaultStatus}
         courses={courses}
         onClose={closeForm}

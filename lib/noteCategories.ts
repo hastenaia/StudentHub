@@ -43,3 +43,21 @@ export function filterNotes<T extends Pick<Note, "title" | "category" | "tags" |
     return [n.title, n.category ?? "", n.courseName ?? "", n.tags.join(" "), n.content ?? ""].join(" ").toLowerCase().includes(q);
   });
 }
+
+/** `<select>` value for "notes without a category" in string-only category filters. */
+export const UNCATEGORIZED_FILTER = "__none__";
+
+/** The specific category a string filter selects, or null for "all" / uncategorized. */
+export function categoryFromFilter(filter: string): string | null {
+  return filter === "all" || filter === UNCATEGORIZED_FILTER ? null : filter;
+}
+
+export function matchesCategoryFilter(category: string | null, filter: string): boolean {
+  if (filter === "all") return true;
+  return filter === UNCATEGORIZED_FILTER ? !category : category === filter;
+}
+
+/** Moves every note in `from` to `to` (null = uncategorized); other notes keep their identity. */
+export function renameCategoryInNotes<T extends Pick<Note, "category">>(notes: T[], from: string, to: string | null): T[] {
+  return notes.map((n) => (n.category === from ? { ...n, category: to } : n));
+}
