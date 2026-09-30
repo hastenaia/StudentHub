@@ -1,4 +1,4 @@
-import type { UserRole } from "@/types/database.types";
+import type { UserRole } from "@/types/auth";
 
 export type { UserRole };
 

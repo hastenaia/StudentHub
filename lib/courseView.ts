@@ -1,5 +1,5 @@
-import type { Course } from "@/types/courses";
-import type { CourseSource, Database } from "@/types/database.types";
+import type { Course, CourseSource } from "@/types/courses";
+import type { Database } from "@/types/database.types";
 
 type CourseRow = Database["public"]["Tables"]["courses"]["Row"];
 

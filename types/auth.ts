@@ -1,4 +1,7 @@
-import type { UserRole } from "./database.types";
+import type { Database } from "./database.types";
+
+/** Kept out of the generated database.types.ts, which `npm run typegen` overwrites. */
+export type UserRole = Database["public"]["Enums"]["user_role"];
 
 export interface AuthUser {
   id: string;
