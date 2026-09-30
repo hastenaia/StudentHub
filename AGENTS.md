@@ -24,10 +24,10 @@ Setup: copy `.env.local.example` → `.env.local`; never commit keys. Migrations
 - Request gate is `proxy.ts` (Next 16 name), not `middleware.ts`. Delegates to `updateSession` (`lib/supabase/middleware.ts`), which applies pure rules in `lib/authGate.ts` (`rescueAuthLink` before session read, then `sessionRedirect`). Roles from `app_metadata` only — never `user_metadata`. New public pages must be added to `PUBLIC_ROUTES` in `lib/authGate.ts`.
 - Page pattern: async Server Component `app/(dashboard)/dashboard/<feature>/page.tsx` calls `get<Domain>Data(user.id)` from `services/<domain>.service.ts` (server reads only), passes `initialData` to client `components/<domain>/<Domain>View.tsx`, which writes via `services/<domain>Client.service.ts` object (e.g. `tasksClientService`) returning `ApiResult<T>` (`ok()`/`fail()` in `types/api.ts`). Components never call Supabase directly; after mutation update optimistically and/or `router.refresh()`.
 - Supabase clients: `lib/supabase/server.ts` (server/route handlers), `lib/supabase/client.ts` (browser), shared cookie wiring in `lib/supabase/factory.ts`. DB types are generated `types/database.types.ts`.
-- Pure logic lives in `lib/`: row→view mappers (`taskView.ts`, `courseView.ts`, `scheduleView.ts`), algorithms (`scheduling.ts` min-heap ordering + recurrence, `dates.ts`), `withActiveCourses` in `lib/supabase/queries.ts`. Zod schemas in `lib/validations/`, domain types in `types/<domain>.ts`.
+- Pure logic lives in `lib/`: row→view mappers (`taskView.ts`, `courseView.ts`, `scheduleView.ts`), algorithms (`scheduling.ts` scored ordering + heap Top-K + recurrence, `progress.ts` 0–100 course score, `dates.ts`), `withActiveCourses` in `lib/supabase/queries.ts`. Zod schemas in `lib/validations/`, domain types in `types/<domain>.ts`.
 - Google: pages read Supabase cache only, never Google. Sole Google caller is `POST /api/dashboard/sync` (`services/google.service.ts` → `classroom/calendar.service.ts`). OAuth is `app/api/google/auth` → `app/api/google/callback`; tokens AES-256-GCM encrypted (`lib/google/crypto.ts`, key `GOOGLE_TOKEN_ENCRYPTION_KEY`). Supabase auth callbacks (`app/auth/callback`, `app/auth/confirm`) are separate.
 - AI: `app/api/ai/*` handlers use `lib/ai/route.ts` (`startAIRoute`, `resolveNoteSource`, `runAI`) + `callAI()` in `lib/ai/provider.ts` (raw `fetch`, first configured provider `OPENAI_API_KEY`/`AI_API_KEY` → `ANTHROPIC_API_KEY` → `GOOGLE_AI_API_KEY`/`GEMINI_API_KEY`, ~4.5s timeout). Unconfigured → 503 error, never fake output.
-- Leftovers: `/dashboard/notes` is mock-backed (`lib/mocks/notes`); Schedule page renders mock `CalendarShell` below real `ScheduleView`; `academic_settings`, `courses.manual_grade`/`target_pct` are unused schema.
+- Leftovers: Schedule page renders mock `CalendarShell` below real `ScheduleView`; `academic_settings`, `courses.manual_grade`/`target_pct` are unused schema.
 
 ## Database
 
@@ -36,7 +36,7 @@ Setup: copy `.env.local.example` → `.env.local`; never commit keys. Migrations
 ## Testing
 
 - Vitest + Testing Library, jsdom default, globals on, `@` → repo root (`vitest.config.mts`). Files needing Node crypto/`Response` add `// @vitest-environment node`.
-- Coverage is pure layers only (`lib/**`, `utils/*`, `callAI`, auth redirects, 2 hooks, 2 components). `services/*`, most route handlers/components are untested — move logic into pure `lib/*.ts` and test there.
+- Coverage is pure layers only (`lib/**`, `utils/*`, `callAI`, auth redirects, 2 hooks, a few components). `services/*`, most route handlers/components are untested — move logic into pure `lib/*.ts` and test there.
 
 ## Workflow
 

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { fail, ok, type ApiResult } from "@/types/api";
 import type { Note, NoteDraft } from "@/types/study";
+import { normalizeCategory } from "@/lib/noteCategories";
 
 function rowToNote(row: Record<string, unknown>, courseMap?: Map<string, { name: string; color: string | null }>): Note {
   return {
@@ -11,6 +12,7 @@ function rowToNote(row: Record<string, unknown>, courseMap?: Map<string, { name:
     content: row.content as string | null,
     favorite: (row.favorite as boolean) ?? false,
     tags: (row.tags as string[]) ?? [],
+    category: (row.category as string | null) ?? null,
     courseId: row.course_id as string | null,
     courseName: row.course_id ? courseMap?.get(row.course_id as string)?.name ?? null : null,
     courseColor: row.course_id ? courseMap?.get(row.course_id as string)?.color ?? null : null,
@@ -33,6 +35,7 @@ export const notesClientService = {
         course_id: draft.courseId || null,
         favorite: draft.favorite ?? false,
         tags: draft.tags ?? [],
+        category: normalizeCategory(draft.category),
       })
       .select()
       .single();
@@ -50,6 +53,8 @@ export const notesClientService = {
         course_id: draft.courseId || null,
         favorite: draft.favorite,
         tags: draft.tags ?? [],
+        // undefined is dropped from the payload, so callers that don't know about categories keep the stored one.
+        category: draft.category === undefined ? undefined : normalizeCategory(draft.category),
       })
       .eq("id", id)
       .select()
@@ -122,6 +127,15 @@ export const notesClientService = {
       .map((o) => `${user.id}/${o.name}`)
       .filter((p) => !referenced.has(p));
     if (orphans.length) await supabase.storage.from("notes-pdfs").remove(orphans);
+  },
+
+  /** Renames a category across all of the user's notes, or clears it (`to` = null) — the notes themselves are kept. */
+  async renameCategory(from: string, to: string | null): Promise<ApiResult> {
+    const supabase = createClient();
+    const next = normalizeCategory(to);
+    const { error } = await supabase.from("notes").update({ category: next }).eq("category", from);
+    if (error) return fail(error.message);
+    return ok(next ? `Renamed to “${next}”.` : "Category removed.");
   },
 
   async toggleFavorite(id: string, favorite: boolean): Promise<ApiResult> {

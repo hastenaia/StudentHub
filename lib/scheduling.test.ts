@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildSchedule,
+  buildTopSchedule,
   formatRecurrenceLabel,
   nextRecurrence,
   type ScheduleInput,
@@ -16,7 +17,7 @@ function ids(ordered: { taskId: string }[]): string[] {
   return ordered.map((item) => item.taskId);
 }
 
-describe("buildSchedule (min-heap ordering)", () => {
+describe("buildSchedule (scored ordering)", () => {
   it("pops overdue tasks first, most-overdue first", () => {
     const ordered = buildSchedule(
       [
@@ -86,6 +87,28 @@ describe("buildSchedule (min-heap ordering)", () => {
     const forward = ids(buildSchedule([a, b], NOW));
     const backward = ids(buildSchedule([b, a], NOW));
     expect(forward).toEqual(backward);
+  });
+});
+
+describe("buildTopSchedule (bounded heap)", () => {
+  const tasks = [
+    task({ id: "none", title: "No due", priority: "urgent" }),
+    task({ id: "late", title: "Late", dueAt: "2026-08-15T07:00:00Z" }),
+    task({ id: "soon", title: "Soon", dueAt: "2026-08-15T18:00:00Z" }),
+    task({ id: "later", title: "Later", dueAt: "2026-08-20T12:00:00Z" }),
+    task({ id: "later-high", title: "Later high", dueAt: "2026-08-20T12:00:00Z", priority: "high" }),
+  ];
+
+  it("returns the same prefix as the full schedule", () => {
+    const full = ids(buildSchedule(tasks, NOW));
+    for (let k = 1; k <= tasks.length; k++) {
+      expect(ids(buildTopSchedule(tasks, k, NOW))).toEqual(full.slice(0, k));
+    }
+  });
+
+  it("handles k <= 0 and k beyond the input size", () => {
+    expect(buildTopSchedule(tasks, 0, NOW)).toEqual([]);
+    expect(ids(buildTopSchedule(tasks, 99, NOW))).toEqual(ids(buildSchedule(tasks, NOW)));
   });
 });
 

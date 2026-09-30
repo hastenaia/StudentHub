@@ -4,6 +4,7 @@ import type {
   GoogleCourse,
   GoogleCourseWork,
   GoogleListResponse,
+  GoogleStudentSubmission,
 } from "@/types/google";
 
 /**
@@ -56,6 +57,21 @@ export function listCourseWork(
     accessToken,
     `${CLASSROOM_ROOT}/courses/${courseId}/courseWork`,
     "courseWork"
+  );
+}
+
+/**
+ * The student's own submissions for every courseWork item in a course, in one
+ * paginated call (`courseWork/-`). Covered by `classroom.coursework.me.readonly`.
+ */
+export function listMySubmissions(
+  accessToken: string,
+  courseId: string
+): Promise<GoogleStudentSubmission[]> {
+  return paginate<GoogleStudentSubmission>(
+    accessToken,
+    `${CLASSROOM_ROOT}/courses/${courseId}/courseWork/-/studentSubmissions`,
+    "studentSubmissions"
   );
 }
 

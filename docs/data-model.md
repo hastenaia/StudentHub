@@ -44,6 +44,9 @@ trigger when a new auth user signs up.
 | `default_calendar_view` | `text` | `month` (default) / `week` / `day` / `agenda` |
 | `default_task_view` | `text` | `kanban` (default) / `list` |
 | `notifications_enabled` | `boolean` | default `true` |
+| `total_xp` | `integer` | default `0`; written only by the award functions (guard trigger) |
+| `current_streak` / `longest_streak` | `integer` | default `0`; consecutive active days (user's `timezone`) |
+| `last_active_date` | `date` | last day an award was granted; drives the streak |
 | `created_at` | `timestamptz` | default `now()` |
 | `updated_at` | `timestamptz` | default `now()`, maintained by trigger |
 
@@ -54,7 +57,8 @@ owner` — `auth.uid() = id`.
 
 **Triggers:** `on_auth_user_created` (after insert on `auth.users` →
 `handle_new_user()`), `on_profiles_updated` (before update →
-`handle_updated_at()`).
+`handle_updated_at()`), `on_profiles_xp_guard` (before update →
+`guard_profile_xp()`; rejects client writes to the XP/streak columns).
 
 ### `google_accounts`
 
@@ -120,6 +124,7 @@ Classroom course work (per course), including due dates, points, and grades.
 | `grade` | `numeric` | earned points; null until graded |
 | `submitted` | `boolean` | default `false` |
 | `state` | `text` | raw Classroom submission state (e.g. `TURNED_IN`) |
+| `weight` | `numeric` | default `1`, CHECK `> 0`; weight in the 0–100 course score (`lib/progress.ts`); never written by the sync |
 | `created_at` / `updated_at` | `timestamptz` | |
 
 **Unique:** `(user_id, google_course_work_id)`.
@@ -240,12 +245,13 @@ Study Hub notes (Markdown content).
 | `course_id` | `uuid` | references `courses(id)` on delete set null |
 | `title` | `text` | |
 | `content` | `text` | |
+| `category` | `text` | nullable, 1–40 chars; user-defined label (`/dashboard/notes`) |
 | `favorite` | `boolean` | default `false` |
 | `tags` | `text[]` | default `{}` (GIN-indexed) |
 | `created_at` / `updated_at` | `timestamptz` | |
 
 **Indexes:** `(user_id, created_at desc)`, `(user_id, updated_at desc)`,
-`(user_id, course_id)`, `(user_id, favorite)`, GIN on `tags`.
+`(user_id, course_id)`, `(user_id, category)`, `(user_id, favorite)`, GIN on `tags`.
 
 ### `note_attachments`
 
@@ -303,6 +309,19 @@ user per day.
 | `journal` | `text` | |
 | `created_at` / `updated_at` | `timestamptz` | |
 
+### `badges`, `user_badges`, `xp_ledger` (gamification)
+
+- `badges` — seeded catalogue (`slug` unique, `name`, `description`,
+  `xp_threshold`). `xp_threshold > 0` unlocks by total XP; `0` unlocks by an
+  event (`first-task`, `focus-25`, `streak-7`). Readable by everyone.
+- `user_badges` — earned badges, UNIQUE `(user_id, badge_id)`.
+- `xp_ledger` — one row per award, UNIQUE `(user_id, dedupe_key)`, which makes
+  every award idempotent (`task:<id>`, `task:<id>:<date>` for recurring tasks,
+  `focus:<session id>`, `journal:<date>`).
+
+`user_badges` and `xp_ledger` have owner **select** policies only; they are
+written exclusively by the SECURITY DEFINER functions below.
+
 ### `academic_settings` (unused)
 
 Created by the Google academics migration for the removed GPA feature
@@ -332,6 +351,14 @@ and `note_attachments` have no update policy.
 |---|---|---|---|
 | `handle_new_user()` | `on_auth_user_created` | after insert on `auth.users` | Creates the profile row (`full_name`, `must_change_password` from user metadata); reads role from `app_metadata` (default `student`) and mirrors it back into `app_metadata` so it appears in the JWT |
 | `handle_updated_at()` | `on_<table>_updated` | before update | Sets `updated_at = now()` on tables with an `updated_at` column |
+| `guard_profile_xp()` | `on_profiles_xp_guard` | before update on `profiles` | Rejects changes to `total_xp` / streak columns unless `grant_xp` set its transaction-local bypass flag |
+| `award_task_xp(task_id)` | — (RPC) | client call | 10 XP (high 15, urgent 20), +5 if completed after `due_at`; task must be `done` (once per task) or recurring (once per task per day) |
+| `award_focus_xp(session_id)` | — (RPC) | client call | 15 XP for a 25+ min session, else 1 per 5 min; 60 focus XP per day |
+| `award_journal_xp(entry_date)` | — (RPC) | client call | 2 XP for a day with a non-empty journal |
+| `grant_xp(...)` / `user_local_date(...)` | — (internal) | not client-callable | Ledger insert, counters, streak in the user's timezone, badge unlocks |
+
+The award RPCs compute points from the referenced row (after checking it
+belongs to `auth.uid()`), so a client can't choose its own XP.
 
 Note on `handle_new_user`: the role is read from `raw_app_meta_data`
 (admin/service-role only), never `user_metadata`, which is client-controllable
@@ -354,6 +381,8 @@ and would allow a self-signed privilege escalation.
 | `20260827000001_add_profile_preferences.sql` | `profiles` timezone/theme/default views/notifications |
 | `20260906000001_perf_indexes.sql` | Composite indexes for sorted/filtered queries |
 | `20260907000003_note_attachments.sql` | `note_attachments`, private `notes-pdfs` Storage bucket + policies |
+| `20260930000001_add_assignment_weight.sql` | `assignments.weight` (default 1) for the weighted 0–100 course score |
+| `20260930000002_gamification.sql` | `profiles` XP/streak columns, `badges`, `user_badges`, `xp_ledger`, XP guard trigger, `award_*_xp` RPCs |
 
 After adding a migration, run `npm run typegen` to regenerate
 `types/database.types.ts`.

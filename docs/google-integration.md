@@ -98,11 +98,15 @@ callback). It is idempotent and safe to re-run.
    with `source='classroom'` and `credit_hours=3`,
    keyed on `(user_id, google_course_id)`. Classroom courses that no longer
    exist on Google's side are deleted.
-4. **Assignments** — for each course, `listCourseWork` + the student's
-   `listStudentSubmissions`; the first submission is used for grade, submitted
-   state, and raw state. Upserted in batches of 100 keyed on
+4. **Assignments** — for each course (5 in parallel), `listCourseWork` +
+   `listMySubmissions` (`courseWork/-/studentSubmissions`, one call per course).
+   Rows are built by `assignmentRowsForCourse` (`lib/google/assignmentRows.ts`):
+   `maxPoints` → `max_points`, the returned `assignedGrade` → `grade`,
+   `TURNED_IN`/`RETURNED` → `submitted`, raw `state`. If a course's submissions
+   fetch fails, those rows omit grade/submitted/state so stored values are
+   kept. `weight` is never written. Upserted in batches of 100 keyed on
    `(user_id, google_course_work_id)`. CourseWork items no longer present are
-   deleted.
+   deleted (except for courses whose fetch failed).
 5. **Announcements** — `listAnnouncements` per course → upserted into
    `announcements` keyed on `(user_id, google_announcement_id)`; stale rows are
    deleted.
@@ -126,7 +130,7 @@ so the dashboard still renders.
 
 | Client | File | Endpoints |
 |---|---|---|
-| Classroom | `services/classroom.service.ts` | `courses` (ACTIVE), `courses/{id}/courseWork`, `courses/{id}/courseWork/{id}/studentSubmissions`, `courses/{id}/announcements` — each with a `pageToken` pagination loop |
+| Classroom | `services/classroom.service.ts` | `courses` (ACTIVE), `courses/{id}/courseWork`, `courses/{id}/courseWork/-/studentSubmissions`, `courses/{id}/announcements` — each with a `pageToken` pagination loop |
 | Calendar | `services/calendar.service.ts` | `calendars/primary/events` with `singleEvents=true`, `orderBy=startTime`, `maxResults=250`, rolling `timeMin`/`timeMax` |
 
 Both use `googleFetch` (`lib/google/tokens.ts`), an authenticated GET helper

@@ -27,7 +27,10 @@ npx vitest run -t "nextRecurrence"        # tests whose name matches
 
 | File | Area under test |
 |---|---|
-| `lib/scheduling.test.ts` | `buildSchedule` min-heap ordering, `nextRecurrence`, `formatRecurrenceLabel` |
+| `lib/scheduling.test.ts` | `buildSchedule` scored ordering, `buildTopSchedule` heap Top-K, `nextRecurrence`, `formatRecurrenceLabel` |
+| `lib/gamification.test.ts` | Levels (100 XP each), timezone date, lapsed-streak display, profile → view mapping, award payload parsing, XP toast text |
+| `lib/progress.test.ts` | Weighted 0–100 course score (`courseProgress`, `projectedProgress`, `progressByCourse`): null/no-graded, weights, unscorable rows, clamping |
+| `lib/google/assignmentRows.test.ts` | Classroom courseWork + own submission → `assignments` rows: grade/max points, submitted states, keeps stored grades when submissions fail |
 | `lib/dates.test.ts` | `startOfDay`/`endOfDay`, `toDateStr`, `computeStreak` |
 | `lib/wellness.test.ts` | Weekly mood points, today's activity/deadline counts, workload suggestion rules |
 | `lib/aiRequests.test.ts` | AI tab request building per action (validation, note vs pasted text, count defaults) and result text |
@@ -49,7 +52,8 @@ npx vitest run -t "nextRecurrence"        # tests whose name matches
 | `lib/supabase/errors.test.ts` | Friendly auth error message mapping |
 | `components/study/MarkdownPreview.test.ts` | Markdown link scheme allow-list, attribute escaping, formatting inside URLs |
 | `hooks/hooks.test.tsx` | `useGroupedEvents` day/hour bucketing and memoization; `useEscapeKey` activation and cleanup |
-| `components/notes/AiAssistantPanel.test.tsx` | Mock quiz reaches "Quiz complete" with the right score and can retry (regression) |
+| `lib/noteCategories.test.ts` | Category normalization (trim/collapse/length cap), per-category counts, category + text filtering |
+| `components/notes/NoteMarkdown.test.tsx` | `react-markdown` + GFM rendering, raw HTML and `javascript:` links not rendered, empty placeholder |
 | `utils/cn.test.ts` | `cn()` class-name merging |
 | `utils/date.test.ts` | Date formatters with a fixed clock (incl. due-day labels for late-in-day times) and `trimOrNull` |
 | `utils/safeRedirect.test.ts` | Open-redirect prevention in redirect targets (incl. backslash / control-character bypasses) |

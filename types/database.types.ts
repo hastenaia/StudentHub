@@ -112,6 +112,7 @@ export type Database = {
           title: string
           updated_at: string
           user_id: string
+          weight: number
         }
         Insert: {
           course_id: string
@@ -127,6 +128,7 @@ export type Database = {
           title: string
           updated_at?: string
           user_id: string
+          weight?: number
         }
         Update: {
           course_id?: string
@@ -142,6 +144,7 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+          weight?: number
         }
         Relationships: [
           {
@@ -159,6 +162,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      badges: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          name: string
+          slug: string
+          xp_threshold: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+          slug: string
+          xp_threshold?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          slug?: string
+          xp_threshold?: number
+        }
+        Relationships: []
       }
       calendar_events: {
         Row: {
@@ -500,6 +530,7 @@ export type Database = {
       }
       notes: {
         Row: {
+          category: string | null
           content: string | null
           course_id: string | null
           created_at: string
@@ -511,6 +542,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          category?: string | null
           content?: string | null
           course_id?: string | null
           created_at?: string
@@ -522,6 +554,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          category?: string | null
           content?: string | null
           course_id?: string | null
           created_at?: string
@@ -553,43 +586,55 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          current_streak: number
           default_calendar_view: string
           default_task_view: string
           full_name: string | null
           id: string
+          last_active_date: string | null
+          longest_streak: number
           must_change_password: boolean
           notifications_enabled: boolean
           role: Database["public"]["Enums"]["user_role"]
           theme: string
           timezone: string
+          total_xp: number
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          current_streak?: number
           default_calendar_view?: string
           default_task_view?: string
           full_name?: string | null
           id: string
+          last_active_date?: string | null
+          longest_streak?: number
           must_change_password?: boolean
           notifications_enabled?: boolean
           role?: Database["public"]["Enums"]["user_role"]
           theme?: string
           timezone?: string
+          total_xp?: number
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
+          current_streak?: number
           default_calendar_view?: string
           default_task_view?: string
           full_name?: string | null
           id?: string
+          last_active_date?: string | null
+          longest_streak?: number
           must_change_password?: boolean
           notifications_enabled?: boolean
           role?: Database["public"]["Enums"]["user_role"]
           theme?: string
           timezone?: string
+          total_xp?: number
           updated_at?: string
         }
         Relationships: []
@@ -863,6 +908,42 @@ export type Database = {
           },
         ]
       }
+      user_badges: {
+        Row: {
+          awarded_at: string
+          badge_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          awarded_at?: string
+          badge_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          awarded_at?: string
+          badge_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_badges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wellness_entries: {
         Row: {
           created_at: string
@@ -901,12 +982,60 @@ export type Database = {
           },
         ]
       }
+      xp_ledger: {
+        Row: {
+          created_at: string
+          dedupe_key: string
+          id: string
+          points: number
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dedupe_key: string
+          id?: string
+          points: number
+          reason?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dedupe_key?: string
+          id?: string
+          points?: number
+          reason?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "xp_ledger_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      award_focus_xp: { Args: { p_session_id: string }; Returns: Json }
+      award_journal_xp: { Args: { p_entry_date: string }; Returns: Json }
+      award_task_xp: { Args: { p_task_id: string }; Returns: Json }
+      grant_xp: {
+        Args: {
+          p_dedupe_key: string
+          p_event_badge?: string
+          p_points: number
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      user_local_date: { Args: { p_user_id: string }; Returns: string }
     }
     Enums: {
       user_role: "student" | "teacher" | "admin"
@@ -1041,6 +1170,3 @@ export const Constants = {
     },
   },
 } as const
-
-export type UserRole = Database["public"]["Enums"]["user_role"]
-export type CourseSource = "classroom" | "manual"

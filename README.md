@@ -22,7 +22,7 @@ Level Security, Storage).
 - **Schedule**: month / week / day / agenda views of your own events, with
   Google Calendar events shown read-only.
 - **Tasks**: Kanban and list views, priorities, tags, recurring tasks, and a
-  min-heap "Suggested Order" (`lib/scheduling.ts`).
+  urgency-scored "Suggested Order" with a min-heap Top-K (`lib/scheduling.ts`).
 - **Study Hub**: Markdown notes with PDF attachments, flashcards, quizzes, and
   an AI assistant (explain, summarize, generate flashcards/quizzes, study
   plans).

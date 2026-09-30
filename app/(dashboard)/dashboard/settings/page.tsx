@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, KeyRound, Mail, Plug, ShieldCheck, UserCircle, Palette, LogOut } from "lucide-react";
+import { BookOpen, KeyRound, Plug, ShieldCheck, UserCircle, Palette, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
   Card,
@@ -11,13 +11,13 @@ import {
 } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { getGoogleAccountView } from "@/services/academics.service";
+import { getGamificationData } from "@/services/gamification.service";
 import { GoogleConnectionCard } from "@/components/settings/GoogleConnectionCard";
 import { ManualCoursesCard } from "@/components/settings/ManualCoursesCard";
 import { ProfileCard } from "@/components/settings/ProfileCard";
 import { PreferencesCard } from "@/components/settings/PreferencesCard";
 import { AccountCard } from "@/components/settings/AccountCard";
 import type { DashboardCourse } from "@/types/academics";
-import { getInitials } from "@/utils/validation";
 
 export const metadata: Metadata = { title: "Settings — StudentHub" };
 
@@ -33,7 +33,7 @@ export default async function SettingsPage() {
     return <p className="text-sm text-gray-500">You need to be signed in to view this page.</p>;
   }
 
-  const [account, profileRes, manualCoursesRes] = await Promise.all([
+  const [account, profileRes, manualCoursesRes, gamification] = await Promise.all([
     getGoogleAccountView(user.id),
     supabase
       .from("profiles")
@@ -46,6 +46,7 @@ export default async function SettingsPage() {
       .eq("user_id", user.id)
       .eq("source", "manual")
       .order("created_at"),
+    getGamificationData(user.id),
   ]);
 
   const profile = profileRes.data;
@@ -84,21 +85,16 @@ export default async function SettingsPage() {
           <CardTitle className="flex items-center gap-2">
             <UserCircle className="h-5 w-5 text-brand-royal" /> Profile
           </CardTitle>
-          <CardDescription>Name, email, avatar and timezone.</CardDescription>
+          <CardDescription>Name, email, avatar, timezone, XP and badges.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <ProfileCard initialName={displayName} email={user.email ?? null} avatarUrl={avatarUrl} initialTimezone={timezone} />
-          <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-royal text-xl font-semibold text-white">
-              {getInitials(fullName)}
-            </div>
-            <div>
-              <p className="font-medium text-brand-dark">{fullName}</p>
-              <p className="flex items-center gap-1.5 text-sm text-gray-500">
-                <Mail className="h-3.5 w-3.5" /> {user?.email}
-              </p>
-            </div>
-          </div>
+          <ProfileCard
+            initialName={displayName}
+            email={user.email ?? null}
+            avatarUrl={avatarUrl}
+            initialTimezone={timezone}
+            gamification={gamification}
+          />
         </CardContent>
       </Card>
 
@@ -108,7 +104,7 @@ export default async function SettingsPage() {
             <Plug className="h-5 w-5 text-brand-royal" /> Google
           </CardTitle>
           <CardDescription>
-            Connect read-only access to your Google Calendar and Classroom to power the dashboard. Grades are never synced.
+            Connect read-only access to your Google Calendar and Classroom to power the dashboard, including your returned grades for course progress.
           </CardDescription>
         </CardHeader>
         <CardContent>

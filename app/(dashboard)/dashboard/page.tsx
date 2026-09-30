@@ -10,6 +10,7 @@ import { TodaysSchedule } from "@/components/dashboard/TodaysSchedule";
 import { PriorityTasks } from "@/components/dashboard/PriorityTasks";
 import { UpcomingDeadlines } from "@/components/dashboard/UpcomingDeadlines";
 import { QuickActions } from "@/components/dashboard/QuickActions";
+import { CourseSnapshot } from "@/components/dashboard/CourseSnapshot";
 import { FocusToday } from "@/components/dashboard/FocusToday";
 import { StudyActivity } from "@/components/dashboard/StudyActivity";
 import { SmartRecommendation } from "@/components/dashboard/SmartRecommendation";
@@ -64,6 +65,7 @@ export default async function DashboardPage() {
         </div>
         <div className="space-y-4">
           <PriorityTasks tasks={data.priorityTasks} />
+          <CourseSnapshot courses={data.courseSnapshot} />
           <QuickActions courses={data.courses} />
         </div>
       </div>

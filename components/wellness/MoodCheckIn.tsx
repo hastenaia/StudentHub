@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/useToast";
 import { wellnessClientService } from "@/services/wellnessClient.service";
+import { formatXpToast } from "@/lib/gamification";
 import { wellnessEntrySchema, type WellnessFormValues } from "@/lib/validations/wellness";
 import { MOOD_LABELS, MOOD_EMOJI, type WellnessEntry } from "@/types/wellness";
 
@@ -39,7 +40,12 @@ export function MoodCheckIn({ todayEntry, onSaved, onDeleted }: Props) {
   const onSubmit = async (values: WellnessFormValues) => {
     const res = await wellnessClientService.upsertEntry(values.mood, values.journal || null);
     if (res.success && res.data) {
-      toast({ title: todayEntry ? "Entry updated" : "Check-in saved", description: "Your daily reflection has been saved privately.", variant: "success" });
+      const xpMsg = formatXpToast(res.xp);
+      toast({
+        title: todayEntry ? "Entry updated" : "Check-in saved",
+        description: ["Your daily reflection has been saved privately.", xpMsg].filter(Boolean).join(" "),
+        variant: "success",
+      });
       onSaved(res.data);
     } else {
       toast({ title: "Could not save", description: res.message, variant: "error" });

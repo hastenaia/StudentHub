@@ -10,12 +10,15 @@ import { Select } from "@/components/ui/select";
 import { useToast } from "@/hooks/useToast";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials } from "@/utils/validation";
+import { XpSummary } from "@/components/gamification/XpSummary";
+import type { GamificationView } from "@/types/gamification";
 
 interface ProfileCardProps {
   initialName: string;
   email: string | null;
   avatarUrl: string | null;
   initialTimezone: string;
+  gamification: GamificationView;
 }
 
 const TIMEZONES = [
@@ -44,7 +47,7 @@ const TIMEZONES = [
   "Pacific/Auckland",
 ];
 
-export function ProfileCard({ initialName, email, avatarUrl, initialTimezone }: ProfileCardProps) {
+export function ProfileCard({ initialName, email, avatarUrl, initialTimezone, gamification }: ProfileCardProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [name, setName] = React.useState(initialName);
@@ -107,6 +110,8 @@ export function ProfileCard({ initialName, email, avatarUrl, initialTimezone }: 
           </p>
         </div>
       </div>
+
+      <XpSummary data={gamification} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">

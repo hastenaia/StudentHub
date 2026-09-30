@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { useToast } from "@/hooks/useToast";
 import { tasksClientService } from "@/services/tasksClient.service";
 import { buildSchedule } from "@/lib/scheduling";
+import { formatXpToast } from "@/lib/gamification";
 import { taskRowToView, taskToDraft } from "@/lib/taskView";
 import { KanbanBoard } from "@/components/tasks/KanbanBoard";
 import { ListView } from "@/components/tasks/ListView";
@@ -63,7 +64,7 @@ export function TasksView({ initialData }: TasksViewProps) {
     [schedule]
   );
 
-  /** Apply a tasks change and re-run the min-heap scheduler in one commit. */
+  /** Apply a tasks change and re-run the scheduler in one commit. */
   const applyTasks = (next: Task[]) => {
     setTasks(next);
     setSchedule(
@@ -134,7 +135,7 @@ export function TasksView({ initialData }: TasksViewProps) {
       applyTasks(tasks.map((task) => (task.id === editing.id ? taskRowToView(row, courseMap) : task)));
       setFormOpen(false);
       setEditing(null);
-      notify(true, "Task updated", result.message);
+      notify(true, "Task updated", [result.message, formatXpToast(result.xp)].filter(Boolean).join(" · "));
     } else {
       notify(false, "Couldn't update task", result.message);
     }
@@ -171,7 +172,7 @@ export function TasksView({ initialData }: TasksViewProps) {
       notify(
         true,
         row.status === "done" ? "Task completed" : "Next occurrence scheduled",
-        result.message
+        [result.message, formatXpToast(result.xp)].filter(Boolean).join(" · ")
       );
     } else {
       notify(false, "Couldn't complete task", result.message);
@@ -185,6 +186,8 @@ export function TasksView({ initialData }: TasksViewProps) {
       return false;
     }
     applyTasks(tasks.map((task) => (task.id === id ? { ...task, status, sortOrder: index } : task)));
+    const xpMsg = formatXpToast(result.xp);
+    if (xpMsg) notify(true, "Task completed", xpMsg);
     return true;
   };
 

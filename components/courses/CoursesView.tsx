@@ -57,7 +57,8 @@ export function CoursesView({ initialCourses }: CoursesViewProps) {
     const result = await coursesClientService.updateCourse(editing.id, draft);
     setIsLoading(false);
     if (result.success && result.data) {
-      setCourses((prev) => prev.map((c) => (c.id === editing.id ? (result.data as Course) : c)));
+      // The write result has no grade data; keep the server-computed progress.
+      setCourses((prev) => prev.map((c) => (c.id === editing.id ? { ...(result.data as Course), progress: c.progress } : c)));
       setEditing(null);
       setFormOpen(false);
       notify(true, "Course updated", result.message);

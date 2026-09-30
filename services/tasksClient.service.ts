@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { nextRecurrence } from "@/lib/scheduling";
+import { gamificationClientService } from "@/services/gamificationClient.service";
+import type { AwardResult, WithXp } from "@/types/gamification";
 import { fail, ok, type ApiResult } from "@/types/api";
 import type { RecurrenceFreq, TaskDraft, TaskStatus } from "@/types/tasks";
 import type { Database } from "@/types/database.types";
@@ -13,6 +15,10 @@ import type { Database } from "@/types/database.types";
  */
 
 type TaskRow = Database["public"]["Tables"]["tasks"]["Row"];
+/** XP for a task that just became done; the server decides the points and dedupes. */
+function awardIfDone(id: string, status: TaskStatus): Promise<AwardResult | null> {
+  return status === "done" ? gamificationClientService.awardTask(id) : Promise.resolve(null);
+}
 
 export const tasksClientService = {
   async createTask(draft: TaskDraft): Promise<ApiResult<TaskRow>> {
@@ -44,7 +50,7 @@ export const tasksClientService = {
     return error ? fail(error.message) : ok("Task created.", data);
   },
 
-  async updateTask(id: string, draft: TaskDraft): Promise<ApiResult<TaskRow>> {
+  async updateTask(id: string, draft: TaskDraft): Promise<WithXp<ApiResult<TaskRow>>> {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("tasks")
@@ -64,7 +70,8 @@ export const tasksClientService = {
       .eq("id", id)
       .select()
       .single();
-    return error ? fail(error.message) : ok("Task updated.", data);
+    if (error) return fail(error.message);
+    return { ...ok("Task updated.", data), xp: await awardIfDone(id, draft.status) };
   },
 
   async deleteTask(id: string): Promise<ApiResult> {
@@ -74,7 +81,7 @@ export const tasksClientService = {
   },
 
   /** Move a task between kanban columns / reorder within a column. */
-  async moveTask(id: string, status: TaskStatus, sortOrder: number): Promise<ApiResult> {
+  async moveTask(id: string, status: TaskStatus, sortOrder: number): Promise<WithXp<ApiResult>> {
     const supabase = createClient();
     const { error } = await supabase
       .from("tasks")
@@ -84,7 +91,8 @@ export const tasksClientService = {
         completed_at: status === "done" ? new Date().toISOString() : null,
       })
       .eq("id", id);
-    return error ? fail(error.message) : ok();
+    if (error) return fail(error.message);
+    return { ...ok(), xp: await awardIfDone(id, status) };
   },
 
   /**
@@ -92,7 +100,7 @@ export const tasksClientService = {
    * back to "to do") instead of closing; the updated row is returned so the UI
    * reflects the new due date immediately.
    */
-  async completeTask(id: string): Promise<ApiResult<TaskRow>> {
+  async completeTask(id: string): Promise<WithXp<ApiResult<TaskRow>>> {
     const supabase = createClient();
     const { data: row } = await supabase
       .from("tasks")
@@ -117,7 +125,9 @@ export const tasksClientService = {
         .eq("id", id)
         .select()
         .single();
-      return error ? fail(error.message) : ok("Done — next occurrence scheduled.", data);
+      if (error) return fail(error.message);
+      // A recurring task rolls forward rather than staying done; the server caps it at one award per day.
+      return { ...ok("Done — next occurrence scheduled.", data), xp: await gamificationClientService.awardTask(id) };
     }
 
     const { data, error } = await supabase
@@ -126,6 +136,7 @@ export const tasksClientService = {
       .eq("id", id)
       .select()
       .single();
-    return error ? fail(error.message) : ok("Task completed.", data);
+    if (error) return fail(error.message);
+    return { ...ok("Task completed.", data), xp: await gamificationClientService.awardTask(id) };
   },
 };
