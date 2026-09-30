@@ -4,12 +4,14 @@ import * as React from "react";
 import { Sidebar, MobileSidebar } from "@/components/layout/Sidebar";
 import { Navbar } from "@/components/layout/Navbar";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+import { AutoSync } from "@/components/layout/AutoSync";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
 
   return (
     <div className="flex min-h-screen bg-brand-gray">
+      <AutoSync />
       <Sidebar />
       <MobileSidebar open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 

@@ -10,6 +10,7 @@ import type {
 } from "@/types/auth";
 import { fail, ok, type ApiResult } from "@/types/api";
 import { safeRedirect } from "@/utils/safeRedirect";
+import { AUTO_SYNC_SESSION_KEY } from "@/lib/google/autoSync";
 
 /**
  * Thin service layer around Supabase Auth. Keeping these calls out of
@@ -77,6 +78,12 @@ export const authService = {
     const { error } = await supabase.auth.signOut();
     if (error) {
       return fail(getAuthErrorMessage(error));
+    }
+    // Let the next sign-in in this tab trigger a fresh Google sync.
+    try {
+      sessionStorage.removeItem(AUTO_SYNC_SESSION_KEY);
+    } catch {
+      // storage unavailable — nothing to clear
     }
     return ok();
   },

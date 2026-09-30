@@ -91,6 +91,16 @@ Implemented in `lib/google/tokens.ts` (pure, stateless mechanics) and
 point (called by `POST /api/dashboard/sync` and, best-effort, after the OAuth
 callback). It is idempotent and safe to re-run.
 
+**Sync on sign-in:** `AutoSync` (`components/layout/AutoSync.tsx`, mounted in
+`DashboardShell`) sends `POST /api/dashboard/sync` with `{ auto: true }` on the
+first dashboard page of each browser tab session (a `sessionStorage` flag,
+cleared by `authService.logout`). The route skips it without calling Google
+unless `shouldAutoSync` (`lib/google/autoSync.ts`) says a sync is due — linked,
+not `needs_reconnect`, and last synced ≥ 10 minutes ago. A real sync shows a
+toast and `router.refresh()`es the page. In Google's *Testing* publishing
+status refresh tokens expire after 7 days, so auto-sync then fails into the
+reconnect banner until the consent screen is published.
+
 1. Loads the `google_accounts` row; fails gracefully if missing or flagged
    `needs_reconnect`.
 2. Obtains a valid access token (reuse or refresh).

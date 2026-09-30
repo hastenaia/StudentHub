@@ -52,6 +52,7 @@ npx vitest run -t "nextRecurrence"        # tests whose name matches
 | `lib/supabase/errors.test.ts` | Friendly auth error message mapping |
 | `components/study/MarkdownPreview.test.ts` | Markdown link scheme allow-list, attribute escaping, formatting inside URLs |
 | `hooks/hooks.test.tsx` | `useGroupedEvents` day/hour bucketing and memoization; `useEscapeKey` activation and cleanup |
+| `lib/google/autoSync.test.ts` | Sign-in auto-sync rule: skips unlinked / needs-reconnect / recently synced accounts |
 | `lib/noteCategories.test.ts` | Category normalization (trim/collapse/length cap), per-category counts, category + text filtering |
 | `components/notes/NoteMarkdown.test.tsx` | `react-markdown` + GFM rendering, raw HTML and `javascript:` links not rendered, empty placeholder |
 | `utils/cn.test.ts` | `cn()` class-name merging |
