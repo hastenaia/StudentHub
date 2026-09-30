@@ -120,6 +120,7 @@ Classroom course work (per course), including due dates, points, and grades.
 | `grade` | `numeric` | earned points; null until graded |
 | `submitted` | `boolean` | default `false` |
 | `state` | `text` | raw Classroom submission state (e.g. `TURNED_IN`) |
+| `weight` | `numeric` | default `1`, CHECK `> 0`; weight in the 0–100 course score (`lib/progress.ts`); never written by the sync |
 | `created_at` / `updated_at` | `timestamptz` | |
 
 **Unique:** `(user_id, google_course_work_id)`.
@@ -354,6 +355,7 @@ and would allow a self-signed privilege escalation.
 | `20260827000001_add_profile_preferences.sql` | `profiles` timezone/theme/default views/notifications |
 | `20260906000001_perf_indexes.sql` | Composite indexes for sorted/filtered queries |
 | `20260907000003_note_attachments.sql` | `note_attachments`, private `notes-pdfs` Storage bucket + policies |
+| `20260930000001_add_assignment_weight.sql` | `assignments.weight` (default 1) for the weighted 0–100 course score |
 
 After adding a migration, run `npm run typegen` to regenerate
 `types/database.types.ts`.

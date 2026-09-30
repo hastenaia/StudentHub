@@ -33,6 +33,15 @@ export interface GoogleCourseWork {
   updateTime?: string;
 }
 
+/** The student's own submission for a courseWork item; carries the returned grade. */
+export interface GoogleStudentSubmission {
+  id: string;
+  courseWorkId: string;
+  state: "NEW" | "CREATED" | "TURNED_IN" | "RETURNED" | "RECLAIMED_BY_STUDENT" | string;
+  /** Only present once the teacher returns the work. */
+  assignedGrade?: number | null;
+}
+
 export interface GoogleAnnouncement {
   id: string;
   courseId: string;

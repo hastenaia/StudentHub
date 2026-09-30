@@ -4,17 +4,18 @@ import { fail, ok, type ApiResult } from "@/types/api";
 import { createClient } from "@/lib/supabase/server";
 import {
   buildAuthUrl,
-  classroomDateToIso,
   exchangeCodeForTokens,
   fetchUserInfo,
   getOAuthConfig,
   refreshToken,
 } from "@/lib/google/tokens";
 import { decryptToken, encryptToken } from "@/lib/google/crypto";
+import { assignmentRowsForCourse, staleCourseWorkIds } from "@/lib/google/assignmentRows";
 import {
   listAnnouncements,
   listCourseWork,
   listCourses,
+  listMySubmissions,
 } from "./classroom.service";
 import { buildWindow, listEvents } from "./calendar.service";
 
@@ -194,6 +195,72 @@ async function markReconnect(
     .eq("user_id", userId);
 }
 
+type AssignmentInsert = Database["public"]["Tables"]["assignments"]["Insert"];
+
+async function upsertAssignmentRows(supabase: ServerClient, rows: AssignmentInsert[]): Promise<void> {
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const { error } = await supabase
+      .from("assignments")
+      .upsert(rows.slice(i, i + CHUNK), { onConflict: "user_id,google_course_work_id" });
+    if (error) throw error;
+  }
+}
+
+/**
+ * Assignments phase of the sync: courseWork + the student's own submissions
+ * (grade, turned-in state), one call each per course. Returns the upserted row
+ * count and the DB ids of courses whose courseWork fetch failed.
+ */
+async function syncAssignments(
+  supabase: ServerClient,
+  userId: string,
+  accessToken: string,
+  coursePairs: [googleCourseId: string, dbCourseId: string][]
+): Promise<{ count: number; failedCourses: Set<string> }> {
+  // Bounded-parallel fetch (was serial N+1): ~C/5 latency, tolerant of per-course failures.
+  const syncedWorkIds = new Set<string>();
+
+  const workResults = await mapWithConcurrency(coursePairs, GOOGLE_CONCURRENCY, ([googleCourseId]) =>
+    Promise.all([
+      listCourseWork(accessToken, googleCourseId),
+      listMySubmissions(accessToken, googleCourseId).catch(() => null),
+    ])
+  );
+  // null = that course's fetch failed. Its rows must survive the cleanup below, or one transient
+  // error (401/429) would wipe the course's assignments while the sync still reports success.
+  const failedWorkCourses = new Set(coursePairs.filter((_, i) => workResults[i] === null).map(([, dbId]) => dbId));
+  // Rows without submission data omit grade/submitted/state; upsert them separately so a
+  // mixed batch can't null those columns for the others.
+  const gradedRows: AssignmentInsert[] = [];
+  const infoOnlyRows: AssignmentInsert[] = [];
+  coursePairs.forEach(([, dbCourseId], i) => {
+    const result = workResults[i];
+    if (!result) return;
+    const [courseWork, submissions] = result;
+    for (const cw of courseWork) syncedWorkIds.add(cw.id);
+    (submissions ? gradedRows : infoOnlyRows).push(...assignmentRowsForCourse(userId, dbCourseId, courseWork, submissions));
+  });
+
+  await upsertAssignmentRows(supabase, gradedRows);
+  await upsertAssignmentRows(supabase, infoOnlyRows);
+
+  // Remove assignments from removed courses / deleted courseWork items.
+  const { data: existingAssignments } = await supabase
+    .from("assignments")
+    .select("google_course_work_id, course_id")
+    .eq("user_id", userId);
+  const removedAssignmentIds = staleCourseWorkIds(existingAssignments ?? [], syncedWorkIds, failedWorkCourses);
+  if (removedAssignmentIds.length) {
+    await supabase
+      .from("assignments")
+      .delete()
+      .eq("user_id", userId)
+      .in("google_course_work_id", removedAssignmentIds);
+  }
+
+  return { count: gradedRows.length + infoOnlyRows.length, failedCourses: failedWorkCourses };
+}
+
 /** Fetch + merge phase. Throws on Google/Supabase errors; caller maps them. */
 async function performSync(
   supabase: ServerClient,
@@ -252,59 +319,13 @@ async function performSync(
   }
 
   // --- Assignments ----------------------------------------------------------
-  // Grades are intentionally ignored — only informational fields are synced.
-  // Bounded-parallel fetch (was serial N+1): ~C/5 latency, tolerant of per-course failures.
-  const assignmentRows: Database["public"]["Tables"]["assignments"]["Insert"][] = [];
-  const syncedWorkIds = new Set<string>();
   const coursePairs = [...courseIdByGoogle.entries()];
-
-  const workResults = await mapWithConcurrency(coursePairs, GOOGLE_CONCURRENCY, ([googleCourseId]) =>
-    listCourseWork(accessToken, googleCourseId)
+  const { count: assignmentCount, failedCourses: failedWorkCourses } = await syncAssignments(
+    supabase,
+    userId,
+    accessToken,
+    coursePairs
   );
-  // null = that course's fetch failed. Its rows must survive the cleanup below, or one transient
-  // error (401/429) would wipe the course's assignments while the sync still reports success.
-  const failedWorkCourses = new Set(coursePairs.filter((_, i) => workResults[i] === null).map(([, dbId]) => dbId));
-  coursePairs.forEach(([, dbCourseId], i) => {
-    for (const cw of workResults[i] ?? []) {
-      syncedWorkIds.add(cw.id);
-      assignmentRows.push({
-        user_id: userId,
-        course_id: dbCourseId,
-        google_course_work_id: cw.id,
-        title: cw.title || "Untitled assignment",
-        description: cw.description ?? null,
-        due_at: classroomDateToIso(cw.dueDate, cw.dueTime),
-        submitted: false,
-        state: null,
-      });
-    }
-  });
-
-  for (let i = 0; i < assignmentRows.length; i += CHUNK) {
-    const { error } = await supabase
-      .from("assignments")
-      .upsert(assignmentRows.slice(i, i + CHUNK), {
-        onConflict: "user_id,google_course_work_id",
-      });
-    if (error) throw error;
-  }
-
-  // Remove assignments from removed courses / deleted courseWork items.
-  const { data: existingAssignments } = await supabase
-    .from("assignments")
-    .select("google_course_work_id, course_id")
-    .eq("user_id", userId);
-  const removedAssignmentIds = (existingAssignments ?? [])
-    .filter((r) => !(r.course_id && failedWorkCourses.has(r.course_id)))
-    .map((r) => r.google_course_work_id)
-    .filter((id): id is string => !!id && !syncedWorkIds.has(id));
-  if (removedAssignmentIds.length) {
-    await supabase
-      .from("assignments")
-      .delete()
-      .eq("user_id", userId)
-      .in("google_course_work_id", removedAssignmentIds);
-  }
 
   // --- Announcements ---------------------------------------------------------
   // Bounded-parallel fetch (was serial N+1).
@@ -400,7 +421,7 @@ async function performSync(
     : "Synced your school data.";
   return ok(message, {
     courses: googleCourses.length,
-    assignments: assignmentRows.length,
+    assignments: assignmentCount,
     announcements: announcementRows.length,
     calendarEvents: eventRows.length,
     lastSyncedAt,

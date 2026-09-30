@@ -27,7 +27,9 @@ npx vitest run -t "nextRecurrence"        # tests whose name matches
 
 | File | Area under test |
 |---|---|
-| `lib/scheduling.test.ts` | `buildSchedule` min-heap ordering, `nextRecurrence`, `formatRecurrenceLabel` |
+| `lib/scheduling.test.ts` | `buildSchedule` scored ordering, `buildTopSchedule` heap Top-K, `nextRecurrence`, `formatRecurrenceLabel` |
+| `lib/progress.test.ts` | Weighted 0–100 course score (`courseProgress`, `projectedProgress`, `progressByCourse`): null/no-graded, weights, unscorable rows, clamping |
+| `lib/google/assignmentRows.test.ts` | Classroom courseWork + own submission → `assignments` rows: grade/max points, submitted states, keeps stored grades when submissions fail |
 | `lib/dates.test.ts` | `startOfDay`/`endOfDay`, `toDateStr`, `computeStreak` |
 | `lib/wellness.test.ts` | Weekly mood points, today's activity/deadline counts, workload suggestion rules |
 | `lib/aiRequests.test.ts` | AI tab request building per action (validation, note vs pasted text, count defaults) and result text |

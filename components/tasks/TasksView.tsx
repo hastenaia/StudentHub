@@ -63,7 +63,7 @@ export function TasksView({ initialData }: TasksViewProps) {
     [schedule]
   );
 
-  /** Apply a tasks change and re-run the min-heap scheduler in one commit. */
+  /** Apply a tasks change and re-run the scheduler in one commit. */
   const applyTasks = (next: Task[]) => {
     setTasks(next);
     setSchedule(

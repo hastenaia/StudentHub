@@ -8,7 +8,7 @@ interface SuggestedOrderPanelProps {
   schedule: ScheduledItem[];
 }
 
-/** The "do this next" list produced by the min-heap scheduler. */
+/** The "do this next" list produced by `buildSchedule` (lib/scheduling). */
 export function SuggestedOrderPanel({ schedule }: SuggestedOrderPanelProps) {
   if (schedule.length === 0) return null;
 
@@ -38,7 +38,7 @@ export function SuggestedOrderPanel({ schedule }: SuggestedOrderPanelProps) {
         </ol>
         <p className="mt-3 flex items-center gap-1 text-xs text-gray-400">
           <ArrowRight className="h-3 w-3" />
-          Ordered by the min-heap queue: overdue first, then due date, priority and effort.
+          Ordered by urgency: overdue first, then due date, priority and effort.
         </p>
       </CardContent>
     </Card>

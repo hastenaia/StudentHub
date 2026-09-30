@@ -6,7 +6,7 @@ import { withActiveCourses } from "@/lib/supabase/queries";
 
 /**
  * Server-side assembly for the To-Do Tracker page. Reads the user's tasks and
- * courses, builds the view models and runs the min-heap scheduler over the
+ * courses, builds the view models and runs the urgency scheduler (`buildSchedule`) over the
  * actionable (not-done) tasks so the Suggested Order panel is pre-rendered.
  */
 

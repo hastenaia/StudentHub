@@ -58,7 +58,7 @@ lib/
   ai/provider.ts         Server-only multi-provider AI call with timeout
   ai/route.ts            Shared /api/ai/* plumbing: auth + body, note source, error mapping
   google/                OAuth token mechanics + AES-256-GCM token encryption
-  scheduling.ts          Min-heap task ordering + recurrence math (unit-tested)
+  scheduling.ts          Scored task ordering, heap Top-K + recurrence math (unit-tested)
   focus.ts               Focus/Pomodoro helpers
   dates.ts               startOfDay/endOfDay, reporting windows, streaks (unit-tested)
   wellness.ts, taskSort.ts, aiRequests.ts   Pure page logic pulled out of services/components (unit-tested)
@@ -87,9 +87,9 @@ Every page under `app/(dashboard)/dashboard/` is listed in the sidebar
 | Route | Server read | Main tables |
 |---|---|---|
 | `/dashboard` | `dashboard.service.ts` → `getProductivityDashboardData` | tasks, schedule_events, calendar_events, assignments, announcements, courses, focus_sessions, notes, google_accounts |
-| `/dashboard/courses` | `courses.service.ts` | courses |
+| `/dashboard/courses` | `courses.service.ts` (+ 0–100 progress via `lib/progress.ts`) | courses, assignments |
 | `/dashboard/schedule` | `schedule.service.ts` | schedule_events (editable) + calendar_events (Google, read-only) |
-| `/dashboard/tasks` | `tasks.service.ts` (runs the min-heap scheduler) | tasks, courses |
+| `/dashboard/tasks` | `tasks.service.ts` (runs the task scheduler) | tasks, courses |
 | `/dashboard/study` | `notes.service.ts`, `flashcards.service.ts`, `quizzes.service.ts` | notes, note_attachments, flashcards, quizzes, quiz_questions, quiz_attempts |
 | `/dashboard/focus` | `focus.service.ts` | focus_sessions |
 | `/dashboard/analytics` | `analytics.service.ts` | tasks, focus_sessions, notes, flashcards, quiz_attempts, schedule_events, wellness_entries |
@@ -145,8 +145,9 @@ cache tables. See [google-integration.md](google-integration.md).
 
 ### Tasks
 Kanban + list views with dnd-kit, priorities, tags, recurrence
-(`nextRecurrence`), and a "Suggested Order" computed by the min-heap in
-`lib/scheduling.ts` (`buildSchedule`; `buildTopSchedule` for the dashboard).
+(`nextRecurrence`), and a "Suggested Order" computed in `lib/scheduling.ts`:
+`buildSchedule` precomputes an urgency key per task and sorts once (O(N log N));
+`buildTopSchedule` keeps a bounded binary heap for the dashboard top-5 (O(N log K)).
 
 ### Study Hub
 Notes (Markdown preview, tags, favorites, PDF attachments stored in the

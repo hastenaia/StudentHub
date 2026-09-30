@@ -46,6 +46,6 @@ export interface TaskCourseOption {
 export interface TasksViewData {
   tasks: Task[];
   courses: TaskCourseOption[];
-  /** Suggested execution order from the min-heap scheduler. */
+  /** Suggested execution order from `buildSchedule` (lib/scheduling). */
   schedule: import("@/lib/scheduling").ScheduledItem[];
 }

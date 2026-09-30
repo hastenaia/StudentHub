@@ -4,6 +4,7 @@ import { BookOpen, MapPin, User, Hash, CalendarDays, Pencil, Trash2 } from "luci
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/utils/date";
+import { CourseProgressBar } from "@/components/courses/CourseProgressBar";
 import type { Course } from "@/types/courses";
 
 interface CourseCardProps {
@@ -45,6 +46,8 @@ export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-3">
+        {course.progress && <CourseProgressBar progress={course.progress} />}
+
         {course.description && (
           <p className="line-clamp-3 text-sm text-gray-600">{course.description}</p>
         )}

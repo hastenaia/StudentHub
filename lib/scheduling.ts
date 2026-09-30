@@ -3,11 +3,13 @@ import type { RecurrenceFreq, TaskPriority } from "@/types/tasks";
 /**
  * Pure scheduling + recurrence math for the Smart To-Do Tracker.
  *
- * `buildSchedule` is the "AI min-heap": it pushes every actionable task into a
- * real binary min-heap and pops them in priority order. The ordering is driven
- * by a weighted score — overdue first (most-overdue first), then due
- * proximity, then priority, then effort — so it's deterministic, offline and
- * unit-testable. Each popped item carries a human-readable `reason`.
+ * Both orderings share `scheduleKey` — overdue first (most-overdue first),
+ * then due proximity, then priority, then effort — so they're deterministic,
+ * offline and unit-testable. Each item carries a human-readable `reason`.
+ *
+ * - `buildSchedule`: full order, keys precomputed once + one sort, O(N log N).
+ * - `buildTopSchedule`: first K only via a bounded binary heap, O(N log K)
+ *   (dashboard top-5).
  */
 
 export interface ScheduleInput {
@@ -141,8 +143,8 @@ class BinaryMinHeap<T> {
  * Order tasks into the recommended execution sequence. Input order is
  * irrelevant; the result is fully determined by the scored ordering.
  *
- * Keys are precomputed once per task O(N), then a single Array.sort O(N log N)
- * replaces the previous heap which recomputed keys on every comparison.
+ * Keys are precomputed once per task O(N), then a single Array.sort O(N log N).
+ * Use `buildTopSchedule` when only the first K items are needed.
  */
 export function buildSchedule(tasks: ScheduleInput[], now: Date = new Date()): ScheduledItem[] {
   const nowMs = now.getTime();
