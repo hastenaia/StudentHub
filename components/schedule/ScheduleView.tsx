@@ -41,7 +41,7 @@ function endOfMonth(date: Date): Date {
 }
 
 export function ScheduleView({ initialEvents, courses }: ScheduleViewProps) {
-  const { toast } = useToast();
+  const { notify } = useToast();
   const [events, setEvents] = React.useState<ScheduleEvent[]>(initialEvents);
   const [view, setView] = React.useState<CalendarView>("month");
   const [currentDate, setCurrentDate] = React.useState<Date>(() => new Date());
@@ -103,10 +103,6 @@ export function ScheduleView({ initialEvents, courses }: ScheduleViewProps) {
     }
     return { userCount: u, googleCount: g };
   }, [events]);
-
-  const notify = (success: boolean, title: string, description?: string) => {
-    toast({ title, description, variant: success ? "success" : "error" });
-  };
 
   const handleCreate = async (draft: ScheduleDraft) => {
     const result = await scheduleClientService.createEvent(draft);
@@ -233,6 +229,15 @@ export function ScheduleView({ initialEvents, courses }: ScheduleViewProps) {
           </Button>
         </div>
       </div>
+
+      {view !== "agenda" && filtered.length === 0 && (
+        <div className="flex flex-col items-start gap-2 rounded-md border border-dashed border-gray-200 bg-brand-gray/30 px-4 py-3 text-sm text-gray-600 sm:flex-row sm:items-center sm:justify-between">
+          <span>{view === "month" ? "No events this month." : `No events this ${view} — click a time slot or create one.`}</span>
+          <Button onClick={() => openCreate()} size="sm" variant="outline">
+            <Plus className="h-4 w-4" /> New event
+          </Button>
+        </div>
+      )}
 
       {view === "month" && (
         <MonthView

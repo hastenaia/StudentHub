@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/purity, react-hooks/exhaustive-deps */
+/* eslint-disable react-hooks/purity */
 "use client";
 
 import * as React from "react";
@@ -40,6 +40,8 @@ const AMBIENTS: Ambient[] = [
   { id: "lofi", name: "Lo-fi", description: "Warm crackle — procedural", icon: Music, color: "text-purple-700 bg-purple-50" },
 ];
 
+const VOLUME_KEY = "studenthub.chillhub.volume";
+
 export function ChillHub() {
   const audioRef = React.useRef<AudioContext | null>(null);
   const nodesRef = React.useRef<Map<AmbientId, { gain: GainNode; source?: AudioBufferSourceNode; oscillators: OscillatorNode[] }>>(new Map());
@@ -59,6 +61,21 @@ export function ChillHub() {
     white: 30,
     lofi: 40,
   });
+
+  // Restore saved volumes after mount (reading localStorage during render would mismatch the SSR HTML).
+  React.useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(VOLUME_KEY) ?? "null") as Partial<Record<AmbientId, number>> | null;
+      if (!saved) return;
+      const valid = Object.fromEntries(
+        Object.entries(saved).filter(([k, v]) => AMBIENTS.some((a) => a.id === k) && typeof v === "number" && v >= 0 && v <= 100)
+      );
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from browser storage
+      setVolume((prev) => ({ ...prev, ...valid }));
+    } catch {
+      // Storage blocked or corrupt: keep defaults.
+    }
+  }, []);
 
   const ensureContext = () => {
     if (!audioRef.current) {
@@ -203,7 +220,15 @@ export function ChillHub() {
   };
 
   const handleVolume = (id: AmbientId, v: number) => {
-    setVolume((prev) => ({ ...prev, [id]: v }));
+    setVolume((prev) => {
+      const next = { ...prev, [id]: v };
+      try {
+        localStorage.setItem(VOLUME_KEY, JSON.stringify(next));
+      } catch {
+        // Storage blocked: volume still applies for this session.
+      }
+      return next;
+    });
     const node = nodesRef.current.get(id);
     if (node && audioRef.current) {
       node.gain.gain.setValueAtTime((v / 100) * 0.3, audioRef.current.currentTime);

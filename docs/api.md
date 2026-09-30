@@ -160,9 +160,16 @@ All five routes live under `app/api/ai/` and share the same shape:
 | `/api/ai/generate-flashcards` | `{ noteId?, content?, count? }` (content ≥ 30 chars, count 1–10, default 5) | `{ flashcards: { front, back }[] }` |
 | `/api/ai/generate-quiz` | `{ noteId?, content?, count?, title? }` (content ≥ 30 chars, count 1–8, default 5) | `{ questions: { question_text, question_type, options?, correct_answer, explanation }[] }` |
 | `/api/ai/study-plan` | `{ topic, courseId?, durationDays? }` (1–30, default 7) | `{ plan, topic, durationDays }` |
+| `/api/ai/wellness-tip` | `{ focusMinutesToday, upcomingDeadlinesCount }` (numbers, clamped) | `{ tip }` (one plain-text sentence, ≤ 220 chars) |
 
 The routes only generate content; saving flashcards/quizzes happens
 client-side through `flashcardsClientService` / `quizzesClientService`.
+
+## `/api/health`
+
+`GET` → `200 { "ok": true, "time": "<ISO timestamp>" }` with `Cache-Control: no-store`.
+Public (listed in `PUBLIC_ROUTES`) so uptime monitors can call it without a
+session; it reads no user data and makes no Supabase queries itself.
 
 ## Summary
 
@@ -170,7 +177,8 @@ client-side through `flashcardsClientService` / `quizzesClientService`.
 |---|---|---|---|
 | `/auth/callback` | GET | none | Exchange Supabase auth code / OTP token for session |
 | `/auth/confirm` | GET | none | OTP-link alias of `/auth/callback` |
-| `/api/ai/*` | POST | session | Explain, summarize, generate flashcards/quizzes, study plans |
+| `/api/ai/*` | POST | session | Explain, summarize, generate flashcards/quizzes, study plans, wellness tip |
 | `/api/google/auth` | GET | session | Start Google OAuth consent flow |
 | `/api/google/callback` | GET | session | Finalize Google link + initial sync |
 | `/api/dashboard/sync` | POST | session | Pull Google data into the Supabase cache |
+| `/api/health` | GET | none | Liveness probe (`{ ok, time }`) |

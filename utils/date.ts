@@ -7,12 +7,6 @@
 
 const TIME_FMT = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
 const DATE_FMT = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
-const DATE_TIME_FMT = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-});
 
 export function formatTime(iso: string | null): string {
   if (!iso) return "—";
@@ -24,22 +18,20 @@ export function formatDate(iso: string | null): string {
   return DATE_FMT.format(new Date(iso));
 }
 
-function formatDateTime(iso: string | null): string {
-  if (!iso) return "—";
-  return DATE_TIME_FMT.format(new Date(iso));
-}
-
 /**
  * Human due-date label: "Today", "Tomorrow", "Yesterday", otherwise a date.
  * Date-only comparisons use local midnight so day boundaries behave naturally.
  */
 export function formatDueLabel(iso: string | null): string {
   if (!iso) return "No due date";
-  const due = new Date(iso).getTime();
+  const due = new Date(iso);
   const now = new Date();
+  // Compare the two local midnights, not due-time vs midnight: otherwise anything due after noon
+  // rounds up a day ("Due tomorrow" for tonight). Math.round absorbs 23h/25h DST days.
+  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const day = 24 * 60 * 60 * 1000;
-  const diffDays = Math.round((due - today) / day);
+  const diffDays = Math.round((dueDay - today) / day);
 
   if (diffDays === 0) return "Due today";
   if (diffDays === 1) return "Due tomorrow";

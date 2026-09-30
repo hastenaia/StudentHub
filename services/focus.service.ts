@@ -1,14 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-
-export interface FocusCourseOption {
-  id: string;
-  name: string;
-}
-
-export interface FocusTaskOption {
-  id: string;
-  title: string;
-}
+import { computeStreak, reportingWindows } from "@/lib/dates";
 
 export interface FocusStats {
   todayMinutes: number;
@@ -20,28 +11,6 @@ export interface FocusStats {
   streak: number;
   totalMinutes: number;
   totalSessions: number;
-}
-
-function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-function computeStreak(dates: string[]): number {
-  if (dates.length === 0) return 0;
-  const uniq = Array.from(new Set(dates.map((s) => s.slice(0, 10)))).sort();
-  let streak = 0;
-  const today = new Date().toISOString().slice(0, 10);
-  let cursor = today;
-  const set = new Set(uniq);
-  while (set.has(cursor)) {
-    streak++;
-    const d = new Date(cursor);
-    d.setDate(d.getDate() - 1);
-    cursor = d.toISOString().slice(0, 10);
-  }
-  return streak;
 }
 
 export async function getFocusStats(userId: string): Promise<FocusStats> {
@@ -70,11 +39,7 @@ export async function getFocusStats(userId: string): Promise<FocusStats> {
     };
   }
 
-  const now = new Date();
-  const todayStart = startOfDay(now);
-  const weekStart = new Date(todayStart);
-  weekStart.setDate(todayStart.getDate() - 6); // last 7 days
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const { todayStart, weekStart, monthStart } = reportingWindows();
 
   let todayMinutes = 0;
   let todaySessions = 0;

@@ -6,16 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Mail, MailCheck } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { AuthForm, IconField, SubmitButton } from "@/components/auth/AuthFields";
 import { authService } from "@/services/auth.service";
 import { useToast } from "@/hooks/useToast";
 import { forgotPasswordSchema, type ForgotPasswordInput } from "@/lib/validations/auth";
@@ -64,46 +55,10 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <motion.form
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      onSubmit={form.handleSubmit(onSubmit)}
-      className="w-full space-y-5"
-      noValidate
-    >
-      <Form {...form}>
-        <FormField
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email address</FormLabel>
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <FormControl>
-                  <Input
-                    type="email"
-                    autoComplete="email"
-                    placeholder="you@studenthub.edu"
-                    className="pl-10"
-                    {...field}
-                  />
-                </FormControl>
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+    <AuthForm form={form} onSubmit={onSubmit}>
+        <IconField name="email" label="Email address" icon={Mail} type="email" autoComplete="email" placeholder="you@studenthub.edu" />
 
-        <Button
-          type="submit"
-          className="w-full"
-          size="lg"
-          isLoading={form.formState.isSubmitting}
-        >
-          Send reset link
-        </Button>
-      </Form>
+        <SubmitButton isLoading={form.formState.isSubmitting}>Send reset link</SubmitButton>
 
       <Link
         href="/login"
@@ -111,6 +66,6 @@ export function ForgotPasswordForm() {
       >
         <ArrowLeft className="h-4 w-4" /> Back to sign in
       </Link>
-    </motion.form>
+    </AuthForm>
   );
 }

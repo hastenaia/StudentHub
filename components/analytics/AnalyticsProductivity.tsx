@@ -18,7 +18,7 @@ export function AnalyticsProductivity({ data }: Props) {
         <CardTitle className="flex items-center gap-2 text-base">
           <TrendingUp className="h-4 w-4 text-brand-royal" /> Productivity
         </CardTitle>
-        <CardDescription>Most productive days, completion trends and averages</CardDescription>
+        <CardDescription>{data.mostProductiveDay === null && data.taskTrend.every((t) => t.count === 0) ? "No activity yet — complete a task or focus session" : "Most productive days, completion trends and averages"}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3">

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getScheduleData } from "@/services/schedule.service";
 import { ScheduleView } from "@/components/schedule/ScheduleView";
 import { CalendarShell } from "@/components/calendar/CalendarShell";
+import { PageHeader, PageLoadError } from "@/components/common/PageHeader";
 
 export const metadata = { title: "Schedule — StudentHub" };
 
@@ -24,25 +25,15 @@ export default async function SchedulePage() {
   }
 
   if (error || !data) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-xl font-semibold text-brand-dark sm:text-2xl">Schedule</h2>
-          <p className="mt-1 text-sm text-gray-500">Your personal and Google calendar events.</p>
-        </div>
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
-      </div>
-    );
+    return <PageLoadError title="Schedule" description="Your personal and Google calendar events." error={error} />;
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-brand-dark sm:text-2xl">Schedule</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Month, week, day, and agenda views — create and manage your personal schedule. Google Calendar events appear as read-only.
-        </p>
-      </div>
+      <PageHeader
+        title="Schedule"
+        description="Month, week, day, and agenda views — create and manage your personal schedule. Google Calendar events appear as read-only."
+      />
       <ScheduleView initialEvents={data.events} courses={data.courses} />
       <CalendarShell />
     </div>

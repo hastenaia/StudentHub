@@ -14,14 +14,20 @@ import { notesClientService } from "@/services/notesClient.service";
 import { createClient } from "@/lib/supabase/client";
 import { noteSchema, type NoteFormValues } from "@/lib/validations/study";
 import { MarkdownPreview } from "@/components/study/MarkdownPreview";
+import {
+  findUnlinkedAttachments,
+  linkedAttachments,
+  resolveLinks,
+  splitKeptDropped,
+  stripAttachmentLink,
+  toNoteDraft,
+  toUrlMap,
+  type DialogPdf,
+  type PendingPdf,
+} from "@/lib/notesForm";
 import type { Note, CourseOption } from "@/types/study";
 
 interface Props { initialNotes: Note[]; courses: CourseOption[] }
-
-const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const toUrlMap = (list: { url: string; path: string }[]) =>
-  Object.fromEntries(list.filter((a) => !a.path.startsWith("http")).map((a) => [a.path, a.url]));
-const hasLink = (content: string, path: string) => content.includes(`(attachment:${path})`);
 
 export function NotesTab({ initialNotes, courses }: Props) {
   const { toast } = useToast();
@@ -33,11 +39,11 @@ export function NotesTab({ initialNotes, courses }: Props) {
   const [editing, setEditing] = React.useState<Note | null>(null);
   const [open, setOpen] = React.useState(false);
   const [view, setView] = React.useState<Note | null>(null);
-  const [pendingPdfs, setPendingPdfs] = React.useState<{ path: string; file_name: string }[]>([]);
-  const [viewPdfs, setViewPdfs] = React.useState<{ name: string; url: string; path: string }[]>([]);
+  const [pendingPdfs, setPendingPdfs] = React.useState<PendingPdf[]>([]);
+  const [viewPdfs, setViewPdfs] = React.useState<DialogPdf[]>([]);
   const [viewContent, setViewContent] = React.useState<string | null>(null);
   const [urlCache, setUrlCache] = React.useState<Record<string, string>>({});
-  const [dialogPdfs, setDialogPdfs] = React.useState<{ name: string; url: string; path: string }[]>([]);
+  const [dialogPdfs, setDialogPdfs] = React.useState<DialogPdf[]>([]);
 
   // Uploads from an abandoned edit: discard on in-app navigation; a closed tab is caught by the sweep.
   const pendingRef = React.useRef(pendingPdfs);
@@ -50,9 +56,6 @@ export function NotesTab({ initialNotes, courses }: Props) {
       if (pendingRef.current.length) void notesClientService.discardPdfUploads(pendingRef.current.map((p) => p.path));
     };
   }, []);
-
-  const resolveLinks = (content: string, cache: Record<string, string>) =>
-    content.replace(/\[([^\]]+)\]\(attachment:([^)\s]+)\)/g, (m, label: string, p: string) => (cache[p] ? `[${label}](${cache[p]})` : label));
 
   const allTags = React.useMemo(() => Array.from(new Set(notes.flatMap((n) => n.tags))).sort(), [notes]);
 
@@ -100,50 +103,48 @@ export function NotesTab({ initialNotes, courses }: Props) {
     }
   }, [open, editing, form]);
 
-  const onSubmit = async (values: NoteFormValues) => {
-    const draft = {
-      title: values.title,
-      content: values.content || null,
-      favorite: values.favorite ?? false,
-      tags: values.tags ? values.tags.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 10) : [],
-      courseId: values.courseId || null,
-    };
-    const res = editing ? await notesClientService.updateNote(editing.id, draft) : await notesClientService.createNote(draft);
-    if (res.success && res.data) {
-      const note = res.data as Note;
-      if (editing) setNotes((prev) => prev.map((n) => (n.id === editing.id ? note : n)));
-      else setNotes((prev) => [note, ...prev]);
-      // Attachments follow the links in the saved content: a removed link drops its PDF.
-      const content = draft.content ?? "";
-      const kept = pendingPdfs.filter((p) => hasLink(content, p.path));
-      const dropped = pendingPdfs.filter((p) => !hasLink(content, p.path)).map((p) => p.path);
-      if (dropped.length) void notesClientService.discardPdfUploads(dropped);
-      if (kept.length > 0) {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        const { error } = user
-          ? await supabase.from("note_attachments").insert(kept.map((p) => ({ user_id: user.id, note_id: note.id, file_url: p.path, file_name: p.file_name })))
-          : { error: { message: "Not signed in." } };
-        if (error) toast({ title: "PDF link not saved", description: error.message, variant: "error" });
-      }
-      setPendingPdfs([]);
-      if (editing) {
-        const unlinked = dialogPdfs.filter((a) => !a.path.startsWith("http") && !hasLink(content, a.path)).map((a) => a.path);
-        const removed = await notesClientService.removeAttachments(note.id, unlinked);
-        if (!removed.success) toast({ title: "Could not remove PDF", description: removed.message, variant: "error" });
-      }
-      toast({ title: editing ? "Note updated" : "Note created", variant: "success" });
-      setOpen(false);
-      setEditing(null);
-    } else {
-      toast({ title: "Failed", description: res.message, variant: "error" });
+  const persistAttachments = async (noteId: string, content: string) => {
+    const { kept, dropped } = splitKeptDropped(content, pendingPdfs);
+    if (dropped.length) void notesClientService.discardPdfUploads(dropped);
+    if (kept.length > 0) {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = user
+        ? await supabase.from("note_attachments").insert(kept.map((p) => ({ user_id: user.id, note_id: noteId, file_url: p.path, file_name: p.file_name })))
+        : { error: { message: "Not signed in." } };
+      if (error) toast({ title: "PDF link not saved", description: error.message, variant: "error" });
     }
+    setPendingPdfs([]);
+  };
+
+  const pruneRemovedAttachments = async (noteId: string, content: string) => {
+    const unlinked = findUnlinkedAttachments(content, dialogPdfs);
+    const removed = await notesClientService.removeAttachments(noteId, unlinked);
+    if (!removed.success) toast({ title: "Could not remove PDF", description: removed.message, variant: "error" });
+  };
+
+  const onSubmit = async (values: NoteFormValues) => {
+    const draft = toNoteDraft(values);
+    const res = editing ? await notesClientService.updateNote(editing.id, draft) : await notesClientService.createNote(draft);
+    if (!res.success || !res.data) {
+      toast({ title: "Failed", description: res.message, variant: "error" });
+      return;
+    }
+    const note = res.data as Note;
+    if (editing) setNotes((prev) => prev.map((n) => (n.id === editing.id ? note : n)));
+    else setNotes((prev) => [note, ...prev]);
+    // Attachments follow the links in the saved content: a removed link drops its PDF.
+    const content = draft.content ?? "";
+    await persistAttachments(note.id, content);
+    if (editing) await pruneRemovedAttachments(note.id, content);
+    toast({ title: editing ? "Note updated" : "Note created", variant: "success" });
+    setOpen(false);
+    setEditing(null);
   };
 
   const unlinkPdf = (path: string) => {
     const cur = form.getValues("content") ?? "";
-    const next = cur.replace(new RegExp(`\\n*\\[[^\\]]*\\]\\(attachment:${escapeRegExp(path)}\\)`, "g"), "");
-    form.setValue("content", next, { shouldDirty: true });
+    form.setValue("content", stripAttachmentLink(cur, path), { shouldDirty: true });
   };
 
   const closeDialog = () => {
@@ -339,11 +340,7 @@ export function NotesTab({ initialNotes, courses }: Props) {
                       <label className="text-xs font-medium text-gray-700">Attach PDF (max 10MB)</label>
                       <input type="file" accept="application/pdf" className="mt-1 block text-xs" onChange={(e) => handlePdfAttach(e.target.files?.[0] ?? null)} />
                       {(() => {
-                        const content = field.value ?? "";
-                        const linked = [
-                          ...dialogPdfs.filter((a) => a.path.startsWith("http") || hasLink(content, a.path)),
-                          ...pendingPdfs.filter((p) => hasLink(content, p.path)).map((p) => ({ name: p.file_name, url: urlCache[p.path] ?? "", path: p.path })),
-                        ];
+                        const linked = linkedAttachments(field.value ?? "", dialogPdfs, pendingPdfs, urlCache);
                         if (!linked.length) return null;
                         return (
                           <div className="mt-1 space-y-1">

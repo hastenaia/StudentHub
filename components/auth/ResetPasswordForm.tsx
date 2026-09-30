@@ -2,27 +2,12 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Check, KeyRound, Lock, X } from "lucide-react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { KeyRound, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { authService } from "@/services/auth.service";
-import { useToast } from "@/hooks/useToast";
-import { changePasswordSchema, type ChangePasswordInput } from "@/lib/validations/auth";
-import { PASSWORD_RULES } from "@/utils/validation";
-import { cn } from "@/utils/cn";
+import { AuthForm, NewPasswordFields, useNewPasswordForm } from "@/components/auth/AuthFields";
 
 type VerifyState = "verifying" | "ready" | "invalid";
 
@@ -35,22 +20,11 @@ type VerifyState = "verifying" | "ready" | "invalid";
  * A valid recovery session is required before allowing a password update.
  */
 export function ResetPasswordForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const { toast } = useToast();
   const [status, setStatus] = React.useState<VerifyState>("verifying");
   const [errorDetail, setErrorDetail] = React.useState<string | null>(null);
 
-  const form = useForm<ChangePasswordInput>({
-    resolver: zodResolver(changePasswordSchema),
-    defaultValues: { newPassword: "", confirmPassword: "" },
-  });
-
-  const newPassword = form.watch("newPassword");
-  const rules = PASSWORD_RULES.map((rule) => ({
-    label: rule.label,
-    met: rule.test(newPassword),
-  }));
+  const { form, onSubmit } = useNewPasswordForm("You can now sign in with your new password.");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -147,22 +121,6 @@ export function ResetPasswordForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const onSubmit = async ({ newPassword }: ChangePasswordInput) => {
-    const result = await authService.changePassword({
-      newPassword,
-      confirmPassword: newPassword,
-    });
-
-    if (!result.success) {
-      toast({ title: "Could not update password", description: result.message, variant: "error" });
-      return;
-    }
-
-    toast({ title: "Password updated", description: "You can now sign in with your new password.", variant: "success" });
-    router.push("/dashboard");
-    router.refresh();
-  };
-
   if (status === "verifying") {
     return (
       <motion.div
@@ -215,90 +173,14 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <motion.form
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      onSubmit={form.handleSubmit(onSubmit)}
-      className="w-full space-y-5"
-      noValidate
-    >
-      <Form {...form}>
-        <FormField
-          name="newPassword"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>New password</FormLabel>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <FormControl>
-                  <Input
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder="••••••••"
-                    className="pl-10"
-                    {...field}
-                  />
-                </FormControl>
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <ul className="grid grid-cols-1 gap-1.5 rounded-md bg-brand-gray p-3 sm:grid-cols-2">
-          {rules.map((rule) => (
-            <li
-              key={rule.label}
-              className={cn(
-                "flex items-center gap-1.5 text-xs",
-                rule.met ? "text-green-600" : "text-gray-400"
-              )}
-            >
-              {rule.met ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
-              {rule.label}
-            </li>
-          ))}
-        </ul>
-
-        <FormField
-          name="confirmPassword"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Confirm new password</FormLabel>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <FormControl>
-                  <Input
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder="••••••••"
-                    className="pl-10"
-                    {...field}
-                  />
-                </FormControl>
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <Button
-          type="submit"
-          className="w-full"
-          size="lg"
-          isLoading={form.formState.isSubmitting}
-        >
-          Set new password
-        </Button>
-      </Form>
-
+    <AuthForm form={form} onSubmit={onSubmit}>
+      <NewPasswordFields isSubmitting={form.formState.isSubmitting} submitLabel="Set new password" />
       <Link
         href="/login"
         className="flex items-center justify-center text-sm font-medium text-gray-500 hover:text-brand-royal"
       >
         Back to sign in
       </Link>
-    </motion.form>
+    </AuthForm>
   );
 }

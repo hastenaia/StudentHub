@@ -9,7 +9,6 @@ export type RecurrenceFreq = "daily" | "weekly" | "monthly";
 
 export const TASK_STATUSES: TaskStatus[] = ["todo", "in_progress", "done"];
 export const TASK_PRIORITIES: TaskPriority[] = ["urgent", "high", "medium", "low"];
-const RECURRENCE_FREQS: RecurrenceFreq[] = ["daily", "weekly", "monthly"];
 
 export interface Task {
   id: string;
@@ -32,19 +31,10 @@ export interface Task {
 }
 
 /** Form payload sent to the client service to create or update a task. */
-export interface TaskDraft {
-  title: string;
-  description?: string | null;
-  status: TaskStatus;
-  priority: TaskPriority;
-  tags: string[];
-  dueAt: string | null;
-  estimateMinutes: number | null;
-  recurrenceFreq: RecurrenceFreq | null;
-  recurrenceInterval: number;
-  recurUntil: string | null;
-  courseId: string | null;
-}
+export type TaskDraft = Pick<
+  Task,
+  "title" | "status" | "priority" | "tags" | "dueAt" | "estimateMinutes" | "recurrenceFreq" | "recurrenceInterval" | "recurUntil" | "courseId"
+> & { description?: string | null };
 
 export interface TaskCourseOption {
   id: string;

@@ -1,18 +1,9 @@
 import { Timer, CalendarDays, Clock, Flame } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import type { AnalyticsData } from "@/services/analytics.service";
 
 interface Props {
-  data: {
-    dailyMinutes: number;
-    dailySessions: number;
-    weeklyMinutes: number;
-    weeklySessions: number;
-    monthlyMinutes: number;
-    monthlySessions: number;
-    averageMinutes: number;
-    dailyTrend: { date: string; label: string; minutes: number }[];
-    weeklyTrend: { week: string; minutes: number }[];
-  };
+  data: AnalyticsData["focus"];
 }
 
 function BarChart({ data, max, color }: { data: { label: string; minutes: number }[]; max: number; color: string }) {
@@ -44,7 +35,7 @@ export function AnalyticsFocus({ data }: Props) {
         <CardTitle className="flex items-center gap-2 text-base">
           <Timer className="h-4 w-4 text-emerald-600" /> Focus
         </CardTitle>
-        <CardDescription>Daily, weekly, monthly and averages from focus_sessions</CardDescription>
+        <CardDescription>{data.monthlySessions === 0 ? "No focus sessions yet — start a Pomodoro to see trends" : "Daily, weekly, monthly and averages from focus_sessions"}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

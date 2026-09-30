@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/utils/cn";
 import { COURSE_COLORS, courseSchema, type CourseFormValues } from "@/lib/validations/courses";
 import type { CourseDraft } from "@/types/courses";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 interface CourseFormProps {
   open: boolean;
@@ -61,14 +62,7 @@ export function CourseForm({ open, initialDraft, onClose, onSubmit }: CourseForm
     form.reset(draftToForm(initialDraft));
   }, [open, initialDraft, form]);
 
-  React.useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  useEscapeKey(open, onClose);
 
   if (!open) return null;
 

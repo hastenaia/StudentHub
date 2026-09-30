@@ -47,16 +47,21 @@ components/
   layout/                Sidebar, Navbar, DashboardShell
   <domain>/              Feature components: auth, dashboard, courses, schedule,
                          tasks, study, focus, analytics, wellness, gamification, settings
-  common/                ErrorBoundary, Skeletons
-hooks/                   useAuth, useToast, useGroupedEvents
+  common/                ErrorBoundary, Skeletons, PageHeader
+  auth/AuthFields.tsx    Shared auth form pieces (IconField, PasswordRules, NewPasswordFields)
+hooks/                   useAuth, useToast (incl. notify), useGroupedEvents, useEscapeKey
 lib/
   supabase/              Browser/server clients, shared cookie factory, session
-                         middleware, error mapping
+                         middleware, error mapping, auth-link redirects,
+                         shared queries (activeCoursesQuery, withActiveCourses)
   rbac.ts                Role hierarchy + route-level access map
   ai/provider.ts         Server-only multi-provider AI call with timeout
+  ai/route.ts            Shared /api/ai/* plumbing: auth + body, note source, error mapping
   google/                OAuth token mechanics + AES-256-GCM token encryption
   scheduling.ts          Min-heap task ordering + recurrence math (unit-tested)
   focus.ts               Focus/Pomodoro helpers
+  dates.ts               startOfDay/endOfDay, reporting windows, streaks (unit-tested)
+  wellness.ts, taskSort.ts, aiRequests.ts   Pure page logic pulled out of services/components (unit-tested)
   taskView.ts, courseView.ts, scheduleView.ts   DB row → view-model mappers
   validations/           Zod schemas per domain
   mocks/                 Mock data still used by a few legacy components
@@ -149,8 +154,9 @@ private `notes-pdfs` Storage bucket), flashcards, quizzes with attempts, and an
 AI assistant tab. AI results can be saved as flashcards/quizzes.
 
 ### AI
-`/api/ai/*` handlers authenticate the user, optionally load a note by
-`noteId`, build a prompt and call `callAI()` in `lib/ai/provider.ts`. See
+`/api/ai/*` handlers use `lib/ai/route.ts` (`startAIRoute` for auth + body,
+`resolveNoteSource` to load a note by `noteId`, `runAI` to call `callAI()` in
+`lib/ai/provider.ts` and map failures to 503/502). See
 [api.md](api.md#ai-routes).
 
 ### Focus, Wellness, Analytics, Achievements

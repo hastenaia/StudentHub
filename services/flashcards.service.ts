@@ -1,16 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
-import { toCourseOptions } from "@/lib/courseView";
 import type { CourseOption, Flashcard } from "@/types/study";
+import { withActiveCourses } from "@/lib/supabase/queries";
 
 export async function getFlashcardsData(userId: string): Promise<{ flashcards: Flashcard[]; courses: CourseOption[] }> {
   const supabase = await createClient();
-  const [flashRes, coursesRes] = await Promise.all([
-    supabase.from("flashcards").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
-    supabase.from("courses").select("id, name, course_name, color").eq("user_id", userId).eq("archived", false).order("name"),
-  ]);
-  const courses: CourseOption[] = toCourseOptions(coursesRes.data);
-  const courseMap = new Map(courses.map((c) => [c.id, c]));
-  const flashcards: Flashcard[] = (flashRes.data ?? []).map((row) => ({
+  const { rows, courses, courseMap } = await withActiveCourses(
+    supabase,
+    userId,
+    supabase.from("flashcards").select("*").eq("user_id", userId).order("created_at", { ascending: false })
+  );
+  const flashcards: Flashcard[] = rows.map((row) => ({
     id: row.id,
     courseId: row.course_id,
     courseName: row.course_id ? courseMap.get(row.course_id)?.name ?? null : null,

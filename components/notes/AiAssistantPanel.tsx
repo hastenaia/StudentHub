@@ -21,12 +21,10 @@ export function AiAssistantPanel() {
     const correct = mockQuiz[quizIdx].answer;
     const isCorrect = opt === correct;
     setTimeout(() => {
-      const nextScore = (score ?? 0) + (isCorrect ? 1 : 0);
-      setScore(nextScore);
-      if (quizIdx + 1 < mockQuiz.length) { setQuizIdx((i) => i + 1); setPicked(null); }
-      else {
-        // done
-      }
+      setScore((s) => (s ?? 0) + (isCorrect ? 1 : 0));
+      // Advance past the last question too: quizIdx === mockQuiz.length renders the "Quiz complete" screen.
+      setQuizIdx((i) => i + 1);
+      setPicked(null);
     }, 600);
   };
 

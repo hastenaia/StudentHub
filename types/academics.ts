@@ -35,29 +35,6 @@ export interface DashboardAnnouncement {
   publishTime: string | null;
 }
 
-export interface CalendarEvent {
-  id: string;
-  summary: string;
-  location: string | null;
-  startAt: string | null;
-  endAt: string | null;
-  allDay: boolean;
-}
-
-export interface DashboardData {
-  /** True when a Google account is linked and tokens are usable. */
-  googleLinked: boolean;
-  googleEmail: string | null;
-  lastSyncedAt: string | null;
-  /** True when the cache is older than the staleness threshold. */
-  stale: boolean;
-  courses: DashboardCourse[];
-  /** Global list of soonest deadlines (across all courses), sorted ascending. */
-  upcoming: DashboardAssignment[];
-  announcements: DashboardAnnouncement[];
-  calendarEvents: CalendarEvent[];
-}
-
 export interface GoogleAccountView {
   linked: boolean;
   email: string | null;

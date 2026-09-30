@@ -4,23 +4,14 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Check, Eye, EyeOff, Lock, Mail, User, X } from "lucide-react";
+import { Lock, Mail, User } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { buttonVariants } from "@/components/ui/button";
+import { AuthForm, IconField, PasswordRules, SubmitButton } from "@/components/auth/AuthFields";
 import { authService } from "@/services/auth.service";
 import { useToast } from "@/hooks/useToast";
 import { signupSchema, type SignupInput } from "@/lib/validations/auth";
-import { PASSWORD_RULES } from "@/utils/validation";
 import { cn } from "@/utils/cn";
 
 export function SignupForm() {
@@ -33,12 +24,6 @@ export function SignupForm() {
     resolver: zodResolver(signupSchema),
     defaultValues: { fullName: "", email: "", password: "", confirmPassword: "" },
   });
-
-  const newPassword = form.watch("password");
-  const rules = PASSWORD_RULES.map((rule) => ({
-    label: rule.label,
-    met: rule.test(newPassword),
-  }));
 
   const onSubmit = async ({ fullName, email, password }: SignupInput) => {
     const result = await authService.signup({
@@ -83,129 +68,32 @@ export function SignupForm() {
   }
 
   return (
-    <motion.form
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      onSubmit={form.handleSubmit(onSubmit)}
-      className="w-full space-y-5"
-      noValidate
-    >
-      <Form {...form}>
-        <FormField
-          name="fullName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Full name</FormLabel>
-              <div className="relative">
-                <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <FormControl>
-                  <Input
-                    type="text"
-                    autoComplete="name"
-                    placeholder="Jane Doe"
-                    className="pl-10"
-                    {...field}
-                  />
-                </FormControl>
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+    <AuthForm form={form} onSubmit={onSubmit}>
+        <IconField name="fullName" label="Full name" icon={User} autoComplete="name" placeholder="Jane Doe" />
+        <IconField name="email" label="Email address" icon={Mail} type="email" autoComplete="email" placeholder="you@studenthub.edu" />
 
-        <FormField
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email address</FormLabel>
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <FormControl>
-                  <Input
-                    type="email"
-                    autoComplete="email"
-                    placeholder="you@studenthub.edu"
-                    className="pl-10"
-                    {...field}
-                  />
-                </FormControl>
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
+        <IconField
           name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password</FormLabel>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <FormControl>
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    placeholder="••••••••"
-                    className="px-10"
-                    {...field}
-                  />
-                </FormControl>
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((s) => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand-dark"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              <FormMessage />
-              <ul className="grid grid-cols-1 gap-1.5 rounded-md bg-brand-gray p-3 sm:grid-cols-2">
-                {rules.map((rule) => (
-                  <li
-                    key={rule.label}
-                    className={cn(
-                      "flex items-center gap-1.5 text-xs",
-                      rule.met ? "text-green-600" : "text-gray-400"
-                    )}
-                  >
-                    {rule.met ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
-                    {rule.label}
-                  </li>
-                ))}
-              </ul>
-            </FormItem>
-          )}
-        />
+          label="Password"
+          icon={Lock}
+          type="password"
+          autoComplete="new-password"
+          placeholder="••••••••"
+          reveal={{ shown: showPassword, toggle: () => setShowPassword((v) => !v) }}
+        >
+          <PasswordRules name="password" />
+        </IconField>
 
-        <FormField
+        <IconField
           name="confirmPassword"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Confirm password</FormLabel>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <FormControl>
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    placeholder="••••••••"
-                    className="pl-10"
-                    {...field}
-                  />
-                </FormControl>
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
+          label="Confirm password"
+          icon={Lock}
+          type={showPassword ? "text" : "password"}
+          autoComplete="new-password"
+          placeholder="••••••••"
         />
 
-        <Button type="submit" className="w-full" size="lg" isLoading={form.formState.isSubmitting}>
-          Create account
-        </Button>
-      </Form>
-    </motion.form>
+        <SubmitButton isLoading={form.formState.isSubmitting}>Create account</SubmitButton>
+    </AuthForm>
   );
 }

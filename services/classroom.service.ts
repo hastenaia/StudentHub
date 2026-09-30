@@ -4,7 +4,6 @@ import type {
   GoogleCourse,
   GoogleCourseWork,
   GoogleListResponse,
-  GoogleStudentSubmission,
 } from "@/types/google";
 
 /**
@@ -57,22 +56,6 @@ export function listCourseWork(
     accessToken,
     `${CLASSROOM_ROOT}/courses/${courseId}/courseWork`,
     "courseWork"
-  );
-}
-
-/**
- * The calling user's submissions for a single courseWork item. A student
- * normally has exactly one submission (or none if they never started).
- */
-function listStudentSubmissions(
-  accessToken: string,
-  courseId: string,
-  courseWorkId: string
-): Promise<GoogleStudentSubmission[]> {
-  return paginate<GoogleStudentSubmission>(
-    accessToken,
-    `${CLASSROOM_ROOT}/courses/${courseId}/courseWork/${courseWorkId}/studentSubmissions`,
-    "studentSubmissions"
   );
 }
 

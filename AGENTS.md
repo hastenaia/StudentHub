@@ -1,88 +1,45 @@
-<!-- fallow:agent-install v1 authored sha256=339f4504425db440c432471a73f6a67c9394e8a6c389241e66ba80826421b8d1 -->
 # AGENTS.md
 
-This file gives coding agents project-specific context. Keep it short and update it when workflows change.
-
-## Project Overview
-
-- Primary app or package:
-- Main entry points:
-- Important directories:
-
-## Architecture Notes
-
-- Module boundaries:
-- Generated or vendored code:
-- Sensitive areas:
+Next.js 16 App Router + React 18 + TypeScript + Supabase (Auth, Postgres RLS, Storage). No monorepo.
 
 ## Commands
 
-<!-- fallow init prefilled these from package.json; confirm before relying on them -->
-- Install:
-- Build:
-- Test: Vitest
-- Typecheck or lint: tsc --noEmit
+```bash
+npm install
+npm run dev          # http://localhost:3000; unauthenticated → /login
+npm run build        # production build; doubles as typecheck (no `typecheck` script; `tsc --noEmit` works too)
+npm run lint         # eslint flat config (`eslint-config-next`)
+npm test             # vitest run, all **/*.test.{ts,tsx}
+npm run test:watch   # watch mode
+npx vitest run lib/scheduling.test.ts   # single file
+npx vitest run -t "nextRecurrence"      # single test by name
+npm run typegen      # regenerate `types/database.types.ts` from Supabase project (needs CLI)
+npm run db:migrate   # `supabase db push` (applies `supabase/migrations/`)
+```
 
-## Fallow
+Setup: copy `.env.local.example` → `.env.local`; never commit keys. Migrations run in timestamp order via CLI or Supabase SQL Editor.
 
-- Use `fallow audit --format json --quiet` before committing AI-generated changes.
-- Use `fallow dead-code --format json --quiet`, `fallow dupes --format json --quiet`, and `fallow health --format json --quiet` for targeted checks.
-- Use `fallow list --entry-points --format json --quiet` and `fallow list --boundaries --format json --quiet` to inspect project shape.
+## Architecture
 
-<!-- generated:task-matrix:start -->
-| When the agent is about to... | Run |
-|---|---|
-| delete an "unused" export or file | `fallow dead-code --trace <file>:<export>` |
-| prove a TypeScript symbol's exact consumers before refactoring | `fallow dead-code --type-aware --symbol-impact <file>:<export-or-class.method>` |
-| find how one module reaches another | `fallow trace --path <from> <to>` (Reports `reachable: false` instead of failing when no import path exists; type-only hops are reported, not skipped.) |
-| delete an "unused" dependency | `fallow dead-code --trace-dependency <name>` |
-| commit or open a PR | `fallow audit --base <ref>` |
-| read a diff before approving it | `fallow review --base <ref> --brief` (orientation, never gates: deterministic and always exit 0, unlike the audit row) |
-| prioritize refactoring | `fallow health --hotspots --targets` |
-| ask who owns code | `fallow health --ownership` |
-| check untested-but-reachable code | `fallow health --coverage-gaps` |
-| consolidate duplication | `fallow dupes --trace dup:<fingerprint>` |
-| find feature flags | `fallow flags` |
-| check which architecture rules apply to a file before changing it | `fallow guard <files>` |
-| surface security candidates | `fallow security` |
-| understand a finding | `fallow explain <issue-type>` |
-| scope a monorepo | `--workspace <glob> / --changed-workspaces <ref>` (global flags, prefix any command) |
-<!-- generated:task-matrix:end -->
+- Request gate is `proxy.ts` (Next 16 name), not `middleware.ts`. Delegates to `updateSession` (`lib/supabase/middleware.ts`), which applies pure rules in `lib/authGate.ts` (`rescueAuthLink` before session read, then `sessionRedirect`). Roles from `app_metadata` only — never `user_metadata`. New public pages must be added to `PUBLIC_ROUTES` in `lib/authGate.ts`.
+- Page pattern: async Server Component `app/(dashboard)/dashboard/<feature>/page.tsx` calls `get<Domain>Data(user.id)` from `services/<domain>.service.ts` (server reads only), passes `initialData` to client `components/<domain>/<Domain>View.tsx`, which writes via `services/<domain>Client.service.ts` object (e.g. `tasksClientService`) returning `ApiResult<T>` (`ok()`/`fail()` in `types/api.ts`). Components never call Supabase directly; after mutation update optimistically and/or `router.refresh()`.
+- Supabase clients: `lib/supabase/server.ts` (server/route handlers), `lib/supabase/client.ts` (browser), shared cookie wiring in `lib/supabase/factory.ts`. DB types are generated `types/database.types.ts`.
+- Pure logic lives in `lib/`: row→view mappers (`taskView.ts`, `courseView.ts`, `scheduleView.ts`), algorithms (`scheduling.ts` min-heap ordering + recurrence, `dates.ts`), `withActiveCourses` in `lib/supabase/queries.ts`. Zod schemas in `lib/validations/`, domain types in `types/<domain>.ts`.
+- Google: pages read Supabase cache only, never Google. Sole Google caller is `POST /api/dashboard/sync` (`services/google.service.ts` → `classroom/calendar.service.ts`). OAuth is `app/api/google/auth` → `app/api/google/callback`; tokens AES-256-GCM encrypted (`lib/google/crypto.ts`, key `GOOGLE_TOKEN_ENCRYPTION_KEY`). Supabase auth callbacks (`app/auth/callback`, `app/auth/confirm`) are separate.
+- AI: `app/api/ai/*` handlers use `lib/ai/route.ts` (`startAIRoute`, `resolveNoteSource`, `runAI`) + `callAI()` in `lib/ai/provider.ts` (raw `fetch`, first configured provider `OPENAI_API_KEY`/`AI_API_KEY` → `ANTHROPIC_API_KEY` → `GOOGLE_AI_API_KEY`/`GEMINI_API_KEY`, ~4.5s timeout). Unconfigured → 503 error, never fake output.
+- Leftovers: `/dashboard/notes` is mock-backed (`lib/mocks/notes`); Schedule page renders mock `CalendarShell` below real `ScheduleView`; `academic_settings`, `courses.manual_grade`/`target_pct` are unused schema.
 
-## Agent Rules
+## Database
 
-- Do not edit:
-- Always ask before:
-- Preferred style:
+- `supabase/migrations/` (timestamped) is source of truth. `supabase/schema.sql` and `consolidated.sql` are stale snapshots. Every table is owner-only RLS on `user_id`. After adding a migration, run `npm run typegen`.
 
----
+## Testing
 
-<!-- fallow:setup-hooks:start -->
-## Fallow local gate
+- Vitest + Testing Library, jsdom default, globals on, `@` → repo root (`vitest.config.mts`). Files needing Node crypto/`Response` add `// @vitest-environment node`.
+- Coverage is pure layers only (`lib/**`, `utils/*`, `callAI`, auth redirects, 2 hooks, 2 components). `services/*`, most route handlers/components are untested — move logic into pure `lib/*.ts` and test there.
 
-Before any `git commit` or `git push`, run `fallow audit --format json --quiet --explain --gate-marker agent`. If the verdict is `fail`, fix the reported findings before retrying. Treat JSON runtime errors like `{ "error": true, ... }` as non-blocking.
+## Workflow
 
-Audit defaults to `gate=new-only`: only findings introduced by the current changeset affect the verdict. Inherited findings on touched files are reported under `attribution` and annotated with `introduced: false`, but do not block the commit. Set `[audit] gate = "all"` in `fallow.toml` to gate every finding in changed files.
-
-For non-skill agents, treat the task map below as the local onboarding source: run the listed fallow command before destructive edits, before commits, and before pull request handoff.
-
-## Fallow task map
-
-| When the agent is about to... | Run |
-|---|---|
-| delete an "unused" export or file | `fallow dead-code --trace <file>:<export>` |
-| prove a TypeScript symbol's exact consumers before refactoring | `fallow dead-code --type-aware --symbol-impact <file>:<export-or-class.method>` |
-| find how one module reaches another | `fallow trace --path <from> <to>` (Reports `reachable: false` instead of failing when no import path exists; type-only hops are reported, not skipped.) |
-| delete an "unused" dependency | `fallow dead-code --trace-dependency <name>` |
-| commit or open a PR | `fallow audit --base <ref>` |
-| read a diff before approving it | `fallow review --base <ref> --brief` (orientation, never gates: deterministic and always exit 0, unlike the audit row) |
-| prioritize refactoring | `fallow health --hotspots --targets` |
-| ask who owns code | `fallow health --ownership` |
-| check untested-but-reachable code | `fallow health --coverage-gaps` |
-| consolidate duplication | `fallow dupes --trace dup:<fingerprint>` |
-| find feature flags | `fallow flags` |
-| check which architecture rules apply to a file before changing it | `fallow guard <files>` |
-| surface security candidates | `fallow security` |
-| understand a finding | `fallow explain <issue-type>` |
-| scope a monorepo | `--workspace <glob> / --changed-workspaces <ref>` (global flags, prefix any command) |
-<!-- fallow:setup-hooks:end -->
+- `docs/` (architecture, auth, data-model, api, google-integration, testing, deployment) are the reference; `PROJECT_DOCUMENTATION.md` is a merged copy — edit the sources, not it. Update the matching doc when changing routes, tables, or auth flow.
+- Path alias is `@/*` → repo root (not `src/`). Tailwind brand tokens live in `tailwind.config.ts` (`bg-brand-royal`, etc.).
+- Before `git commit`/`push`: `fallow audit --format json --quiet --explain --gate-marker agent`; fix `fail` verdicts first.

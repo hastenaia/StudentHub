@@ -18,6 +18,7 @@ import { Select } from "@/components/ui/select";
 import { cn } from "@/utils/cn";
 import { RecurrencePicker } from "@/components/tasks/RecurrencePicker";
 import { taskDraftToForm, taskFormSchema, taskFormToDraft, type TaskFormValues } from "@/lib/validations/tasks";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import {
   TASK_PRIORITIES,
   TASK_STATUSES,
@@ -62,14 +63,7 @@ export function TaskForm({ open, initialDraft, defaultStatus, courses, onClose, 
     form.reset(initialDraft ? taskDraftToForm(initialDraft) : { ...EMPTY_VALUES, status: defaultStatus });
   }, [open, initialDraft, defaultStatus, form]);
 
-  React.useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  useEscapeKey(open, onClose);
 
   if (!open) return null;
 

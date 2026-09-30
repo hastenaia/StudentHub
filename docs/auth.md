@@ -34,6 +34,7 @@ which wraps `supabase.auth.*` calls and returns a consistent `ApiResult`
 | `/auth/callback` | Yes | Exchange a Supabase auth code / OTP token for a session |
 | `/auth/confirm` | Yes | Verify a Supabase OTP token (`?token_hash=&type=`) |
 | `/change-password` | Yes* | Change password (first-login forced or on demand) |
+| `/api/health` | Yes | Liveness probe for uptime monitors (`{ ok, time }`, no data access) |
 | `/dashboard/*` | No | Authenticated app |
 
 `*` `/change-password` and `/reset-password` are public so a user following
@@ -41,20 +42,26 @@ an email reset link can still set a new password. Authenticated users with
 `must_change_password` set are redirected to `/change-password` (recovery
 links land on `/reset-password` instead).
 
-`PUBLIC_ROUTES` is defined in `lib/supabase/middleware.ts`; any new public
-page must be added there.
+`PUBLIC_ROUTES` is defined in `lib/authGate.ts`; any new public
+page must be added there (and to its test, `lib/authGate.test.ts`).
 
 ## Proxy protection
 
 Next.js 16 renamed `middleware.ts` to `proxy.ts`. `proxy.ts` matches every
 route except static assets and forwards to `updateSession` in
-`lib/supabase/middleware.ts`, which:
+`lib/supabase/middleware.ts`. The redirect decisions themselves are pure,
+unit-tested functions in `lib/authGate.ts` (`rescueAuthLink` for step 1,
+`sessionRedirect` for steps 4–7, tried in that order); `middleware.ts` only
+wires the Supabase cookie client and applies them. In order:
 
-1. **Rescues stray auth links**: a request with `?code=`, `?token_hash=` or
-   `?error=` that isn't already on `/auth/callback`, `/auth/confirm` or
-   `/reset-password` is redirected to `/auth/callback` (with
-   `next=/reset-password` if no `next` is set). This covers Supabase falling
-   back to the Site URL when the redirect allow-list isn't configured.
+1. **Rescues stray auth links**: a request with `?code=` or `?token_hash=`
+   (or `?error=` on `/` only, so a failed callback landing on
+   `/login?error=…` can't loop) that isn't on `/auth/callback`,
+   `/auth/confirm`, `/reset-password` or any `/api/*` route is redirected to
+   `/auth/callback` (with `next=/reset-password` if no `next` is set). This
+   covers Supabase falling back to the Site URL when the redirect allow-list
+   isn't configured; `/api/*` is excluded because `/api/google/callback`
+   receives Google's own `?code=`.
 2. Creates a Supabase cookie client bound to the request.
 3. Calls `auth.getUser()` to load the session. No code may run between client
    creation and this call.

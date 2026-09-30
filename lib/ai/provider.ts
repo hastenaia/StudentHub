@@ -14,10 +14,10 @@ interface AIConfig {
 }
 
 function getAIConfig(): { ok: true; config: AIConfig } | { ok: false; error: string } {
-  // Prefer explicit AI_API_KEY, fall back to common provider keys
-  const openaiKey = process.env.OPENAI_API_KEY ?? process.env.AI_API_KEY;
+  // `||`, not `??`: an empty `KEY=` line in .env.local must count as unset, not hide the fallback.
+  const openaiKey = process.env.OPENAI_API_KEY || process.env.AI_API_KEY;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  const googleKey = process.env.GOOGLE_AI_API_KEY ?? process.env.GEMINI_API_KEY;
+  const googleKey = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
 
   if (openaiKey) {
     return {
@@ -25,8 +25,8 @@ function getAIConfig(): { ok: true; config: AIConfig } | { ok: false; error: str
       config: {
         provider: "openai",
         apiKey: openaiKey,
-        model: process.env.AI_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini",
-        baseUrl: process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
+        model: process.env.AI_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini",
+        baseUrl: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
       },
     };
   }
@@ -36,7 +36,7 @@ function getAIConfig(): { ok: true; config: AIConfig } | { ok: false; error: str
       config: {
         provider: "anthropic",
         apiKey: anthropicKey,
-        model: process.env.ANTHROPIC_MODEL ?? "claude-3-haiku-20240307",
+        model: process.env.ANTHROPIC_MODEL || "claude-3-haiku-20240307",
       },
     };
   }
@@ -46,7 +46,7 @@ function getAIConfig(): { ok: true; config: AIConfig } | { ok: false; error: str
       config: {
         provider: "google",
         apiKey: googleKey,
-        model: process.env.GOOGLE_AI_MODEL ?? "gemini-1.5-flash",
+        model: process.env.GOOGLE_AI_MODEL || "gemini-1.5-flash",
       },
     };
   }
@@ -76,86 +76,64 @@ async function withAbort<T>(ms: number, fn: (signal: AbortSignal | undefined) =>
   }
 }
 
+type ProviderRequest = { url: string; headers: Record<string, string>; body: unknown; pick: (data: unknown) => string | undefined };
+
+/** Each provider only differs in request shape and where the text sits in the reply. */
+function buildRequest(config: AIConfig, prompt: string, systemPrompt?: string): ProviderRequest {
+  switch (config.provider) {
+    case "openai":
+      return {
+        url: `${config.baseUrl}/chat/completions`,
+        headers: { Authorization: `Bearer ${config.apiKey}` },
+        body: {
+          model: config.model,
+          messages: [...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []), { role: "user", content: prompt }],
+          temperature: 0.7,
+          max_tokens: 1000,
+        },
+        pick: (d) => (d as { choices?: { message?: { content?: string } }[] }).choices?.[0]?.message?.content,
+      };
+    case "anthropic":
+      return {
+        url: "https://api.anthropic.com/v1/messages",
+        headers: { "x-api-key": config.apiKey, "anthropic-version": "2023-06-01" },
+        body: { model: config.model, max_tokens: 1024, messages: [{ role: "user", content: prompt }], system: systemPrompt },
+        pick: (d) => (d as { content?: { text?: string }[] }).content?.[0]?.text,
+      };
+    case "google":
+      return {
+        url: `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`,
+        headers: {},
+        body: {
+          contents: [{ parts: [{ text: `${systemPrompt ? `${systemPrompt}\n\n` : ""}${prompt}` }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+        },
+        pick: (d) => (d as { candidates?: { content?: { parts?: { text?: string }[] } }[] }).candidates?.[0]?.content?.parts?.[0]?.text,
+      };
+  }
+}
+
 export async function callAI(prompt: string, systemPrompt?: string): Promise<{ text: string } | { error: string }> {
   const cfg = getAIConfig();
   if (!cfg.ok) return { error: cfg.error };
 
   const { config } = cfg;
 
+  const request = buildRequest(config, prompt, systemPrompt);
+
   try {
     return await withAbort(4500, async (signal) => {
-      if (config.provider === "openai") {
-        const res = await fetch(`${config.baseUrl}/chat/completions`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${config.apiKey}`,
-          },
-          body: JSON.stringify({
-            model: config.model,
-            messages: [
-              ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
-              { role: "user", content: prompt },
-            ],
-            temperature: 0.7,
-            max_tokens: 1000,
-          }),
-          signal,
-        });
-        if (!res.ok) {
-          const txt = await res.text();
-          return { error: `AI provider error (${res.status}): ${txt.slice(0, 500)}` };
-        }
-        const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-        const text = data.choices?.[0]?.message?.content?.trim();
-        if (!text) return { error: "AI returned empty response." };
-        return { text };
-      }
-
-      if (config.provider === "anthropic") {
-        const res = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": config.apiKey,
-            "anthropic-version": "2023-06-01",
-          },
-          body: JSON.stringify({
-            model: config.model,
-            max_tokens: 1024,
-            messages: [{ role: "user", content: prompt }],
-            system: systemPrompt,
-          }),
-          signal,
-        });
-        if (!res.ok) {
-          const txt = await res.text();
-          return { error: `AI provider error (${res.status}): ${txt.slice(0, 500)}` };
-        }
-        const data = (await res.json()) as { content?: { text?: string }[] };
-        const text = data.content?.[0]?.text?.trim();
-        if (!text) return { error: "AI returned empty response." };
-        return { text };
-      }
-
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `${systemPrompt ? systemPrompt + "\n\n" : ""}${prompt}` }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
-          }),
-          signal,
-        }
-      );
+      const res = await fetch(request.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...request.headers },
+        body: JSON.stringify(request.body),
+        signal,
+      });
       if (!res.ok) {
         const txt = await res.text();
         return { error: `AI provider error (${res.status}): ${txt.slice(0, 500)}` };
       }
-      const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      const text = request.pick(await res.json())?.trim();
       if (!text) return { error: "AI returned empty response." };
       return { text };
     });

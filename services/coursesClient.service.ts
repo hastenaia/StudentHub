@@ -5,8 +5,23 @@ import { fail, ok, type ApiResult } from "@/types/api";
 import type { Course, CourseDraft } from "@/types/courses";
 import { courseRowToView } from "@/lib/courseView";
 import type { Database } from "@/types/database.types";
+import { trimOrNull } from "@/utils/text";
 
 type CourseRow = Database["public"]["Tables"]["courses"]["Row"];
+
+/** Editable columns shared by create and update. Legacy + canonical double-write for compatibility. */
+function draftToColumns(draft: CourseDraft) {
+  return {
+    name: draft.course_name.trim(),
+    course_name: draft.course_name.trim(),
+    course_code: trimOrNull(draft.course_code),
+    instructor: trimOrNull(draft.instructor),
+    teacher_name: trimOrNull(draft.instructor),
+    description: trimOrNull(draft.description),
+    room: trimOrNull(draft.room),
+    color: trimOrNull(draft.color),
+  };
+}
 
 export const coursesClientService = {
   async createCourse(draft: CourseDraft): Promise<ApiResult<Course>> {
@@ -19,15 +34,7 @@ export const coursesClientService = {
     const payload = {
       user_id: user.id,
       source: "manual" as const,
-      // Legacy + canonical double-write for compatibility
-      name: draft.course_name.trim(),
-      course_name: draft.course_name.trim(),
-      course_code: draft.course_code.trim() || null,
-      instructor: draft.instructor.trim() || null,
-      teacher_name: draft.instructor.trim() || null,
-      description: draft.description.trim() || null,
-      room: draft.room.trim() || null,
-      color: draft.color.trim() || null,
+      ...draftToColumns(draft),
       archived: false,
     };
 
@@ -39,20 +46,9 @@ export const coursesClientService = {
   async updateCourse(id: string, draft: CourseDraft): Promise<ApiResult<Course>> {
     const supabase = createClient();
 
-    const payload = {
-      name: draft.course_name.trim(),
-      course_name: draft.course_name.trim(),
-      course_code: draft.course_code.trim() || null,
-      instructor: draft.instructor.trim() || null,
-      teacher_name: draft.instructor.trim() || null,
-      description: draft.description.trim() || null,
-      room: draft.room.trim() || null,
-      color: draft.color.trim() || null,
-    };
-
     const { data, error } = await supabase
       .from("courses")
-      .update(payload)
+      .update(draftToColumns(draft))
       .eq("id", id)
       .select()
       .single();

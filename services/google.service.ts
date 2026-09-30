@@ -261,6 +261,9 @@ async function performSync(
   const workResults = await mapWithConcurrency(coursePairs, GOOGLE_CONCURRENCY, ([googleCourseId]) =>
     listCourseWork(accessToken, googleCourseId)
   );
+  // null = that course's fetch failed. Its rows must survive the cleanup below, or one transient
+  // error (401/429) would wipe the course's assignments while the sync still reports success.
+  const failedWorkCourses = new Set(coursePairs.filter((_, i) => workResults[i] === null).map(([, dbId]) => dbId));
   coursePairs.forEach(([, dbCourseId], i) => {
     for (const cw of workResults[i] ?? []) {
       syncedWorkIds.add(cw.id);
@@ -289,9 +292,10 @@ async function performSync(
   // Remove assignments from removed courses / deleted courseWork items.
   const { data: existingAssignments } = await supabase
     .from("assignments")
-    .select("google_course_work_id")
+    .select("google_course_work_id, course_id")
     .eq("user_id", userId);
   const removedAssignmentIds = (existingAssignments ?? [])
+    .filter((r) => !(r.course_id && failedWorkCourses.has(r.course_id)))
     .map((r) => r.google_course_work_id)
     .filter((id): id is string => !!id && !syncedWorkIds.has(id));
   if (removedAssignmentIds.length) {
@@ -309,6 +313,9 @@ async function performSync(
 
   const announcementResults = await mapWithConcurrency(coursePairs, GOOGLE_CONCURRENCY, ([googleCourseId]) =>
     listAnnouncements(accessToken, googleCourseId)
+  );
+  const failedAnnouncementCourses = new Set(
+    coursePairs.filter((_, i) => announcementResults[i] === null).map(([, dbId]) => dbId)
   );
   coursePairs.forEach(([, dbCourseId], i) => {
     for (const a of announcementResults[i] ?? []) {
@@ -335,9 +342,10 @@ async function performSync(
 
   const { data: existingAnnouncements } = await supabase
     .from("announcements")
-    .select("google_announcement_id")
+    .select("google_announcement_id, course_id")
     .eq("user_id", userId);
   const removedAnnouncementIds = (existingAnnouncements ?? [])
+    .filter((r) => !(r.course_id && failedAnnouncementCourses.has(r.course_id)))
     .map((r) => r.google_announcement_id)
     .filter((id): id is string => !!id && !syncedAnnouncementIds.has(id));
   if (removedAnnouncementIds.length) {
@@ -386,7 +394,11 @@ async function performSync(
     .update({ last_synced_at: lastSyncedAt, needs_reconnect: false })
     .eq("user_id", userId);
 
-  return ok("Synced your school data.", {
+  const failedCourses = new Set([...failedWorkCourses, ...failedAnnouncementCourses]).size;
+  const message = failedCourses
+    ? `Synced, but ${failedCourses} course${failedCourses === 1 ? "" : "s"} couldn't be refreshed — kept the last copy. Try again shortly.`
+    : "Synced your school data.";
+  return ok(message, {
     courses: googleCourses.length,
     assignments: assignmentRows.length,
     announcements: announcementRows.length,

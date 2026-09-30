@@ -14,6 +14,8 @@ interface Toast {
 interface ToastContextValue {
   toasts: Toast[];
   toast: (toast: Omit<Toast, "id">) => void;
+  /** Shorthand for a success/error toast after a mutation. */
+  notify: (success: boolean, title: string, description?: string) => void;
   dismiss: (id: string) => void;
 }
 
@@ -41,8 +43,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [dismiss]
   );
 
+  const notify = React.useCallback(
+    (success: boolean, title: string, description?: string) => toast({ title, description, variant: success ? "success" : "error" }),
+    [toast]
+  );
+
   return (
-    <ToastContext.Provider value={{ toasts, toast, dismiss }}>
+    <ToastContext.Provider value={{ toasts, toast, notify, dismiss }}>
       {children}
     </ToastContext.Provider>
   );

@@ -16,16 +16,17 @@ import { TaskForm } from "@/components/tasks/TaskForm";
 import { cn } from "@/utils/cn";
 import type { Task, TaskDraft, TaskPriority, TaskStatus, TasksViewData } from "@/types/tasks";
 import { TASK_PRIORITIES, TASK_STATUSES } from "@/types/tasks";
+import type { TaskSortMode } from "@/lib/taskSort";
 
 interface TasksViewProps {
   initialData: TasksViewData;
 }
 
-type SortMode = "smart" | "deadline" | "priority" | "effort" | "created";
+type SortMode = TaskSortMode;
 
 /** Client shell for the To-Do Tracker: view toggle, search, filters, sorting, mutations, local state. */
 export function TasksView({ initialData }: TasksViewProps) {
-  const { toast } = useToast();
+  const { notify } = useToast();
   const [tasks, setTasks] = React.useState<Task[]>(initialData.tasks);
   const [courses] = React.useState(initialData.courses);
   const [view, setView] = React.useState<"kanban" | "list">("kanban");
@@ -111,14 +112,6 @@ export function TasksView({ initialData }: TasksViewProps) {
     setFilterPriority("all");
     setFilterCourse("all");
     setSortMode("smart");
-  };
-
-  const notify = (success: boolean, title: string, description?: string) => {
-    toast({
-      title,
-      description,
-      variant: success ? "success" : "error",
-    });
   };
 
   const handleCreate = async (draft: TaskDraft) => {

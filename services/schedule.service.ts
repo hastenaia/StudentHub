@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { calendarRowToView, scheduleRowToView } from "@/lib/scheduleView";
 import type { ScheduleCourseOption, ScheduleEvent } from "@/types/schedule";
+import { activeCoursesQuery } from "@/lib/supabase/queries";
+import { toCourseOptions } from "@/lib/courseView";
 
 export interface ScheduleViewData {
   events: ScheduleEvent[];
@@ -33,14 +35,10 @@ export async function getScheduleData(userId: string): Promise<ScheduleViewData>
       .lte("start_at", windowEnd)
       .order("start_at", { ascending: true })
       .limit(2000),
-    supabase.from("courses").select("id, name, course_name, color").eq("user_id", userId).eq("archived", false).order("name"),
+    activeCoursesQuery(supabase, userId),
   ]);
 
-  const courses: ScheduleCourseOption[] = (coursesRes.data ?? []).map((c) => ({
-    id: c.id,
-    name: c.course_name ?? c.name,
-    color: c.color,
-  }));
+  const courses: ScheduleCourseOption[] = toCourseOptions(coursesRes.data);
   const courseMap = new Map(courses.map((c) => [c.id, c]));
 
   const userEvents = (scheduleRes.data ?? []).map((row) => scheduleRowToView(row, courseMap));
@@ -55,29 +53,3 @@ export async function getScheduleData(userId: string): Promise<ScheduleViewData>
   return { events: all, courses, googleEvents, userEvents };
 }
 
-// For dashboard consumption — lightweight upcoming events
-async function getUpcomingScheduleEvents(userId: string, limit = 12): Promise<ScheduleEvent[]> {
-  const supabase = await createClient();
-  const [eventsRes, coursesRes] = await Promise.all([
-    supabase
-      .from("schedule_events")
-      .select("*")
-      .eq("user_id", userId)
-      .gte("start_at", new Date().toISOString())
-      .order("start_at", { ascending: true })
-      .limit(limit),
-    supabase
-      .from("courses")
-      .select("id, name, course_name, color")
-      .eq("user_id", userId)
-      .eq("archived", false),
-  ]);
-
-  const data = eventsRes.data;
-  if (!data) return [];
-  const courses = coursesRes.data;
-  const courseMap = new Map(
-    (courses ?? []).map((c) => [c.id, { name: c.course_name ?? c.name, color: c.color }])
-  );
-  return data.map((row) => scheduleRowToView(row, courseMap));
-}

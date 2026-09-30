@@ -9,6 +9,7 @@ import type {
   SignupPayload,
 } from "@/types/auth";
 import { fail, ok, type ApiResult } from "@/types/api";
+import { safeRedirect } from "@/utils/safeRedirect";
 
 /**
  * Thin service layer around Supabase Auth. Keeping these calls out of
@@ -53,8 +54,10 @@ export const authService = {
   },
 
   async signInWithGoogle(next = "/dashboard"): Promise<ApiResult> {
+    // ponytail: sanitize `next` here too — LoginForm already does, defense in depth.
+    const safeNext = safeRedirect(next);
     const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}`;
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },
