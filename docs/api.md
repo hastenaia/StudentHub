@@ -105,7 +105,12 @@ paths to this route (see [auth.md](auth.md#proxy-protection)).
 | Auth | Required |
 | Purpose | On-demand refresh of the Google cache. The only path that talks to Google for the signed-in user |
 
-**Request body** — none.
+**Request body** — none (manual "Sync now"), or `{ "auto": true }` from the
+dashboard shell's once-per-tab-session sign-in sync (`components/layout/AutoSync.tsx`).
+With `auto`, the route first checks `shouldAutoSync` (`lib/google/autoSync.ts`)
+and, if no Google account is linked, it needs reconnecting, or it was synced
+within the last 10 minutes, returns `200 { "success": true, "message": "skipped", "data": { "skipped": true } }`
+without calling Google.
 
 **Response** — `ApiResult<SyncResult>` JSON:
 
