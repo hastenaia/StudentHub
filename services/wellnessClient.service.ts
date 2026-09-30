@@ -1,12 +1,14 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { gamificationClientService } from "@/services/gamificationClient.service";
+import type { WithXp } from "@/types/gamification";
 import { fail, ok, type ApiResult } from "@/types/api";
 import type { WellnessEntry } from "@/types/wellness";
 import { toDateStr } from "@/lib/dates";
 
 export const wellnessClientService = {
-  async upsertEntry(mood: number, journal: string | null): Promise<ApiResult<WellnessEntry>> {
+  async upsertEntry(mood: number, journal: string | null): Promise<WithXp<ApiResult<WellnessEntry>>> {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return fail("You must be signed in.");
@@ -27,6 +29,7 @@ export const wellnessClientService = {
       .single();
 
     if (error) return fail(error.message);
+    const xp = journal?.trim() ? await gamificationClientService.awardJournal(entryDate) : null;
     const entry: WellnessEntry = {
       id: (data as { id: string }).id,
       entryDate: (data as { entry_date: string }).entry_date,
@@ -35,7 +38,7 @@ export const wellnessClientService = {
       createdAt: (data as { created_at: string }).created_at,
       updatedAt: (data as { updated_at: string }).updated_at,
     };
-    return ok("Wellness entry saved.", entry);
+    return { ...ok("Wellness entry saved.", entry), xp };
   },
 
   async deleteEntry(entryDate: string): Promise<ApiResult> {

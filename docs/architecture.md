@@ -94,8 +94,8 @@ Every page under `app/(dashboard)/dashboard/` is listed in the sidebar
 | `/dashboard/focus` | `focus.service.ts` | focus_sessions |
 | `/dashboard/analytics` | `analytics.service.ts` | tasks, focus_sessions, notes, flashcards, quiz_attempts, schedule_events, wellness_entries |
 | `/dashboard/wellness` | `wellness.service.ts` | wellness_entries |
-| `/dashboard/achievements` | client-side in `BadgeGrid` | tasks, focus_sessions, notes, quiz_attempts |
-| `/dashboard/settings` | `academics.service.ts` → `getGoogleAccountView` | profiles, google_accounts, courses |
+| `/dashboard/achievements` | `gamification.service.ts` | profiles, badges, user_badges |
+| `/dashboard/settings` | `academics.service.ts` → `getGoogleAccountView`, `gamification.service.ts` | profiles, google_accounts, courses, badges, user_badges |
 | `/dashboard/notes` | none: client page on `lib/mocks/notes` | none (real notes live in Study Hub) |
 
 Known leftovers: `/dashboard/notes` is still mock-backed, and the Schedule page

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { useToast } from "@/hooks/useToast";
 import { focusClientService } from "@/services/focusClient.service";
+import { formatXpToast } from "@/lib/gamification";
 import type { Task } from "@/types/tasks";
 
 type Preset = "25/5" | "50/10" | "custom";
@@ -181,7 +182,12 @@ export function PomodoroTimer({ initialTask, tasks = [] }: PomodoroTimerProps) {
         selectedCourseId ?? selectedTask?.courseId ?? null
       );
       if (res.success) {
-        toast({ title: "Focus session saved", description: `${completedDuration} min • ${selectedTask ? selectedTask.title : "No task"}`, variant: "success" });
+        const xpMsg = formatXpToast(res.xp);
+        toast({
+          title: "Focus session saved",
+          description: [`${completedDuration} min • ${selectedTask ? selectedTask.title : "No task"}`, xpMsg].filter(Boolean).join(" · "),
+          variant: "success",
+        });
       } else {
         toast({ title: "Could not save session", description: res.message, variant: "error" });
       }
