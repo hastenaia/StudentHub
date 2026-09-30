@@ -27,7 +27,7 @@ Setup: copy `.env.local.example` → `.env.local`; never commit keys. Migrations
 - Pure logic lives in `lib/`: row→view mappers (`taskView.ts`, `courseView.ts`, `scheduleView.ts`), algorithms (`scheduling.ts` scored ordering + heap Top-K + recurrence, `progress.ts` 0–100 course score, `dates.ts`), `withActiveCourses` in `lib/supabase/queries.ts`. Zod schemas in `lib/validations/`, domain types in `types/<domain>.ts`.
 - Google: pages read Supabase cache only, never Google. Sole Google caller is `POST /api/dashboard/sync` (`services/google.service.ts` → `classroom/calendar.service.ts`). OAuth is `app/api/google/auth` → `app/api/google/callback`; tokens AES-256-GCM encrypted (`lib/google/crypto.ts`, key `GOOGLE_TOKEN_ENCRYPTION_KEY`). Supabase auth callbacks (`app/auth/callback`, `app/auth/confirm`) are separate.
 - AI: `app/api/ai/*` handlers use `lib/ai/route.ts` (`startAIRoute`, `resolveNoteSource`, `runAI`) + `callAI()` in `lib/ai/provider.ts` (raw `fetch`, first configured provider `OPENAI_API_KEY`/`AI_API_KEY` → `ANTHROPIC_API_KEY` → `GOOGLE_AI_API_KEY`/`GEMINI_API_KEY`, ~4.5s timeout). Unconfigured → 503 error, never fake output.
-- Leftovers: `/dashboard/notes` is mock-backed (`lib/mocks/notes`); Schedule page renders mock `CalendarShell` below real `ScheduleView`; `academic_settings`, `courses.manual_grade`/`target_pct` are unused schema.
+- Leftovers: Schedule page renders mock `CalendarShell` below real `ScheduleView`; `academic_settings`, `courses.manual_grade`/`target_pct` are unused schema.
 
 ## Database
 
@@ -36,7 +36,7 @@ Setup: copy `.env.local.example` → `.env.local`; never commit keys. Migrations
 ## Testing
 
 - Vitest + Testing Library, jsdom default, globals on, `@` → repo root (`vitest.config.mts`). Files needing Node crypto/`Response` add `// @vitest-environment node`.
-- Coverage is pure layers only (`lib/**`, `utils/*`, `callAI`, auth redirects, 2 hooks, 2 components). `services/*`, most route handlers/components are untested — move logic into pure `lib/*.ts` and test there.
+- Coverage is pure layers only (`lib/**`, `utils/*`, `callAI`, auth redirects, 2 hooks, a few components). `services/*`, most route handlers/components are untested — move logic into pure `lib/*.ts` and test there.
 
 ## Workflow
 

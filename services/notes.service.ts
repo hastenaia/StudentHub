@@ -15,6 +15,7 @@ export async function getNotesData(userId: string): Promise<{ notes: Note[]; cou
     content: row.content,
     favorite: row.favorite ?? false,
     tags: row.tags ?? [],
+    category: row.category,
     courseId: row.course_id,
     courseName: row.course_id ? courseMap.get(row.course_id)?.name ?? null : null,
     courseColor: row.course_id ? courseMap.get(row.course_id)?.color ?? null : null,

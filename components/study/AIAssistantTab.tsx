@@ -22,7 +22,12 @@ import {
 } from "@/lib/aiRequests";
 
 type Course = { id: string; name: string };
-interface Props { notes: Note[]; courses: Course[] }
+interface Props {
+  notes: Note[];
+  courses: Course[];
+  /** Called after "Save as new note" so the host can show the note without a refresh. */
+  onNoteCreated?: (note: Note) => void;
+}
 
 const ACTIONS: { id: AIAction; label: string; icon: LucideIcon }[] = [
   { id: "explain", label: "Explain concept", icon: Lightbulb },
@@ -76,7 +81,19 @@ function useAIRequest() {
 type SaveKind = "flashcards" | "quiz" | "summary";
 
 /** One-click saves of an AI result into flashcards, a quiz, or a new note. */
-function useAISaves({ generated, result, form, notes }: { generated: unknown; result: string | null; form: AIFormInputs; notes: Note[] }) {
+function useAISaves({
+  generated,
+  result,
+  form,
+  notes,
+  onNoteCreated,
+}: {
+  generated: unknown;
+  result: string | null;
+  form: AIFormInputs;
+  notes: Note[];
+  onNoteCreated?: (note: Note) => void;
+}) {
   const { toast, notify } = useToast();
   const [saving, setSaving] = React.useState<SaveKind | null>(null);
   const courseId = form.courseId || null;
@@ -116,6 +133,7 @@ function useAISaves({ generated, result, form, notes }: { generated: unknown; re
     await withSaving("summary", async () => {
       const title = form.noteId ? `Summary: ${notes.find((n) => n.id === form.noteId)?.title ?? "Note"}` : "AI Summary";
       const res = await notesClientService.createNote({ title, content: result, tags: ["ai-summary"], courseId });
+      if (res.success && res.data) onNoteCreated?.(res.data);
       notify(res.success, res.success ? "Summary saved as new note" : "Save failed", res.success ? undefined : res.message);
     });
   };
@@ -279,12 +297,12 @@ function ResultCard({
   );
 }
 
-export function AIAssistantTab({ notes, courses }: Props) {
+export function AIAssistantTab({ notes, courses, onNoteCreated }: Props) {
   const [action, setAction] = React.useState<AIAction>("explain");
   const [form, setForm] = React.useState<AIFormInputs>({ text: "", noteId: "", courseId: "", count: "5" });
   const update = (patch: Partial<AIFormInputs>) => setForm((f) => ({ ...f, ...patch }));
   const ai = useAIRequest();
-  const saves = useAISaves({ generated: ai.generated, result: ai.result, form, notes });
+  const saves = useAISaves({ generated: ai.generated, result: ai.result, form, notes, onNoteCreated });
 
   const pickAction = (next: AIAction) => {
     setAction(next);

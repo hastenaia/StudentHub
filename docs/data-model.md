@@ -245,12 +245,13 @@ Study Hub notes (Markdown content).
 | `course_id` | `uuid` | references `courses(id)` on delete set null |
 | `title` | `text` | |
 | `content` | `text` | |
+| `category` | `text` | nullable, 1–40 chars; user-defined label (`/dashboard/notes`) |
 | `favorite` | `boolean` | default `false` |
 | `tags` | `text[]` | default `{}` (GIN-indexed) |
 | `created_at` / `updated_at` | `timestamptz` | |
 
 **Indexes:** `(user_id, created_at desc)`, `(user_id, updated_at desc)`,
-`(user_id, course_id)`, `(user_id, favorite)`, GIN on `tags`.
+`(user_id, course_id)`, `(user_id, category)`, `(user_id, favorite)`, GIN on `tags`.
 
 ### `note_attachments`
 

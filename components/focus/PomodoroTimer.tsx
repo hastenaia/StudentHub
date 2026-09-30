@@ -43,6 +43,26 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+/** Short beep + vibration at the end of a phase; both are best-effort (unsupported or blocked is fine). */
+function signalPhaseEnd(wasFocus: boolean) {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new Ctx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = wasFocus ? 880 : 440;
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.5);
+  } catch {}
+  try {
+    navigator.vibrate?.(wasFocus ? [100, 50, 100] : 50);
+  } catch {}
+}
+
 export function PomodoroTimer({ initialTask, tasks = [] }: PomodoroTimerProps) {
   const { toast } = useToast();
 
@@ -154,62 +174,51 @@ export function PomodoroTimer({ initialTask, tasks = [] }: PomodoroTimerProps) {
     } catch {}
   }, [focusMinutes, breakMinutes, preset, mode, remaining, isRunning, isPaused, startAt, pausedRemaining, selectedTaskId, selectedCourseId]);
 
+  // The tick runs every 250ms and the save is async, so a session can reach 0 several times
+  // before the mode switches; remember which session (mode + start) was already completed.
+  const completedSessionRef = React.useRef<string | null>(null);
+
   const handleComplete = React.useCallback(async () => {
+    const sessionKey = `${mode}:${startAt}`;
+    if (completedSessionRef.current === sessionKey) return;
+    completedSessionRef.current = sessionKey;
+
     const wasFocus = mode === "focus";
     const completedDuration = wasFocus ? focusMinutes : breakMinutes;
     const startedAt = startAt ?? new Date(Date.now() - completedDuration * 60 * 1000).toISOString();
     const endedAt = new Date().toISOString();
+    signalPhaseEnd(wasFocus);
 
-    try {
-      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = wasFocus ? 880 : 440;
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.5);
-    } catch {}
+    // Move to the next phase right away; the save below must not hold the timer at 00:00.
+    const next = wasFocus ? { mode: "break" as const, minutes: breakMinutes } : { mode: "focus" as const, minutes: focusMinutes };
+    setMode(next.mode);
+    setRemaining(next.minutes * 60);
+    setStartAt(new Date().toISOString());
+    setIsRunning(true);
+    setIsPaused(false);
+    setPausedRemaining(null);
 
-    if (wasFocus) {
-      const res = await focusClientService.completePomodoro(
-        completedDuration,
-        startedAt,
-        endedAt,
-        selectedTaskId,
-        selectedCourseId ?? selectedTask?.courseId ?? null
-      );
-      if (res.success) {
-        const xpMsg = formatXpToast(res.xp);
-        toast({
-          title: "Focus session saved",
-          description: [`${completedDuration} min • ${selectedTask ? selectedTask.title : "No task"}`, xpMsg].filter(Boolean).join(" · "),
-          variant: "success",
-        });
-      } else {
-        toast({ title: "Could not save session", description: res.message, variant: "error" });
-      }
-      setMode("break");
-      setRemaining(breakMinutes * 60);
-      setStartAt(new Date().toISOString());
-      setIsRunning(true);
-      setIsPaused(false);
-      setPausedRemaining(null);
-    } else {
+    if (!wasFocus) {
       toast({ title: "Break complete", description: "Ready for next focus?", variant: "success" });
-      setMode("focus");
-      setRemaining(focusMinutes * 60);
-      setStartAt(new Date().toISOString());
-      setIsRunning(true);
-      setIsPaused(false);
-      setPausedRemaining(null);
+      return;
     }
 
-    try {
-      if (navigator.vibrate) navigator.vibrate(wasFocus ? [100, 50, 100] : 50);
-    } catch {}
+    const res = await focusClientService.completePomodoro(
+      completedDuration,
+      startedAt,
+      endedAt,
+      selectedTaskId,
+      selectedCourseId ?? selectedTask?.courseId ?? null
+    );
+    toast(
+      res.success
+        ? {
+            title: "Focus session saved",
+            description: [`${completedDuration} min • ${selectedTask?.title ?? "No task"}`, formatXpToast(res.xp)].filter(Boolean).join(" · "),
+            variant: "success",
+          }
+        : { title: "Could not save session", description: res.message, variant: "error" }
+    );
   }, [mode, focusMinutes, breakMinutes, startAt, selectedTaskId, selectedCourseId, selectedTask, toast]);
 
   // Timer tick — Date-based to handle tab switching

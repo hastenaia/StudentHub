@@ -1,36 +1,64 @@
 "use client";
 import * as React from "react";
-import { Bold, Italic, Heading1, List, Tag, Paperclip, Eye, Edit3 } from "lucide-react";
+import { Bold, Italic, Heading1, List, Tag, Eye, Edit3, Folder, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { MockNote } from "@/lib/mocks/notes";
+import { NoteMarkdown } from "@/components/notes/NoteMarkdown";
+import { MAX_CATEGORY_LENGTH } from "@/lib/noteCategories";
+import type { Note, NoteDraft } from "@/types/study";
 
-export function NoteEditor({ note, onSave }: { note: MockNote; onSave: (n: MockNote) => void }) {
+interface NoteEditorProps {
+  /** null = new, unsaved note. Remount (via `key`) to switch notes. */
+  note: Note | null;
+  defaultCategory: string | null;
+  categories: string[];
+  onSave: (draft: NoteDraft) => Promise<boolean>;
+  onDelete?: () => Promise<void>;
+  onCancel?: () => void;
+}
+
+export function NoteEditor({ note, defaultCategory, categories, onSave, onDelete, onCancel }: NoteEditorProps) {
   const [mode, setMode] = React.useState<"edit" | "preview">("edit");
-  const [title, setTitle] = React.useState(note.title);
-  const [body, setBody] = React.useState(note.bodyMd);
-  const [tags, setTags] = React.useState(note.tags.join(", "));
-  const [pdfName, setPdfName] = React.useState<string | null>(note.pdfName);
+  const [title, setTitle] = React.useState(note?.title ?? "");
+  const [body, setBody] = React.useState(note?.content ?? "");
+  const [tags, setTags] = React.useState(note?.tags.join(", ") ?? "");
+  const [category, setCategory] = React.useState(note ? note.category ?? "" : defaultCategory ?? "");
+  const [saving, setSaving] = React.useState(false);
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+  const listId = React.useId();
 
-  React.useEffect(() => {
-    const id = setTimeout(() => {
-      setTitle(note.title); setBody(note.bodyMd); setTags(note.tags.join(", ")); setPdfName(note.pdfName);
-    }, 0);
-    return () => clearTimeout(id);
-  }, [note]);
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave({
+      title: title.trim() || "Untitled note",
+      content: body,
+      tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+      category,
+      // updateNote writes course_id unconditionally, so pass the existing one through.
+      courseId: note?.courseId ?? null,
+    });
+    setSaving(false);
+  };
 
-  const handleSave = () => {
-    onSave({ ...note, title, bodyMd: body, tags: tags.split(",").map((t) => t.trim()).filter(Boolean), pdfName });
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    setDeleting(true);
+    await onDelete();
+    setDeleting(false);
+    setConfirmDelete(false);
   };
 
   return (
     <Card className="flex h-full flex-col">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2">
-          <Edit3 className="h-5 w-5 text-brand-royal" /> {note.title}
+          <Edit3 className="h-5 w-5 text-brand-royal" /> {note ? note.title : "New note"}
         </CardTitle>
-        <CardDescription>WYSIWYG + Markdown · Tags · PDF attachment (mock)</CardDescription>
+        <CardDescription>
+          Markdown · Categories · Tags{note?.courseName ? ` · ${note.courseName}` : ""}
+        </CardDescription>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Button size="sm" variant={mode === "edit" ? "default" : "outline"} onClick={() => setMode("edit")}>Edit</Button>
           <Button size="sm" variant={mode === "preview" ? "default" : "outline"} onClick={() => setMode("preview")}><Eye className="h-4 w-4" /> Preview</Button>
@@ -43,32 +71,51 @@ export function NoteEditor({ note, onSave }: { note: MockNote; onSave: (n: MockN
         </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-3">
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Note title" />
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Note title" maxLength={120} aria-label="Title" />
+        <div className="flex items-center gap-2">
+          <Folder className="h-4 w-4 text-gray-400" />
+          <Input
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            list={listId}
+            maxLength={MAX_CATEGORY_LENGTH}
+            placeholder="Category — pick one or type a new one (optional)"
+            aria-label="Category"
+          />
+          <datalist id={listId}>
+            {categories.map((c) => <option key={c} value={c} />)}
+          </datalist>
+        </div>
         <div className="flex items-center gap-2">
           <Tag className="h-4 w-4 text-gray-400" />
-          <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Tags comma separated: exam, formulas" />
-        </div>
-        <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-brand-gray/30 px-3 py-2">
-          <Paperclip className="h-4 w-4 text-gray-500" />
-          {pdfName ? (
-            <span className="text-xs text-brand-dark">📄 {pdfName} <button onClick={() => setPdfName(null)} className="ml-2 text-red-500">Remove</button></span>
-          ) : (
-            <label className="cursor-pointer text-xs text-brand-royal hover:underline">
-              Attach PDF
-              <input type="file" accept="application/pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setPdfName(f.name); }} />
-            </label>
-          )}
-          <span className="ml-auto text-xs text-gray-400">Max 10MB (mock)</span>
+          <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Tags comma separated: exam, formulas" aria-label="Tags" />
         </div>
         {mode === "edit" ? (
-          <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={12} className="w-full flex-1 rounded-md border border-gray-300 bg-white p-3 text-sm text-brand-dark placeholder:text-gray-400 focus:border-brand-royal focus:outline-none focus:ring-2 focus:ring-brand-royal" placeholder="Write in Markdown… Supports **bold**, *italic*, # headings, - lists, > quotes" />
+          <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={12} maxLength={10000} aria-label="Note content" className="w-full flex-1 rounded-md border border-gray-300 bg-white p-3 text-sm text-brand-dark placeholder:text-gray-400 focus:border-brand-royal focus:outline-none focus:ring-2 focus:ring-brand-royal" placeholder="Write in Markdown… Supports **bold**, *italic*, # headings, - lists, > quotes" />
         ) : (
           <div className="flex-1 rounded-md border border-gray-200 bg-brand-gray/40 p-4 text-sm leading-6 text-brand-dark">
-            <pre className="whitespace-pre-wrap font-sans">{body}</pre>
-            <p className="mt-3 text-xs text-gray-400">Preview is a lightweight mock — wire `react-markdown` for real rendering.</p>
+            <NoteMarkdown content={body} />
           </div>
         )}
-        <Button onClick={handleSave}>Save note</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={handleSave} isLoading={saving} disabled={deleting}>{note ? "Save note" : "Create note"}</Button>
+          {onCancel && <Button variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Button>}
+          {onDelete && (
+            <span className="ml-auto flex items-center gap-2">
+              {confirmDelete ? (
+                <>
+                  <span className="text-xs text-gray-500">Delete this note permanently?</span>
+                  <Button size="sm" variant="destructive" onClick={handleDelete} isLoading={deleting}>Delete</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)} disabled={deleting}>Cancel</Button>
+                </>
+              ) : (
+                <Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50" onClick={() => setConfirmDelete(true)} disabled={saving}>
+                  <Trash2 className="h-4 w-4" /> Delete
+                </Button>
+              )}
+            </span>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

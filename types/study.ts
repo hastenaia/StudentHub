@@ -4,6 +4,7 @@ export interface Note {
   content: string | null;
   favorite: boolean;
   tags: string[];
+  category: string | null;
   courseId: string | null;
   courseName: string | null;
   courseColor: string | null;
@@ -16,6 +17,8 @@ export interface NoteDraft {
   content: string | null;
   favorite?: boolean;
   tags?: string[];
+  /** Omitted = leave the stored category unchanged on update. */
+  category?: string | null;
   courseId?: string | null;
 }
 

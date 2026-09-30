@@ -96,10 +96,10 @@ Every page under `app/(dashboard)/dashboard/` is listed in the sidebar
 | `/dashboard/wellness` | `wellness.service.ts` | wellness_entries |
 | `/dashboard/achievements` | `gamification.service.ts` | profiles, badges, user_badges |
 | `/dashboard/settings` | `academics.service.ts` → `getGoogleAccountView`, `gamification.service.ts` | profiles, google_accounts, courses, badges, user_badges |
-| `/dashboard/notes` | none: client page on `lib/mocks/notes` | none (real notes live in Study Hub) |
+| `/dashboard/notes` | `notes.service.ts` (categories via `lib/noteCategories.ts`; reuses Study Hub's `AIAssistantTab`) | notes (same rows as Study Hub), courses |
 
-Known leftovers: `/dashboard/notes` is still mock-backed, and the Schedule page
-renders a mock-backed `CalendarShell` below the real `ScheduleView`.
+Known leftovers: the Schedule page renders a mock-backed `CalendarShell` below
+the real `ScheduleView`.
 
 ## Request lifecycle
 

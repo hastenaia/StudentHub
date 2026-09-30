@@ -530,6 +530,7 @@ export type Database = {
       }
       notes: {
         Row: {
+          category: string | null
           content: string | null
           course_id: string | null
           created_at: string
@@ -541,6 +542,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          category?: string | null
           content?: string | null
           course_id?: string | null
           created_at?: string
@@ -552,6 +554,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          category?: string | null
           content?: string | null
           course_id?: string | null
           created_at?: string

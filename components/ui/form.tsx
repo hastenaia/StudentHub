@@ -84,9 +84,13 @@ function FormLabel({
 
 function FormControl({ children }: { children: React.ReactElement }) {
   const { id, fieldState } = useFormField();
+  const invalid = !!fieldState.error;
+  // Only our components (Input, Select) take `error`; a plain <textarea>/<div> would render it as a DOM attribute.
+  const isDomElement = typeof children.type === "string";
   return React.cloneElement(children, {
     id,
-    error: !!fieldState.error,
+    "aria-invalid": invalid || undefined,
+    ...(isDomElement ? {} : { error: invalid }),
   });
 }
 

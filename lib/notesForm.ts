@@ -22,7 +22,8 @@ const hasLink = (content: string, path: string) => content.includes(`(attachment
 export const resolveLinks = (content: string, cache: Record<string, string>) =>
   content.replace(/\[([^\]]+)\]\(attachment:([^)\s]+)\)/g, (m, label: string, p: string) => (cache[p] ? `[${label}](${cache[p]})` : label));
 
-export function toNoteDraft(values: NoteFormValues): Required<NoteDraft> {
+// No `category`: the Study Hub form doesn't edit it, and omitting it leaves the stored value alone on update.
+export function toNoteDraft(values: NoteFormValues): Omit<Required<NoteDraft>, "category"> {
   return {
     title: values.title,
     content: values.content || null,
