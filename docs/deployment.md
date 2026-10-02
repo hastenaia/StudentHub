@@ -15,7 +15,7 @@ real values.
 | `GOOGLE_TOKEN_ENCRYPTION_KEY` | Google features only | Used to AES-256-GCM encrypt Google tokens at rest |
 | `OPENAI_API_KEY` (or `AI_API_KEY`) | AI features only | OpenAI-compatible key; optional `OPENAI_BASE_URL`, `AI_MODEL` / `OPENAI_MODEL` (default `gpt-4o-mini`) |
 | `ANTHROPIC_API_KEY` | AI alternative | Used if no OpenAI key is set; optional `ANTHROPIC_MODEL` |
-| `GOOGLE_AI_API_KEY` (or `GEMINI_API_KEY`) | AI alternative | Used if neither of the above is set; optional `GOOGLE_AI_MODEL` |
+| `GOOGLE_AI_API_KEY` (or `GEMINI_API_KEY`) | AI alternative | Used if neither of the above is set; optional `GOOGLE_AI_MODEL`, `GOOGLE_AI_STRUCTURED_MODEL`, `GOOGLE_AI_FALLBACK_MODELS` |
 
 Generate the token encryption key:
 
@@ -30,6 +30,29 @@ fast with a descriptive message when they're missing.
 The AI variables are checked in order (OpenAI, then Anthropic, then Google)
 by `lib/ai/provider.ts`; the first key found wins. Without any of them the
 Study Hub AI features return a "not configured" error (HTTP 503).
+
+### Gemini model selection and fallbacks
+
+Free-tier rate limits make Gemini models intermittently return 429/503, so the
+provider walks an ordered model chain within a single 15s budget and advances on
+404/429/500/502/503/504. Failures that a different model cannot fix (400/401/403)
+return immediately. The first model is never retried against itself.
+
+| Variable | Purpose |
+|---|---|
+| `GOOGLE_AI_MODEL` | Default model for prose generators (explain, summarize, study-plan) |
+| `GOOGLE_AI_STRUCTURED_MODEL` | Model for strict-JSON generators (flashcards, quiz); falls back to `GOOGLE_AI_MODEL` |
+| `GOOGLE_AI_FALLBACK_MODELS` | Comma-separated models to try, in order, when the active one is contended |
+
+Defaults are `gemini-3.5-flash-lite`. On a free tier prefer `-flash-lite` over
+`flash`: the `flash` models are markedly more contended, and `*-latest` aliases
+point at the newest, most saturated versions.
+
+```bash
+GOOGLE_AI_MODEL=gemini-3.6-flash
+GOOGLE_AI_STRUCTURED_MODEL=gemini-3.5-flash-lite
+GOOGLE_AI_FALLBACK_MODELS=gemini-3.1-flash-lite,gemini-3.5-flash-lite
+```
 
 ## Supabase setup
 

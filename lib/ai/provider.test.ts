@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { callAI } from "./provider";
 
-const KEYS = ["OPENAI_API_KEY", "AI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_AI_API_KEY", "GEMINI_API_KEY", "OPENAI_BASE_URL", "AI_MODEL", "OPENAI_MODEL", "ANTHROPIC_MODEL", "GOOGLE_AI_MODEL", "GEMINI_MODEL"];
+const KEYS = ["OPENAI_API_KEY", "AI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_AI_API_KEY", "GEMINI_API_KEY", "OPENAI_BASE_URL", "AI_MODEL", "OPENAI_MODEL", "ANTHROPIC_MODEL", "GOOGLE_AI_MODEL", "GEMINI_MODEL", "GOOGLE_AI_STRUCTURED_MODEL", "GOOGLE_AI_FALLBACK_MODELS"];
 
 const fetchMock = vi.fn<typeof fetch>();
 const jsonResponse = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -83,7 +83,7 @@ describe("callAI", () => {
     vi.stubEnv("GEMINI_MODEL", "");
     await callAI("p");
     const fallback = String(fetchMock.mock.calls[2][0]);
-    expect(fallback).toContain("/models/gemini-2.5-flash:generateContent");
+    expect(fallback).toContain("/models/gemini-3.5-flash-lite:generateContent");
     expect(fallback).not.toContain("gemini-1.5-flash");
   });
 
@@ -153,5 +153,134 @@ describe("callAI", () => {
     fetchMock.mockRejectedValue(Object.assign(new Error("aborted"), { name: "AbortError" }));
     await callAI("p");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("callAI model chain", () => {
+  const geminiOk = (text: string) => jsonResponse({ candidates: [{ content: { parts: [{ text }] } }] });
+  const urls = () => fetchMock.mock.calls.map((c) => String(c[0]));
+
+  it("uses the structured model for JSON callers and the prose model otherwise", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    vi.stubEnv("GOOGLE_AI_MODEL", "prose-model");
+    vi.stubEnv("GOOGLE_AI_STRUCTURED_MODEL", "structured-model");
+    fetchMock.mockImplementation(async () => geminiOk("ok"));
+
+    await callAI("p");
+    expect(urls()[0]).toContain("/models/prose-model:generateContent");
+
+    await callAI("p", "sys", { json: true });
+    expect(urls()[1]).toContain("/models/structured-model:generateContent");
+  });
+
+  it("falls back to the prose model when no structured model is set", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    vi.stubEnv("GOOGLE_AI_MODEL", "only-model");
+    fetchMock.mockImplementation(async () => geminiOk("ok"));
+
+    await callAI("p", "sys", { json: true });
+    expect(urls()[0]).toContain("/models/only-model:generateContent");
+  });
+
+  it("appends the fallback models in order and drops blanks", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    vi.stubEnv("GOOGLE_AI_MODEL", "primary");
+    vi.stubEnv("GOOGLE_AI_STRUCTURED_MODEL", "structured");
+    vi.stubEnv("GOOGLE_AI_FALLBACK_MODELS", " backup ,, other ");
+    // 503 everywhere so the chain is walked to the end and its order is observable.
+    fetchMock.mockImplementation(async () => new Response("busy", { status: 503 }));
+
+    await callAI("p", "s", { json: true });
+    await callAI("p");
+    expect(urls().slice(0, 4)).toEqual([
+      expect.stringContaining("/models/structured:generateContent"),
+      expect.stringContaining("/models/backup:generateContent"),
+      expect.stringContaining("/models/other:generateContent"),
+      expect.stringContaining("/models/primary:generateContent"),
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(6);
+  });
+
+  it("never re-tries the active model when it also appears in the fallback list", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    vi.stubEnv("GOOGLE_AI_MODEL", "prose-model");
+    vi.stubEnv("GOOGLE_AI_STRUCTURED_MODEL", "structured");
+    vi.stubEnv("GOOGLE_AI_FALLBACK_MODELS", "structured,prose-model,backup");
+    fetchMock.mockImplementation(async () => new Response("busy", { status: 503 }));
+
+    await callAI("p", "s", { json: true });
+    expect(urls()).toEqual([
+      expect.stringContaining("/models/structured:generateContent"),
+      expect.stringContaining("/models/prose-model:generateContent"),
+      expect.stringContaining("/models/backup:generateContent"),
+    ]);
+  });
+
+  it("defaults to a live free-tier model rather than a retired one", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    fetchMock.mockImplementation(async () => geminiOk("ok"));
+    await callAI("p");
+    expect(urls()[0]).toContain("/models/gemini-3.5-flash-lite:generateContent");
+    expect(urls()[0]).not.toContain("gemini-1.5-flash");
+  });
+
+  it.each([429, 500, 502, 503, 504, 404])("advances to the next model on %i", async (status) => {
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    vi.stubEnv("GOOGLE_AI_MODEL", "primary");
+    vi.stubEnv("GOOGLE_AI_FALLBACK_MODELS", "backup");
+    fetchMock.mockResolvedValueOnce(new Response("busy", { status })).mockImplementation(async () => geminiOk("from backup"));
+
+    expect(await callAI("p")).toEqual({ text: "from backup" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports the last model's error once the chain is exhausted", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    vi.stubEnv("GOOGLE_AI_MODEL", "primary");
+    vi.stubEnv("GOOGLE_AI_FALLBACK_MODELS", "backup");
+    fetchMock.mockImplementation(async () => new Response("no capacity", { status: 503 }));
+
+    const result = await callAI("p");
+    expect(result).toEqual({ error: expect.stringContaining("AI provider error (503)") });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([400, 401, 403])("does not walk the chain on %i (a different model cannot fix it)", async (status) => {
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    vi.stubEnv("GOOGLE_AI_MODEL", "primary");
+    vi.stubEnv("GOOGLE_AI_FALLBACK_MODELS", "backup");
+    fetchMock.mockImplementation(async () => new Response("denied", { status }));
+
+    const result = await callAI("p");
+    expect(result).toEqual({ error: expect.stringContaining(`AI provider error (${status})`) });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries the next model when the primary times out", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    vi.stubEnv("GOOGLE_AI_MODEL", "primary");
+    vi.stubEnv("GOOGLE_AI_FALLBACK_MODELS", "backup");
+    fetchMock.mockRejectedValueOnce(Object.assign(new Error("aborted"), { name: "TimeoutError" })).mockImplementation(async () => geminiOk("late but fine"));
+
+    expect(await callAI("p")).toEqual({ text: "late but fine" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops walking the chain once the shared time budget is spent", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    vi.stubEnv("GOOGLE_AI_MODEL", "primary");
+    vi.stubEnv("GOOGLE_AI_FALLBACK_MODELS", "b1,b2,b3");
+    // Each attempt burns past the whole 15s budget, so only the first may be made.
+    let clock = 1_000_000;
+    const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => clock);
+    fetchMock.mockImplementation(async () => {
+      clock += 16_000;
+      return new Response("late", { status: 503 });
+    });
+
+    const result = await callAI("p");
+    expect("error" in result && result.error).toContain("503");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    nowSpy.mockRestore();
   });
 });
