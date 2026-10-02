@@ -12,21 +12,32 @@ export function WorkloadCard({ workload }: Props) {
 
   const focusHours = (focusMinutesToday / 60).toFixed(focusMinutesToday % 60 === 0 ? 0 : 1);
   const [aiTip, setAiTip] = React.useState<string | null>(null);
+  const [aiTipError, setAiTipError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (focusMinutesToday < 90 && upcomingDeadlinesCount <= 3) return;
     const ctrl = new AbortController();
-    // Server caps the AI call at 4.5s; allow for the round trip so a slow-but-successful tip isn't dropped.
-    const t = setTimeout(() => ctrl.abort(), 6000);
+    // Server allows the AI call up to 15s; wait past that so a slow-but-successful tip isn't dropped.
+    const t = setTimeout(() => ctrl.abort(), 20000);
     fetch("/api/ai/wellness-tip", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ focusMinutesToday, upcomingDeadlinesCount }),
       signal: ctrl.signal,
     })
-      .then((r) => r.json())
-      .then((d) => { if (d.success) setAiTip(d.data?.tip ?? null); })
-      .catch(() => {})
+      .then(async (r) => {
+        const d = await r.json().catch(() => null);
+        if (!r.ok || !d?.success) {
+          setAiTipError(d?.message ?? `Request failed (${r.status})`);
+          return;
+        }
+        setAiTipError(null);
+        setAiTip(d.data?.tip ?? null);
+      })
+      .catch((e: unknown) => {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        setAiTipError(e instanceof Error ? e.message : "Could not load an AI tip.");
+      })
       .finally(() => clearTimeout(t));
     return () => {
       clearTimeout(t);
@@ -84,6 +95,9 @@ export function WorkloadCard({ workload }: Props) {
             <p className="mt-2 text-[11px] text-gray-400">
               This is general study habit info, not medical advice. If you need support, reach out to someone you trust or a campus resource.
             </p>
+            {aiTipError && (
+              <p className="mt-1 text-[11px] text-amber-700/80">AI tip unavailable: {aiTipError}</p>
+            )}
           </div>
         </div>
       </CardContent>

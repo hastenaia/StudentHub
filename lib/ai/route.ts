@@ -40,8 +40,8 @@ export async function startNoteAIRoute<B extends { noteId?: string; content?: st
 }
 
 /** Calls the configured provider; on failure returns 503 (unconfigured) or 502 (provider error/timeout). */
-export async function runAI(prompt: string, system: string): Promise<{ text: string; response?: never } | { response: NextResponse }> {
-  const result = await callAI(prompt, system);
+export async function runAI(prompt: string, system: string, opts?: { json?: boolean }): Promise<{ text: string; response?: never } | { response: NextResponse }> {
+  const result = await callAI(prompt, system, opts);
   if ("error" in result) {
     return { response: jsonError(result.error, result.error.includes("not configured") ? 503 : 502) };
   }

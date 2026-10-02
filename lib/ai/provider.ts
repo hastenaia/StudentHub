@@ -6,6 +6,9 @@
 
 type AIProvider = "openai" | "anthropic" | "google";
 
+/** Generous budget: note-sized prompts (6000 chars) on Gemini Flash routinely need well over 4.5s. */
+const AI_TIMEOUT_MS = 15000;
+
 interface AIConfig {
   provider: AIProvider;
   apiKey: string;
@@ -46,7 +49,7 @@ function getAIConfig(): { ok: true; config: AIConfig } | { ok: false; error: str
       config: {
         provider: "google",
         apiKey: googleKey,
-        model: process.env.GOOGLE_AI_MODEL || "gemini-1.5-flash",
+        model: process.env.GOOGLE_AI_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash",
       },
     };
   }
@@ -58,10 +61,16 @@ function getAIConfig(): { ok: true; config: AIConfig } | { ok: false; error: str
 }
 
 async function withAbort<T>(ms: number, fn: (signal: AbortSignal | undefined) => Promise<T>): Promise<T> {
-  try {
-    const withTimeout = AbortSignal as unknown as { timeout?: (ms: number) => AbortSignal };
-    if (typeof withTimeout.timeout === "function") return await fn(withTimeout.timeout(ms));
-  } catch {}
+  // Create the signal before calling `fn`: if `fn`'s error were caught here it would fall through and fire
+  // the request a second time (double provider cost on every failure).
+  const timeout = (AbortSignal as unknown as { timeout?: (ms: number) => AbortSignal }).timeout;
+  let signal: AbortSignal | undefined;
+  if (typeof timeout === "function") {
+    try {
+      signal = timeout.call(AbortSignal, ms);
+    } catch {}
+  }
+  if (signal) return await fn(signal);
   let ctrl: AbortController | undefined;
   try {
     ctrl = new AbortController();
@@ -78,8 +87,14 @@ async function withAbort<T>(ms: number, fn: (signal: AbortSignal | undefined) =>
 
 type ProviderRequest = { url: string; headers: Record<string, string>; body: unknown; pick: (data: unknown) => string | undefined };
 
+/** Gemini thinking models can emit reasoning parts before the answer, so take the first non-thought text part. */
+function pickGeminiText(data: unknown): string | undefined {
+  const parts = (data as { candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[] }).candidates?.[0]?.content?.parts;
+  return parts?.find((p) => p.text && !p.thought)?.text;
+}
+
 /** Each provider only differs in request shape and where the text sits in the reply. */
-function buildRequest(config: AIConfig, prompt: string, systemPrompt?: string): ProviderRequest {
+function buildRequest(config: AIConfig, prompt: string, systemPrompt?: string, json?: boolean): ProviderRequest {
   switch (config.provider) {
     case "openai":
       return {
@@ -106,23 +121,27 @@ function buildRequest(config: AIConfig, prompt: string, systemPrompt?: string): 
         headers: {},
         body: {
           contents: [{ parts: [{ text: `${systemPrompt ? `${systemPrompt}\n\n` : ""}${prompt}` }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1024,
+            ...(json ? { responseMimeType: "application/json" } : {}),
+          },
         },
-        pick: (d) => (d as { candidates?: { content?: { parts?: { text?: string }[] } }[] }).candidates?.[0]?.content?.parts?.[0]?.text,
+        pick: pickGeminiText,
       };
   }
 }
 
-export async function callAI(prompt: string, systemPrompt?: string): Promise<{ text: string } | { error: string }> {
+export async function callAI(prompt: string, systemPrompt?: string, opts?: { json?: boolean }): Promise<{ text: string } | { error: string }> {
   const cfg = getAIConfig();
   if (!cfg.ok) return { error: cfg.error };
 
   const { config } = cfg;
 
-  const request = buildRequest(config, prompt, systemPrompt);
+  const request = buildRequest(config, prompt, systemPrompt, opts?.json);
 
   try {
-    return await withAbort(4500, async (signal) => {
+    return await withAbort(AI_TIMEOUT_MS, async (signal) => {
       const res = await fetch(request.url, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...request.headers },
@@ -138,7 +157,7 @@ export async function callAI(prompt: string, systemPrompt?: string): Promise<{ t
       return { text };
     });
   } catch (e) {
-    if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) return { error: "AI timed out (>4.5s), try again." };
+    if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) return { error: "AI timed out (>15s), try again." };
     return { error: e instanceof Error ? e.message : "AI request failed." };
   }
 }

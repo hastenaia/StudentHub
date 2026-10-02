@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   const system = `You are a quiz generator. Return ONLY valid JSON with no markdown fences. Structure: {"questions": [{"question_text":"...", "question_type":"multiple_choice|true_false|short_answer", "options":["A","B","C","D"] (only for multiple_choice), "correct_answer":"...", "explanation":"..."}]}. For multiple_choice, provide 4 options and correct_answer must be one of them. For true_false, correct_answer is "True" or "False". Keep questions clear.`;
   const prompt = `From this note titled "${title ?? "Study material"}", generate ${count} quiz questions as JSON:\n\n${content.slice(0, 6000)}`;
 
-  const ai = await runAI(prompt, system);
+  const ai = await runAI(prompt, system, { json: true });
   if (ai.response) return ai.response;
 
   const parsed = tryParseAIJson(ai.text, asQuiz);
