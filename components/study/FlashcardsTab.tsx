@@ -23,8 +23,10 @@ import {
 import { upsertById } from "@/utils/text";
 import type { Flashcard, CourseOption } from "@/types/study";
 
+/** `cards`/`setCards` are owned by StudyHubView so an AI-tab save shows up here. */
 interface Props {
-  initialFlashcards: Flashcard[];
+  cards: Flashcard[];
+  setCards: React.Dispatch<React.SetStateAction<Flashcard[]>>;
   courses: CourseOption[];
   notes: { id: string; title: string }[];
 }
@@ -32,9 +34,8 @@ interface Props {
 /** null = no dialog; `card: null` = a new card. */
 type Editor = { card: Flashcard | null } | null;
 
-export function FlashcardsTab({ initialFlashcards, courses, notes }: Props) {
+export function FlashcardsTab({ cards, setCards, courses, notes }: Props) {
   const { toast } = useToast();
-  const [cards, setCards] = React.useState<Flashcard[]>(initialFlashcards);
   const [filters, setFilters] = React.useState<FlashcardFilters>(EMPTY_FLASHCARD_FILTERS);
   const [editor, setEditor] = React.useState<Editor>(null);
   const [studying, setStudying] = React.useState(false);

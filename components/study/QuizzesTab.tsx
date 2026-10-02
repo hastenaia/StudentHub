@@ -14,11 +14,11 @@ import { quizzesClientService } from "@/services/quizzesClient.service";
 import { filterQuizzes, gradeQuiz, type QuizResult } from "@/lib/quizView";
 import type { CourseOption, Quiz } from "@/types/study";
 
-interface Props { initialQuizzes: Quiz[]; courses: CourseOption[] }
+/** `quizzes`/`setQuizzes` are owned by StudyHubView so an AI-tab save shows up here. */
+interface Props { quizzes: Quiz[]; setQuizzes: React.Dispatch<React.SetStateAction<Quiz[]>>; courses: CourseOption[] }
 
-export function QuizzesTab({ initialQuizzes, courses }: Props) {
+export function QuizzesTab({ quizzes, setQuizzes, courses }: Props) {
   const { toast } = useToast();
-  const [quizzes, setQuizzes] = React.useState<Quiz[]>(initialQuizzes);
   const [search, setSearch] = React.useState("");
   const [filterCourse, setFilterCourse] = React.useState<string>("all");
   const [creating, setCreating] = React.useState(false);

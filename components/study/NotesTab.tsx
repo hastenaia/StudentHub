@@ -16,14 +16,14 @@ import { NoteEditorDialog } from "@/components/study/NoteEditorDialog";
 import { NoteViewDialog } from "@/components/study/NoteViewDialog";
 import type { Note, CourseOption } from "@/types/study";
 
-interface Props { initialNotes: Note[]; courses: CourseOption[] }
+/** `notes`/`setNotes` are owned by StudyHubView so saves made in the AI tab show up here. */
+interface Props { notes: Note[]; setNotes: React.Dispatch<React.SetStateAction<Note[]>>; courses: CourseOption[] }
 
 /** null = no editor; `note: null` = a new note. */
 type Editor = { note: Note | null } | null;
 
-export function NotesTab({ initialNotes, courses }: Props) {
+export function NotesTab({ notes, setNotes, courses }: Props) {
   const { toast } = useToast();
-  const [notes, setNotes] = React.useState<Note[]>(initialNotes);
   const [filters, setFilters] = React.useState<NoteFilters>(EMPTY_NOTE_FILTERS);
   const [editor, setEditor] = React.useState<Editor>(null);
   const [viewing, setViewing] = React.useState<Note | null>(null);

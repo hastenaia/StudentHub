@@ -116,6 +116,14 @@ the real `ScheduleView`.
    `ApiResult<T>` from `types/api.ts`), update local state optimistically, and
    call `router.refresh()` where server data must be re-read.
 
+   One page departs from this: `/dashboard/study` keeps its notes, flashcards
+   and quizzes in `StudyHubView`, which passes the lists and their setters down
+   to the tabs as controlled props and reports AI-tab saves upward via
+   `onNoteCreated` / `onCardsCreated` / `onQuizCreated`. That is deliberate —
+   `router.refresh()` cannot help here, because React preserves a mounted
+   component's state and ignores the fresh props, so a save in the AI tab would
+   stay invisible to the other tabs until a full page reload.
+
 ## Client vs. server
 
 | Concern | Server | Client |

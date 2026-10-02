@@ -11,7 +11,7 @@ import { flashcardsClientService } from "@/services/flashcardsClient.service";
 import { quizzesClientService } from "@/services/quizzesClient.service";
 import { notesClientService } from "@/services/notesClient.service";
 import { aiCacheClientService } from "@/services/aiCacheClient.service";
-import type { AICachedResult, Note } from "@/types/study";
+import type { AICachedResult, Flashcard, Note, Quiz } from "@/types/study";
 import { aiCacheAgeLabel } from "@/lib/aiCacheView";
 import {
   AI_SUBMIT_LABEL,
@@ -29,8 +29,10 @@ interface Props {
   courses: Course[];
   /** Stored answers for this user, newest first (server-rendered). */
   cachedResults: AICachedResult[];
-  /** Called after "Save as new note" so the host can show the note without a refresh. */
-  onNoteCreated?: (note: Note) => void;
+  /** Report each save upward so the other Study Hub tabs show it without a reload. */
+  onNoteCreated: (note: Note) => void;
+  onCardsCreated: (cards: Flashcard[]) => void;
+  onQuizCreated: (quiz: Quiz) => void;
 }
 
 const ACTIONS: { id: AIAction; label: string; icon: LucideIcon }[] = [
@@ -141,12 +143,16 @@ function useAISaves({
   form,
   notes,
   onNoteCreated,
+  onCardsCreated,
+  onQuizCreated,
 }: {
   generated: unknown;
   result: string | null;
   form: AIFormInputs;
   notes: Note[];
-  onNoteCreated?: (note: Note) => void;
+  onNoteCreated: (note: Note) => void;
+  onCardsCreated: (cards: Flashcard[]) => void;
+  onQuizCreated: (quiz: Quiz) => void;
 }) {
   const { toast, notify } = useToast();
   const [saving, setSaving] = React.useState<SaveKind | null>(null);
@@ -168,8 +174,10 @@ function useAISaves({
       const results = await Promise.allSettled(
         cards.map((c) => flashcardsClientService.createFlashcard({ ...c, tags: [], courseId, noteId: form.noteId || null }))
       );
-      const n = results.filter((r) => r.status === "fulfilled" && r.value.success).length;
-      notify(n > 0, `Saved ${n} flashcards`);
+      // Keep the created rows so the Flashcards tab can show them without a reload.
+      const created = results.flatMap((r) => (r.status === "fulfilled" && r.value.data ? [r.value.data] : []));
+      onCardsCreated(created);
+      notify(created.length > 0, `Saved ${created.length} flashcards`);
     });
   };
 
@@ -178,6 +186,7 @@ function useAISaves({
     if (!questions.length) return toast({ title: "Nothing to save", variant: "error" });
     await withSaving("quiz", async () => {
       const res = await quizzesClientService.createQuiz({ title: "AI Quiz", description: null, courseId, questions });
+      if (res.success && res.data) onQuizCreated(res.data);
       notify(res.success, res.success ? "Quiz saved" : "Save failed", res.success ? undefined : res.message);
     });
   };
@@ -187,7 +196,7 @@ function useAISaves({
     await withSaving("summary", async () => {
       const title = form.noteId ? `Summary: ${notes.find((n) => n.id === form.noteId)?.title ?? "Note"}` : "AI Summary";
       const res = await notesClientService.createNote({ title, content: result, tags: ["ai-summary"], courseId });
-      if (res.success && res.data) onNoteCreated?.(res.data);
+      if (res.success && res.data) onNoteCreated(res.data);
       notify(res.success, res.success ? "Summary saved as new note" : "Save failed", res.success ? undefined : res.message);
     });
   };
@@ -423,13 +432,13 @@ function SavedAnswersCard({
   );
 }
 
-export function AIAssistantTab({ notes, courses, cachedResults, onNoteCreated }: Props) {
+export function AIAssistantTab({ notes, courses, cachedResults, onNoteCreated, onCardsCreated, onQuizCreated }: Props) {
   const [action, setAction] = React.useState<AIAction>("explain");
   const [form, setForm] = React.useState<AIFormInputs>({ text: "", noteId: "", courseId: "", count: "5" });
   const update = (patch: Partial<AIFormInputs>) => setForm((f) => ({ ...f, ...patch }));
   const ai = useAIRequest();
   const history = useAiCacheHistory(cachedResults);
-  const saves = useAISaves({ generated: ai.generated, result: ai.result, form, notes, onNoteCreated });
+  const saves = useAISaves({ generated: ai.generated, result: ai.result, form, notes, onNoteCreated, onCardsCreated, onQuizCreated });
 
   const pickAction = (next: AIAction) => {
     setAction(next);
