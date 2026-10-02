@@ -27,13 +27,17 @@ export const EVENT_TYPE_COLOR: Record<ScheduleEventType, string> = {
   other: "#6B7280",
 };
 
+/** The two chip text colours `readableTextColor` (lib/scheduleView) picks between. */
+export const CHIP_TEXT_DARK = "#1F1300";
+export const CHIP_TEXT_LIGHT = "#FFFFFF";
+
 export const EVENT_TYPE_ON_COLOR: Record<ScheduleEventType, string> = {
-  class: "#FFFFFF",
-  assignment: "#1F1300",
-  exam: "#FFFFFF",
-  study_session: "#04231F",
-  personal: "#022C20",
-  other: "#FFFFFF",
+  class: CHIP_TEXT_LIGHT,
+  assignment: CHIP_TEXT_DARK,
+  exam: CHIP_TEXT_LIGHT,
+  study_session: CHIP_TEXT_DARK,
+  personal: CHIP_TEXT_DARK,
+  other: CHIP_TEXT_LIGHT,
 };
 
 export function isScheduleEventType(value: unknown): value is ScheduleEventType {
@@ -75,4 +79,10 @@ export interface ScheduleCourseOption {
   color: string | null;
 }
 
-export type CalendarView = "month" | "week" | "day" | "agenda";
+export type CalendarView = (typeof CALENDAR_VIEWS)[number];
+
+export const CALENDAR_VIEWS = ["month", "week", "day", "agenda"] as const;
+
+export function isCalendarView(value: unknown): value is CalendarView {
+  return typeof value === "string" && (CALENDAR_VIEWS as readonly string[]).includes(value);
+}

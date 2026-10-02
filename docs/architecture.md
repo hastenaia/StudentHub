@@ -107,14 +107,46 @@ are unused schema.
 (`EVENT_TYPE_COLOR` plus `EVENT_TYPE_ON_COLOR` for legible text on the chip);
 `eventTypeStyle` in `lib/scheduleView.ts` is the single source of truth for chip
 styling — an explicit per-event `color` wins, otherwise the type palette applies,
-and Google events are dimmed to read as read-only.
+and Google events are dimmed to read as read-only. A custom colour has no curated
+pairing, so `readableTextColor` picks `CHIP_TEXT_DARK` or `CHIP_TEXT_LIGHT` by WCAG
+relative luminance instead of assuming white; `lib/views.test.ts` asserts the
+luminance choice agrees with every hand-tuned `EVENT_TYPE_ON_COLOR` pairing.
 
 New events get an advisory suggestion only: `lib/eventTypeInference.ts` matches
 title/description keywords in precedence order (exam → assignment → class →
 personal → study_session → other) and `EventForm` offers to apply it, so the type
 stored in the database is always the user's choice. Google events have no
 `event_type` column (`calendar_events` is replaced on every sync), so their type
-is inferred at read time in `calendarRowToView`.
+is inferred at read time in `calendarRowToView`. User rows do **not** fall back to
+inference: `event_type` is `NOT NULL` and check-constrained, so an unrecognised
+value is corrupt data and maps to `other`.
+
+### Schedule views
+
+`ScheduleView` owns the toolbar, CRUD wiring and date navigation; `MonthView`,
+`WeekView`, `DayView` and `AgendaView` are pure renderers over the same
+`ScheduleEvent[]`. Three shared pieces keep the four views consistent:
+
+- `components/schedule/EventChip.tsx` — the one chip used by month, week and day
+  (`layout="row"` for the day view's title-left/time-right treatment), so colour,
+  typography and the Google read-only marker can't drift between views.
+- `components/schedule/EventEmptyState.tsx` — one empty state for all four views,
+  with per-view copy.
+- `hooks/useGroupedEvents.ts` — three groupings, one per convention: `byDay` and
+  `byDayHour` bucket by **start** day (agenda lists a multi-day event once, on the
+  day it starts), while `byDaySpan` repeats an event across every day it touches
+  (grids render it on each day). `byDaySpan` takes an optional `range` so a
+  view clamps expansion to the days it renders; the end is exclusive, so an event
+  ending exactly at 00:00 — a Google all-day event — doesn't also claim the next
+  day.
+
+All-day events get their own lane in both week and day, and are filtered out of the
+hour grid. Week and day step days with `setDate` rather than `+24h` arithmetic, so
+a DST change inside the displayed period can't skip or repeat a day.
+
+`default_calendar_view` is read server-side in `getScheduleData` and passed as
+`initialView`, so the saved view is correct on the first paint; reading
+`localStorage` in the client component would mismatch the SSR HTML.
 
 ## Request lifecycle
 

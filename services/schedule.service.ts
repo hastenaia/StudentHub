@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { calendarRowToView, scheduleRowToView } from "@/lib/scheduleView";
-import type { ScheduleCourseOption, ScheduleEvent } from "@/types/schedule";
+import type { CalendarView, ScheduleCourseOption, ScheduleEvent } from "@/types/schedule";
+import { isCalendarView } from "@/types/schedule";
 import { activeCoursesQuery } from "@/lib/supabase/queries";
 import { toCourseOptions } from "@/lib/courseView";
 
@@ -9,6 +10,8 @@ export interface ScheduleViewData {
   courses: ScheduleCourseOption[];
   googleEvents: ScheduleEvent[];
   userEvents: ScheduleEvent[];
+  /** `profiles.default_calendar_view`, validated against the view names the UI offers. */
+  defaultView: CalendarView;
 }
 
 export async function getScheduleData(userId: string): Promise<ScheduleViewData> {
@@ -18,7 +21,7 @@ export async function getScheduleData(userId: string): Promise<ScheduleViewData>
   const now = new Date();
   const windowStart = new Date(now.getTime() - 60 * 86400000).toISOString();
   const windowEnd = new Date(now.getTime() + 120 * 86400000).toISOString();
-  const [scheduleRes, calendarRes, coursesRes] = await Promise.all([
+  const [scheduleRes, calendarRes, coursesRes, profileRes] = await Promise.all([
     supabase
       .from("schedule_events")
       .select("*")
@@ -36,6 +39,7 @@ export async function getScheduleData(userId: string): Promise<ScheduleViewData>
       .order("start_at", { ascending: true })
       .limit(2000),
     activeCoursesQuery(supabase, userId),
+    supabase.from("profiles").select("default_calendar_view").eq("id", userId).maybeSingle(),
   ]);
 
   const courses: ScheduleCourseOption[] = toCourseOptions(coursesRes.data);
@@ -50,6 +54,9 @@ export async function getScheduleData(userId: string): Promise<ScheduleViewData>
     .sort((a, b) => a.ms - b.ms)
     .map(({ e }) => e);
 
-  return { events: all, courses, googleEvents, userEvents };
+  const savedView = profileRes.data?.default_calendar_view;
+  const defaultView: CalendarView = isCalendarView(savedView) ? savedView : "month";
+
+  return { events: all, courses, googleEvents, userEvents, defaultView };
 }
 

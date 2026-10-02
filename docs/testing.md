@@ -4,7 +4,7 @@ StudentHub uses **Vitest** with **Testing Library** and **jsdom**. Tests cover
 the pure logic and validation layers (task scheduling, RBAC, request gate, Zod
 schemas, view mappers, date/formatting utilities), the security-critical helpers
 (Google token encryption, redirect sanitizing, the AI provider call with a
-mocked `fetch`), plus a few hooks and one component via Testing Library.
+mocked `fetch`), plus hooks, components and a service via Testing Library.
 Files that need Node's crypto or `Response` opt into `// @vitest-environment node`.
 
 ## Running tests
@@ -38,7 +38,7 @@ npx vitest run -t "nextRecurrence"        # tests whose name matches
 | `lib/taskFilters.test.ts` | Task search/status/priority/course filtering, scheduler inputs, reopen/completion helpers, shared `matchesCourseFilter`, `withXpToast` |
 | `lib/authGate.test.ts` | Request-gate rules: auth-link rescue (incl. `/api/*` and `/login?error` exclusions), sign-in redirect, public routes, first-login password change |
 | `lib/notesForm.test.ts` | Note PDF-attachment link helpers (pending/unlinked attachments, link stripping, PDF validation, storage keys), Markdown selection wrapping, note ↔ form mapping, Study Hub note search/filters |
-| `lib/views.test.ts` | Row → view mappers: `courseView`, `taskView` (+ `taskToDraft`), `scheduleView` / `calendarRowToView` fallbacks, `eventTypeStyle` colour precedence |
+| `lib/views.test.ts` | Row → view mappers: `courseView`, `taskView` (+ `taskToDraft`), `scheduleView` / `calendarRowToView` fallbacks and Google type inference, `eventTypeStyle` colour precedence, `relativeLuminance` / `contrastRatio` / `readableTextColor` (custom-colour chip text contrast) |
 | `lib/eventTypeInference.test.ts` | Schedule event-type keyword inference: per-type matches, case/punctuation tolerance, word boundaries, precedence, reported keyword |
 | `lib/noteView.test.ts` | Notes row → view mapping, draft → column payload (omitted category left alone), orphan PDF detection |
 | `lib/flashcardView.test.ts` | Flashcard row → view mapping, form ↔ draft, write payloads and review counters, filters, study deck, known %, deck wrap-around |
@@ -58,7 +58,7 @@ npx vitest run -t "nextRecurrence"        # tests whose name matches
 | `components/layout/Navbar.test.tsx` | Theme toggle: Sun/Moon icons by active theme, toggling light↔dark, switching back to system |
 | `lib/supabase/errors.test.ts` | Friendly auth error message mapping |
 | `components/study/MarkdownPreview.test.ts` | Markdown link scheme allow-list, attribute escaping, formatting inside URLs |
-| `hooks/hooks.test.tsx` | `useGroupedEvents` day/hour bucketing and memoization; `useEscapeKey` activation and cleanup |
+| `hooks/hooks.test.tsx` | `useGroupedEvents` day/hour bucketing and memoization, plus `byDaySpan` multi-day expansion (repeats per day, exclusive end, range clamp, all-day flag); `useEscapeKey` activation and cleanup |
 | `lib/google/autoSync.test.ts` | Sign-in auto-sync rule: skips unlinked / needs-reconnect / recently synced accounts |
 | `lib/noteCategories.test.ts` | Category normalization (trim/collapse/length cap), per-category counts, category + text filtering, string category filters, bulk rename |
 | `components/study/NoteCategoryFilter.test.tsx` | Study Hub category filter: selection, rename (normalized, unchanged skipped, failure keeps form), stale rename reset, confirmed remove |
@@ -67,6 +67,8 @@ npx vitest run -t "nextRecurrence"        # tests whose name matches
 | `hooks/useNoteAttachments.test.tsx` | Note PDF lifecycle (service mocked): load, validation, upload failures, commit links kept / discards dropped / prunes unlinked, discard on unmount |
 | `components/tasks/TasksParts.test.tsx` | `TaskViewToggle`, `TasksToolbar` filter patches / clear / sort / match count, `TasksContent` empty states and board vs list |
 | `components/study/FlashcardParts.test.tsx` | `FlashcardCard`, `FlashcardStudy` flip / advance / wrap / failed mark, `FlashcardDialog` create/update/failure (service mocked) |
+| `components/schedule/scheduleViews.test.tsx` | Multi-view calendar consistency: `EventChip` colour/contrast/Google marker/keyboard activation, `EventEmptyState` copy per view, month overflow + multi-day repeat, week all-day lane + other-times strip, day all-day lane + carry-over from the previous day, agenda grouping/ordering/single-occurrence, one event coloured identically in all four views |
+| `services/schedule.service.test.ts` | `getScheduleData` (Supabase stubbed): user + Google merge and ordering, per-source event typing, course options, `default_calendar_view` honoured and validated, empty-table fallbacks |
 | `components/study/QuizParts.test.tsx` | `QuizPlayer` answer inputs per type, `QuizReview` summary, `QuizCard`, `QuizDialog` create / add-remove questions / failure (service mocked) |
 | `utils/text.test.ts` | `parseTags` and `upsertById` |
 | `utils/cn.test.ts` | `cn()` class-name merging |

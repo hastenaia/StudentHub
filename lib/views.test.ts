@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { courseRowToView, toCourseOptions } from "@/lib/courseView";
 import { taskRowToView, taskToDraft } from "@/lib/taskView";
-import { calendarRowToView, eventTypeStyle, scheduleRowToView } from "@/lib/scheduleView";
-import { EVENT_TYPE_COLOR, EVENT_TYPE_ON_COLOR } from "@/types/schedule";
+import { calendarRowToView, contrastRatio, eventTypeStyle, readableTextColor, relativeLuminance, scheduleRowToView } from "@/lib/scheduleView";
+import { CHIP_TEXT_DARK, CHIP_TEXT_LIGHT, EVENT_TYPE_COLOR, EVENT_TYPE_ON_COLOR } from "@/types/schedule";
 import type { Database } from "@/types/database.types";
 
 type Tables = Database["public"]["Tables"];
@@ -93,18 +93,20 @@ describe("scheduleView", () => {
     expect(calendarRowToView(row<"calendar_events">({ ...base, summary: "Dentist Appointment" })).eventType).toBe("personal");
   });
 
-  it("scheduleRowToView falls back to inference for an unknown stored type", () => {
+  it("scheduleRowToView falls back to 'other' for a stored type outside the enum", () => {
+    // `schedule_events.event_type` is NOT NULL and check-constrained, so this fixture stands in
+    // for corrupt data only — it must not be second-guessed by keyword inference.
     const view = scheduleRowToView(
       row<"schedule_events">({ id: "e", title: "Lab Report due", event_type: "workshop", start_at: "s", end_at: "e", all_day: false, color: null }),
       new Map()
     );
-    expect(view.eventType).toBe("assignment");
+    expect(view.eventType).toBe("other");
   });
 
   it("eventTypeStyle prefers an explicit color and dims Google events", () => {
     expect(eventTypeStyle({ eventType: "exam", color: "#123456", source: "user" })).toEqual({
       bg: "#123456",
-      fg: "#FFFFFF",
+      fg: CHIP_TEXT_LIGHT,
       opacity: 1,
     });
     expect(eventTypeStyle({ eventType: "assignment", color: null, source: "user" })).toEqual({
@@ -114,5 +116,39 @@ describe("scheduleView", () => {
     });
     expect(eventTypeStyle({ eventType: "class", color: null, source: "google" }).opacity).toBeLessThan(1);
     expect(eventTypeStyle({ eventType: "nope" as never, color: null, source: "user" }).bg).toBe(EVENT_TYPE_COLOR.other);
+  });
+
+  it("eventTypeStyle derives chip text contrast from a custom color", () => {
+    // Regression: a pale custom colour used to force white text, leaving it unreadable.
+    expect(eventTypeStyle({ eventType: "exam", color: "#FFF59D", source: "user" }).fg).toBe(CHIP_TEXT_DARK);
+    expect(eventTypeStyle({ eventType: "other", color: "#FFFFFF", source: "user" }).fg).toBe(CHIP_TEXT_DARK);
+    expect(eventTypeStyle({ eventType: "other", color: "#000000", source: "user" }).fg).toBe(CHIP_TEXT_LIGHT);
+  });
+
+  it("relativeLuminance parses hex and rejects anything else", () => {
+    expect(relativeLuminance("#FFFFFF")).toBeCloseTo(1, 5);
+    expect(relativeLuminance("#000")).toBeCloseTo(0, 5);
+    expect(relativeLuminance("#fff")).toBe(relativeLuminance("#FFFFFF"));
+    expect(relativeLuminance("fff")).toBe(relativeLuminance("#FFFFFF"));
+    for (const bad of ["", "#12", "#12345", "rgb(1,2,3)", "rebeccapurple", "#GGGGGG"]) {
+      expect(relativeLuminance(bad)).toBeNull();
+    }
+  });
+
+  it("contrastRatio is symmetric and bounded by 21", () => {
+    expect(contrastRatio(1, 0)).toBeCloseTo(21, 5);
+    expect(contrastRatio(0, 1)).toBeCloseTo(21, 5);
+    expect(contrastRatio(0.5, 0.5)).toBe(1);
+  });
+
+  it("readableTextColor picks the higher-contrast chip text colour", () => {
+    expect(readableTextColor("#FFFFFF")).toBe(CHIP_TEXT_DARK);
+    expect(readableTextColor("#000000")).toBe(CHIP_TEXT_LIGHT);
+    // The mid-tone palette entries must agree with their hand-tuned EVENT_TYPE_ON_COLOR pairings.
+    for (const [type, colour] of Object.entries(EVENT_TYPE_COLOR)) {
+      expect(readableTextColor(colour), type).toBe(EVENT_TYPE_ON_COLOR[type as keyof typeof EVENT_TYPE_ON_COLOR]);
+    }
+    // A malformed colour falls back to the previous behaviour rather than guessing.
+    expect(readableTextColor("not-a-colour")).toBe(CHIP_TEXT_LIGHT);
   });
 });

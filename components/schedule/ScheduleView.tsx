@@ -11,8 +11,10 @@ import { WeekView } from "@/components/schedule/WeekView";
 import { DayView } from "@/components/schedule/DayView";
 import { AgendaView } from "@/components/schedule/AgendaView";
 import { EventForm } from "@/components/schedule/EventForm";
+import { EventEmptyState } from "@/components/schedule/EventEmptyState";
 import type { CalendarView, ScheduleCourseOption, ScheduleDraft, ScheduleEvent } from "@/types/schedule";
 import {
+  CALENDAR_VIEWS,
   EVENT_TYPE_COLOR,
   EVENT_TYPE_LABEL,
   SCHEDULE_EVENT_TYPES,
@@ -23,6 +25,8 @@ import { formatDate, formatTime } from "@/utils/date";
 interface ScheduleViewProps {
   initialEvents: ScheduleEvent[];
   courses: ScheduleCourseOption[];
+  /** The user's saved `default_calendar_view`, read server-side to keep SSR and first paint in step. */
+  initialView?: CalendarView;
 }
 
 function startOfWeek(date: Date): Date {
@@ -45,10 +49,10 @@ function endOfMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
 }
 
-export function ScheduleView({ initialEvents, courses }: ScheduleViewProps) {
+export function ScheduleView({ initialEvents, courses, initialView }: ScheduleViewProps) {
   const { notify } = useToast();
   const [events, setEvents] = React.useState<ScheduleEvent[]>(initialEvents);
-  const [view, setView] = React.useState<CalendarView>("month");
+  const [view, setView] = React.useState<CalendarView>(initialView ?? "month");
   const [currentDate, setCurrentDate] = React.useState<Date>(() => new Date());
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<ScheduleEvent | null>(null);
@@ -147,13 +151,9 @@ export function ScheduleView({ initialEvents, courses }: ScheduleViewProps) {
     }
   };
 
-  const onEventClick = (event: ScheduleEvent) => {
-    if (event.source === "google") {
-      setDetailEvent(event);
-    } else {
-      setDetailEvent(event);
-    }
-  };
+  // Google events are read-only, but they still open the same detail dialog; only
+  // openEdit and the dialog footer branch on source.
+  const onEventClick = (event: ScheduleEvent) => setDetailEvent(event);
 
   const openCreate = (date?: Date | string) => {
     setEditing(null);
@@ -225,7 +225,7 @@ export function ScheduleView({ initialEvents, courses }: ScheduleViewProps) {
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {(["month", "week", "day", "agenda"] as const).map((v) => (
+            {CALENDAR_VIEWS.map((v) => (
               <Button
                 key={v}
                 size="sm"
@@ -252,14 +252,9 @@ export function ScheduleView({ initialEvents, courses }: ScheduleViewProps) {
         </CardHeader>
 
         <CardContent>
-          {view !== "agenda" && filtered.length === 0 && (
-            <div className="mb-4 flex flex-col items-start gap-2 rounded-md border border-dashed border-gray-200 bg-brand-gray/30 px-4 py-3 text-sm text-gray-600 sm:flex-row sm:items-center sm:justify-between">
-              <span>{view === "month" ? "No events this month." : `No events this ${view} — click a time slot or create one.`}</span>
-              <Button onClick={() => openCreate()} size="sm" variant="outline">
-                <Plus className="h-4 w-4" /> New event
-              </Button>
-            </div>
-          )}
+          <div className={filtered.length === 0 ? "mb-4" : undefined}>
+            {filtered.length === 0 && <EventEmptyState view={view} onCreate={() => openCreate()} />}
+          </div>
 
           {view === "month" && (
             <MonthView
@@ -326,15 +321,24 @@ export function ScheduleView({ initialEvents, courses }: ScheduleViewProps) {
                   {detailChip && (
                     <span
                       className="rounded px-2 py-0.5 text-xs font-medium"
-                      style={{ backgroundColor: detailChip.bg, color: detailChip.fg }}
+                      style={{
+                        backgroundColor: detailChip.bg,
+                        color: detailChip.fg,
+                        opacity: detailChip.opacity,
+                      }}
                     >
-                      {EVENT_TYPE_LABEL[detailEvent.eventType] ?? "Other"}
+                      {EVENT_TYPE_LABEL[detailEvent.eventType]}
                     </span>
                   )}
                   {detailEvent.source === "google" ? (
-                    <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">Google • read-only</span>
+                    <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                      <span aria-hidden>•</span> Google
+                      <span className="sr-only"> (Google Calendar, read-only)</span>
+                    </span>
                   ) : (
-                    <span className="rounded bg-brand-gray px-2 py-0.5 text-xs text-gray-600">{detailEvent.courseName ?? "No course"}</span>
+                    <span className="rounded bg-brand-gray px-2 py-0.5 text-xs text-gray-600">
+                      {detailEvent.courseName ?? "No course"}
+                    </span>
                   )}
                 </div>
               </div>

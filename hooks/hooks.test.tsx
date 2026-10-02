@@ -46,6 +46,48 @@ describe("useGroupedEvents", () => {
     rerender({ list: events });
     expect(result.current).toBe(first);
   });
+
+  it("byDay lists a multi-day event once, on its start day", () => {
+    const span = event("span", new Date(2026, 8, 15, 22).toISOString(), new Date(2026, 8, 17, 2).toISOString());
+    const { result } = renderHook(() => useGroupedEvents([span]));
+    expect(result.current.byDay.get(dayKey(new Date(2026, 8, 15)))?.map((e) => e.id)).toEqual(["span"]);
+    expect(result.current.byDay.get(dayKey(new Date(2026, 8, 16)))).toBeUndefined();
+  });
+
+  it("byDaySpan repeats a multi-day event on every day it covers", () => {
+    const span = event("span", new Date(2026, 8, 15, 22).toISOString(), new Date(2026, 8, 17, 2).toISOString());
+    const { result } = renderHook(() => useGroupedEvents([span]));
+    for (const day of [15, 16, 17]) {
+      expect(result.current.byDaySpan.get(dayKey(new Date(2026, 8, day)))?.map((e) => e.id)).toEqual(["span"]);
+    }
+    expect(result.current.byDaySpan.get(dayKey(new Date(2026, 8, 18)))).toBeUndefined();
+  });
+
+  it("byDaySpan treats the end as exclusive, so an event ending at midnight misses that day", () => {
+    const morning = event("morning", new Date(2026, 8, 15, 9).toISOString(), new Date(2026, 8, 16, 0).toISOString());
+    const { result } = renderHook(() => useGroupedEvents([morning]));
+    expect(result.current.byDaySpan.get(dayKey(new Date(2026, 8, 15)))?.map((e) => e.id)).toEqual(["morning"]);
+    expect(result.current.byDaySpan.get(dayKey(new Date(2026, 8, 16)))).toBeUndefined();
+  });
+
+  it("byDaySpan clamps expansion to the rendered range", () => {
+    // A month-long event would otherwise expand across every day in the dataset.
+    const long = event("long", new Date(2026, 8, 1).toISOString(), new Date(2026, 8, 31).toISOString());
+    const range = { start: new Date(2026, 8, 10), end: new Date(2026, 8, 12) };
+    const { result } = renderHook(() => useGroupedEvents([long], range));
+    for (const day of [10, 11, 12]) {
+      expect(result.current.byDaySpan.get(dayKey(new Date(2026, 8, day)))?.map((e) => e.id)).toEqual(["long"]);
+    }
+    expect(result.current.byDaySpan.get(dayKey(new Date(2026, 8, 9)))).toBeUndefined();
+    expect(result.current.byDaySpan.get(dayKey(new Date(2026, 8, 13)))).toBeUndefined();
+  });
+
+  it("marks all-day events so views can route them out of the hour grid", () => {
+    const allDay = event("allday", new Date(2026, 8, 15).toISOString(), new Date(2026, 8, 16).toISOString(), { allDay: true });
+    const { result } = renderHook(() => useGroupedEvents([allDay]));
+    expect(result.current.byDay.get(dayKey(new Date(2026, 8, 15)))?.[0].allDayFlag).toBe(true);
+    expect(result.current.byDayHour.get(`${dayKey(new Date(2026, 8, 15))}:0`)?.[0].id).toBe("allday");
+  });
 });
 
 describe("useEscapeKey", () => {
