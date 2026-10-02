@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getNotesData } from "@/services/notes.service";
 import { getFlashcardsData } from "@/services/flashcards.service";
 import { getQuizzesData } from "@/services/quizzes.service";
+import { getAiCacheData } from "@/services/aiCache.service";
 import { StudyHubView } from "@/components/study/StudyHubView";
 
 export const metadata = { title: "Study Hub — StudentHub" };
@@ -11,10 +12,11 @@ export default async function StudyHubPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return <p className="text-sm text-gray-500">You need to be signed in.</p>;
 
-  const [notesData, flashcardsData, quizzesData] = await Promise.all([
+  const [notesData, flashcardsData, quizzesData, aiCacheData] = await Promise.all([
     getNotesData(user.id),
     getFlashcardsData(user.id),
     getQuizzesData(user.id),
+    getAiCacheData(user.id),
   ]);
 
   return (
@@ -27,6 +29,7 @@ export default async function StudyHubPage() {
         initialNotes={notesData.notes}
         initialFlashcards={flashcardsData.flashcards}
         initialQuizzes={quizzesData.quizzes}
+        cachedResults={aiCacheData.cachedResults}
         courses={notesData.courses}
       />
     </div>

@@ -322,6 +322,28 @@ user per day.
 `user_badges` and `xp_ledger` have owner **select** policies only; they are
 written exclusively by the SECURITY DEFINER functions below.
 
+### `ai_cache`
+
+Stored AI answers — both the reuse cache and the Study Hub's answer history.
+One row per distinct question; written by the `/api/ai/*` handlers and deleted
+by the user from the AI tab. `wellness-tip` is not stored (it is a passive
+suggestion, not a prompt).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `uuid` PK | |
+| `user_id` | `uuid` | references `profiles(id)` on delete cascade |
+| `cache_key` | `text` | sha256 of action + the inputs sent to the model; UNIQUE with `user_id` |
+| `action` | `text` | check: `explain`, `summarize`, `flashcards`, `quiz`, `plan` |
+| `label` | `text` | short history label (the concept, topic, or note title) |
+| `data` | `jsonb` | the route's `data` payload, replayed verbatim on a hit |
+| `created_at` / `updated_at` | `timestamptz` | `created_at` is preserved on re-ask so history order is stable |
+
+Because the key is derived from the resolved source text, editing a note changes
+the key and invalidates that note's own answers. The unique constraint makes a
+re-ask or a Regeneration overwrite the row instead of duplicating it. Rows never
+expire.
+
 ### `academic_settings` (unused)
 
 Created by the Google academics migration for the removed GPA feature
@@ -343,7 +365,9 @@ create policy "courses owner delete" on public.courses for delete using (auth.ui
 
 Exceptions: `profiles` has select/update policies keyed on `auth.uid() = id`;
 `quiz_questions` checks ownership through its parent quiz; `quiz_attempts`
-and `note_attachments` have no update policy.
+and `note_attachments` have no update policy. `ai_cache` needs its update
+policy: regeneration upserts onto an existing row, and `ON CONFLICT DO UPDATE`
+has to pass RLS.
 
 ## Functions & triggers
 
@@ -383,6 +407,8 @@ and would allow a self-signed privilege escalation.
 | `20260907000003_note_attachments.sql` | `note_attachments`, private `notes-pdfs` Storage bucket + policies |
 | `20260930000001_add_assignment_weight.sql` | `assignments.weight` (default 1) for the weighted 0–100 course score |
 | `20260930000002_gamification.sql` | `profiles` XP/streak columns, `badges`, `user_badges`, `xp_ledger`, XP guard trigger, `award_*_xp` RPCs |
+| `20260930000003_note_categories.sql` | `notes.category` + `notes_category_idx` |
+| `20261002000001_ai_cache.sql` | `ai_cache` — persistent AI answer cache/history |
 
 After adding a migration, run `npm run typegen` to regenerate
 `types/database.types.ts`.

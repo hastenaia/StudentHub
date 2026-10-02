@@ -46,6 +46,47 @@ export type Database = {
           },
         ]
       }
+      ai_cache: {
+        Row: {
+          action: string
+          cache_key: string
+          created_at: string
+          data: Json
+          id: string
+          label: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          cache_key: string
+          created_at?: string
+          data: Json
+          id?: string
+          label?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          cache_key?: string
+          created_at?: string
+          data?: Json
+          id?: string
+          label?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_cache_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       announcements: {
         Row: {
           course_id: string

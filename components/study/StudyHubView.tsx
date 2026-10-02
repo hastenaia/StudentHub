@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { BookOpen, Layers, HelpCircle, Sparkles } from "lucide-react";
-import type { Note, Flashcard, Quiz, CourseOption } from "@/types/study";
+import type { Note, Flashcard, Quiz, CourseOption, AICachedResult } from "@/types/study";
 import { NotesTab } from "@/components/study/NotesTab";
 import { FlashcardsTab } from "@/components/study/FlashcardsTab";
 import { QuizzesTab } from "@/components/study/QuizzesTab";
@@ -14,10 +14,11 @@ interface Props {
   initialNotes: Note[];
   initialFlashcards: Flashcard[];
   initialQuizzes: Quiz[];
+  cachedResults: AICachedResult[];
   courses: CourseOption[];
 }
 
-export function StudyHubView({ initialNotes, initialFlashcards, initialQuizzes, courses }: Props) {
+export function StudyHubView({ initialNotes, initialFlashcards, initialQuizzes, cachedResults, courses }: Props) {
   const [tab, setTab] = React.useState<Tab>("notes");
 
   return (
@@ -44,7 +45,7 @@ export function StudyHubView({ initialNotes, initialFlashcards, initialQuizzes, 
       {tab === "notes" && <NotesTab initialNotes={initialNotes} courses={courses} />}
       {tab === "flashcards" && <FlashcardsTab initialFlashcards={initialFlashcards} courses={courses} notes={initialNotes.map((n) => ({ id: n.id, title: n.title }))} />}
       {tab === "quizzes" && <QuizzesTab initialQuizzes={initialQuizzes} courses={courses} />}
-      {tab === "ai" && <AIAssistantTab notes={initialNotes} courses={courses} />}
+      {tab === "ai" && <AIAssistantTab notes={initialNotes} courses={courses} cachedResults={cachedResults} />}
     </div>
   );
 }

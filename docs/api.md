@@ -153,10 +153,28 @@ All five routes live under `app/api/ai/` and share the same shape:
 - The prompt goes to `callAI(prompt, system)` in `lib/ai/provider.ts`, which
   picks the first configured provider (`OPENAI_API_KEY`/`AI_API_KEY`, then
   `ANTHROPIC_API_KEY`, then `GOOGLE_AI_API_KEY`/`GEMINI_API_KEY`) and aborts
-  after 4.5 seconds.
+  after 15 seconds. The Google chain falls back through
+  `GOOGLE_AI_FALLBACK_MODELS` on a 404/429/5xx, sharing that one budget; a
+  400/401/403 fails immediately.
 - Errors: `503` when no provider is configured, `502` for provider errors,
   timeouts or unparseable JSON output. Responses are
   `{ success, message?, data? }`.
+
+Five of the six routes (`explain`, `summarize`, `generate-flashcards`,
+`generate-quiz`, `study-plan`) also persist their answer in `ai_cache` and add
+two fields to the response:
+
+- `cached: boolean` — `true` when the answer came from `ai_cache` and no
+  provider call was made.
+- `refresh?: boolean` in the body skips the lookup and asks the model again,
+  overwriting the stored answer. This backs the tab's Regenerate button.
+
+The key is `aiCacheKey(action, inputs)` — a sha256 over the action and exactly
+the inputs sent to the model (`lib/ai/cacheKey.ts`). The resolved note text is
+part of it, so editing a note invalidates its own answers. Cache failures never
+fail a request: `readAiCache`/`writeAiCache` in `lib/ai/cache.ts` log and
+swallow. `/api/ai/wellness-tip` is not cached — it is a passive tip, not a
+prompt.
 
 | Route | Body | `data` on success |
 |---|---|---|
@@ -168,7 +186,9 @@ All five routes live under `app/api/ai/` and share the same shape:
 | `/api/ai/wellness-tip` | `{ focusMinutesToday, upcomingDeadlinesCount }` (numbers, clamped) | `{ tip }` (one plain-text sentence, ≤ 220 chars) |
 
 The routes only generate content; saving flashcards/quizzes happens
-client-side through `flashcardsClientService` / `quizzesClientService`.
+client-side through `flashcardsClientService` / `quizzesClientService`. Stored
+answers are listed and deleted client-side through `aiCacheClientService` /
+`services/aiCache.service.ts` (RLS scopes both to the caller).
 
 ## `/api/health`
 

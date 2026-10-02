@@ -94,3 +94,15 @@ export interface CourseOption {
   name: string;
   color: string | null;
 }
+
+/** The five prompt-driven AI actions in the Study Hub AI tab. */
+export type AIAction = "explain" | "summarize" | "flashcards" | "quiz" | "plan";
+
+/** A persisted AI answer: one entry per distinct question, reused until deleted or the inputs change. */
+export interface AICachedResult {
+  id: string;
+  action: AIAction;
+  label: string;
+  data: unknown;
+  createdAt: string;
+}

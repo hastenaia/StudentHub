@@ -1,7 +1,7 @@
 // Pure request building for the Study Hub AI tab (components/study/AIAssistantTab.tsx).
-import type { QuestionType, QuizDraft } from "@/types/study";
+import type { AIAction, QuestionType, QuizDraft } from "@/types/study";
 
-export type AIAction = "explain" | "summarize" | "flashcards" | "quiz" | "plan";
+export type { AIAction };
 
 export interface AIFormInputs {
   /** Concept / topic / pasted content, depending on the action. */

@@ -27,16 +27,20 @@ export async function startAIRoute<B>(
 
 /**
  * `startAIRoute` + `resolveNoteSource` for the note-based generators (summarize, flashcards, quiz):
- * returns the parsed body plus the source text and note title, or the error response to send.
+ * returns the client and caller id (for the answer cache) plus the parsed body, source text and note
+ * title, or the error response to send.
  */
 export async function startNoteAIRoute<B extends { noteId?: string; content?: string }>(
   req: Request
-): Promise<{ body: B; content: string | undefined; title: string | null; response?: never } | { response: NextResponse }> {
+): Promise<
+  | { supabase: ServerClient; userId: string; body: B; content: string | undefined; title: string | null; response?: never }
+  | { response: NextResponse }
+> {
   const ctx = await startAIRoute<B>(req);
   if (ctx.response) return ctx;
   const source = await resolveNoteSource(ctx.supabase, ctx.user.id, ctx.body);
   if (source.response) return source;
-  return { body: ctx.body, content: source.content, title: source.title };
+  return { supabase: ctx.supabase, userId: ctx.user.id, body: ctx.body, content: source.content, title: source.title };
 }
 
 /** Calls the configured provider; on failure returns 503 (unconfigured) or 502 (provider error/timeout). */
