@@ -5,8 +5,15 @@ import { Sidebar, MobileSidebar } from "@/components/layout/Sidebar";
 import { Navbar } from "@/components/layout/Navbar";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { AutoSync } from "@/components/layout/AutoSync";
+import type { Theme } from "@/lib/theme";
 
-export function DashboardShell({ children }: { children: React.ReactNode }) {
+export function DashboardShell({
+  children,
+  initialTheme,
+}: {
+  children: React.ReactNode;
+  initialTheme?: Theme;
+}) {
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
 
   return (
@@ -16,7 +23,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <MobileSidebar open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Navbar onMenuClick={() => setMobileNavOpen(true)} />
+        <Navbar onMenuClick={() => setMobileNavOpen(true)} initialTheme={initialTheme} />
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>

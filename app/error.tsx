@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme";
 
 export default function GlobalError({
   error,
@@ -16,7 +17,10 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }} />
+      </head>
       <body className="flex min-h-screen items-center justify-center bg-brand-gray font-sans">
         <div className="flex flex-col items-center gap-4 rounded-lg border border-gray-200 bg-white p-10 text-center shadow-sm">
           <AlertTriangle className="h-10 w-10 text-red-500" />

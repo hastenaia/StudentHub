@@ -1,15 +1,26 @@
 "use client";
 
 import * as React from "react";
-import { Bell, LogOut, Menu, Settings, User as UserIcon } from "lucide-react";
+import { Bell, LogOut, Menu, Moon, Settings, Sun, User as UserIcon } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 import { getInitials } from "@/utils/validation";
 import { cn } from "@/utils/cn";
+import type { Theme } from "@/lib/theme";
 
-export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
+export function Navbar({
+  onMenuClick,
+  initialTheme,
+}: {
+  onMenuClick: () => void;
+  initialTheme?: Theme;
+}) {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const { resolved, mounted, toggle } = useTheme(initialTheme);
+  const isDark = resolved === "dark";
+  const label = `Switch to ${isDark ? "light" : "dark"} mode`;
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 sm:px-6">
@@ -31,6 +42,15 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
         >
           <Bell className="h-5 w-5" />
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-brand-sky" />
+        </button>
+
+        <button
+          onClick={toggle}
+          className="rounded-full p-2 text-gray-500 hover:bg-brand-gray"
+          aria-label={mounted ? label : "Toggle theme"}
+          title={label}
+        >
+          {isDark ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
         </button>
 
         <div className="relative">

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BookOpen, KeyRound, Plug, ShieldCheck, UserCircle, Palette, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_THEME, isTheme } from "@/lib/theme";
 import {
   Card,
   CardContent,
@@ -64,7 +65,8 @@ export default async function SettingsPage() {
   }));
 
   const timezone = (profile as { timezone?: string } | null)?.timezone ?? "UTC";
-  const theme = ((profile as { theme?: string } | null)?.theme as "light" | "dark" | "system") ?? "system";
+  const storedTheme = (profile as { theme?: string } | null)?.theme;
+  const theme = isTheme(storedTheme) ? storedTheme : DEFAULT_THEME;
   const defaultCalendarView = ((profile as { default_calendar_view?: string } | null)?.default_calendar_view as "month" | "week" | "day" | "agenda") ?? "month";
   const defaultTaskView = ((profile as { default_task_view?: string } | null)?.default_task_view as "kanban" | "list") ?? "kanban";
   const notificationsEnabled = (profile as { notifications_enabled?: boolean } | null)?.notifications_enabled ?? true;

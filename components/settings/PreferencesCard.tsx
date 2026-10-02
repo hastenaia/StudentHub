@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { useToast } from "@/hooks/useToast";
+import { useTheme } from "@/hooks/useTheme";
 import { createClient } from "@/lib/supabase/client";
+import type { Theme } from "@/lib/theme";
 
-type Theme = "light" | "dark" | "system";
 type CalendarView = "month" | "week" | "day" | "agenda";
 type TaskView = "kanban" | "list";
 
@@ -26,7 +27,7 @@ export function PreferencesCard({
   initialNotifications,
 }: PreferencesCardProps) {
   const { toast } = useToast();
-  const [theme, setTheme] = React.useState<Theme>(initialTheme);
+  const { theme, setTheme } = useTheme(initialTheme);
   const [calendarView, setCalendarView] = React.useState<CalendarView>(initialCalendarView);
   const [taskView, setTaskView] = React.useState<TaskView>(initialTaskView);
   const [notifications, setNotifications] = React.useState(initialNotifications);
@@ -37,22 +38,6 @@ export function PreferencesCard({
     calendarView !== initialCalendarView ||
     taskView !== initialTaskView ||
     notifications !== initialNotifications;
-
-  // Apply theme immediately for preview
-  React.useEffect(() => {
-    const root = document.documentElement;
-    const apply = (t: Theme) => {
-      root.classList.remove("light", "dark");
-      if (t === "system") {
-        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        root.classList.add(prefersDark ? "dark" : "light");
-      } else {
-        root.classList.add(t);
-      }
-    };
-    apply(theme);
-    localStorage.setItem("studenthub:theme", theme);
-  }, [theme]);
 
   // Persist other prefs to localStorage for immediate UI use
   React.useEffect(() => {
@@ -81,7 +66,6 @@ export function PreferencesCard({
     const { error } = await supabase
       .from("profiles")
       .update({
-        theme,
         default_calendar_view: calendarView,
         default_task_view: taskView,
         notifications_enabled: notifications,

@@ -199,11 +199,51 @@ and used as Tailwind utilities (e.g. `bg-brand-royal`, `text-brand-dark`).
 | `brand-royal-dark` | `#002478` |
 | `brand-sky` (accent) | `#87CEEB` |
 | `brand-white` | `#FFFFFF` |
-| `brand-gray` (surface) | `#F4F6F9` |
-| `brand-dark` (text) | `#1A1A1A` |
+| `brand-gray` (surface) | `hsl(var(--surface-muted))` |
+| `brand-dark` (text) | `hsl(var(--fg))` |
 
 Additional Tailwind color roles (primary/secondary/muted/accent/card) map onto
 these brand values; `border`/`input`/`ring`/`background`/`foreground` use CSS
 variables from `app/globals.css`. The Inter font is loaded via
 `next/font/google` and exposed as `--font-inter`. Classes are merged with
 `cn()` from `utils/cn.ts`.
+
+## Dark mode
+
+`darkMode: ["class"]` plus a `.dark` class on `<html>` drives theming. The
+`light`/`dark`/`system` value is stored in `profiles.theme` and mirrored to
+`localStorage["studenthub:theme"]`.
+
+Most color utilities are **variable-driven rather than `dark:`-variants**.
+`gray-100…700`, `brand.gray` and `brand.dark` resolve to CSS variables declared
+in `app/globals.css`, and the `.dark` block redeclares those variables. This is
+why existing utilities such as `text-gray-500` or `bg-brand-gray` flip with the
+theme without per-component edits — do not hand-add `dark:` variants to them.
+
+Two exceptions stay fixed hex values on purpose, because they are always
+label-on-blue pairs: `text-white` and `bg-brand-royal` (`brand.sky` likewise).
+Their surface/text counterparts are bridged by two high-specificity shims in
+`globals.css`: `.dark .bg-white` and `.dark .text-brand-royal`.
+
+Resolution and flow:
+
+- `lib/theme.ts` is the single source of truth: `Theme`, `resolveTheme`,
+  `nextTheme`, `isTheme`, `readStoredTheme`, `applyThemeToRoot`, and
+  `THEME_BOOTSTRAP_SCRIPT`. It is pure and unit tested.
+- `app/layout.tsx` inlines `THEME_BOOTSTRAP_SCRIPT` into `<head>` so the class is
+  set before first paint (no light flash) and pairs it with
+  `suppressHydrationWarning`. `app/error.tsx` renders its own `<html>`, so it
+  repeats both.
+- `hooks/useTheme.ts` exposes `{ theme, resolved, mounted, setTheme, toggle }`.
+  It reads the OS preference and hydration state through `useSyncExternalStore`
+  (no `setState` in effects), so `system` stays live and the icon cannot
+  mismatch on hydration. Changes are broadcast to other mounted hooks in the tab
+  and to other tabs via the `storage` event, then persisted by
+  `services/preferencesClient.service.ts`.
+- `app/(dashboard)/layout.tsx` reads `profiles.theme` server-side and passes
+  `initialTheme` down, so the choice follows the user to a new device. A
+  locally stored value wins over the server value, so an offline or failed save
+  is not reverted by the next navigation.
+- The navbar toggle sits beside the notification bell. Pressing it always writes
+  an explicit `light`/`dark`, which leaves `system` behind by design.
+

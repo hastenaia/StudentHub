@@ -10,13 +10,22 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        gray: {
+          100: "hsl(var(--subtle))",
+          200: "hsl(var(--border))",
+          300: "hsl(var(--border-strong))",
+          400: "hsl(var(--muted-fg))",
+          500: "hsl(var(--muted-fg))",
+          600: "hsl(var(--fg-muted))",
+          700: "hsl(var(--fg))",
+        },
         brand: {
           royal: "#0033A0",
           "royal-dark": "#002478",
           sky: "#87CEEB",
           white: "#FFFFFF",
-          gray: "#F4F6F9",
-          dark: "#1A1A1A",
+          gray: "hsl(var(--surface-muted))",
+          dark: "hsl(var(--fg))",
         },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -36,16 +45,16 @@ const config: Config = {
           foreground: "#FFFFFF",
         },
         muted: {
-          DEFAULT: "#F4F6F9",
-          foreground: "#6B7280",
+          DEFAULT: "hsl(var(--surface-muted))",
+          foreground: "hsl(var(--muted-fg))",
         },
         accent: {
-          DEFAULT: "#F4F6F9",
-          foreground: "#0033A0",
+          DEFAULT: "hsl(var(--subtle))",
+          foreground: "hsl(var(--royal-text))",
         },
         card: {
-          DEFAULT: "#FFFFFF",
-          foreground: "#1A1A1A",
+          DEFAULT: "hsl(var(--surface))",
+          foreground: "hsl(var(--fg))",
         },
       },
       fontFamily: {
