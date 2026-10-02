@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getScheduleData } from "@/services/schedule.service";
 import { ScheduleView } from "@/components/schedule/ScheduleView";
-import { CalendarShell } from "@/components/calendar/CalendarShell";
 import { PageHeader, PageLoadError } from "@/components/common/PageHeader";
 
 export const metadata = { title: "Schedule — StudentHub" };
@@ -35,7 +34,6 @@ export default async function SchedulePage() {
         description="Month, week, day, and agenda views — create and manage your personal schedule. Google Calendar events appear as read-only."
       />
       <ScheduleView initialEvents={data.events} courses={data.courses} />
-      <CalendarShell />
     </div>
   );
 }

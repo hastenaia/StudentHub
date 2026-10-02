@@ -33,7 +33,7 @@ Tests run in jsdom with globals and the `@` → repo-root alias (`vitest.config.
 
 **AI (Study Hub / notes)**: `app/api/ai/*` route handlers use the helpers in `lib/ai/route.ts` (`startAIRoute`, `resolveNoteSource`, `runAI`) to authenticate the user, build a prompt, and call `callAI()` in `lib/ai/provider.ts` — a raw-`fetch` abstraction that picks the first configured provider (`OPENAI_API_KEY`/`AI_API_KEY` → `ANTHROPIC_API_KEY` → `GOOGLE_AI_API_KEY`/`GEMINI_API_KEY`) with a hard ~4.5s timeout. When unconfigured it returns an error (routes respond 503); it must never return fake output.
 
-**Mocks**: `lib/mocks/` still backs some UI (`CalendarViews`); most modules now read real Supabase data.
+**Mocks**: none — every module reads real Supabase data.
 
 ## Database
 

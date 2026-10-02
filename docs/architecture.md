@@ -63,8 +63,8 @@ lib/
   dates.ts               startOfDay/endOfDay, reporting windows, streaks (unit-tested)
   wellness.ts, taskSort.ts, aiRequests.ts   Pure page logic pulled out of services/components (unit-tested)
   taskView.ts, courseView.ts, scheduleView.ts   DB row → view-model mappers
+  eventTypeInference.ts  Schedule event-type keyword inference (unit-tested)
   validations/           Zod schemas per domain
-  mocks/                 Mock data still used by a few legacy components
 services/
   <domain>.service.ts        Server-side reads / view assembly
   <domain>Client.service.ts  Client-side writes returning ApiResult
@@ -97,8 +97,24 @@ Every page under `app/(dashboard)/dashboard/` is listed in the sidebar
 | `/dashboard/achievements` | `gamification.service.ts` | profiles, badges, user_badges |
 | `/dashboard/settings` | `academics.service.ts` → `getGoogleAccountView`, `gamification.service.ts` | profiles, google_accounts, courses, badges, user_badges |
 
-Known leftovers: the Schedule page renders a mock-backed `CalendarShell` below
-the real `ScheduleView`.
+Known leftovers: `academic_settings` and `courses.manual_grade` / `courses.target_pct`
+are unused schema.
+
+### Schedule event types
+
+`schedule_events.event_type` is one of `class`, `assignment`, `exam`,
+`study_session`, `personal`, `other`. Colours live in `types/schedule.ts`
+(`EVENT_TYPE_COLOR` plus `EVENT_TYPE_ON_COLOR` for legible text on the chip);
+`eventTypeStyle` in `lib/scheduleView.ts` is the single source of truth for chip
+styling — an explicit per-event `color` wins, otherwise the type palette applies,
+and Google events are dimmed to read as read-only.
+
+New events get an advisory suggestion only: `lib/eventTypeInference.ts` matches
+title/description keywords in precedence order (exam → assignment → class →
+personal → study_session → other) and `EventForm` offers to apply it, so the type
+stored in the database is always the user's choice. Google events have no
+`event_type` column (`calendar_events` is replaced on every sync), so their type
+is inferred at read time in `calendarRowToView`.
 
 ## Request lifecycle
 

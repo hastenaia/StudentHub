@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { courseRowToView, toCourseOptions } from "@/lib/courseView";
 import { taskRowToView, taskToDraft } from "@/lib/taskView";
-import { calendarRowToView, scheduleRowToView } from "@/lib/scheduleView";
+import { calendarRowToView, eventTypeStyle, scheduleRowToView } from "@/lib/scheduleView";
+import { EVENT_TYPE_COLOR, EVENT_TYPE_ON_COLOR } from "@/types/schedule";
 import type { Database } from "@/types/database.types";
 
 type Tables = Database["public"]["Tables"];
@@ -84,5 +85,34 @@ describe("scheduleView", () => {
       startAt: base.created_at,
       endAt: base.created_at,
     });
+  });
+
+  it("calendarRowToView infers the type of Google events", () => {
+    const base = { id: "g", all_day: false, google_event_id: "gid", created_at: "2026-09-01T00:00:00Z", start_at: "S", end_at: "E" };
+    expect(calendarRowToView(row<"calendar_events">({ ...base, summary: "Organic Chemistry Midterm" })).eventType).toBe("exam");
+    expect(calendarRowToView(row<"calendar_events">({ ...base, summary: "Dentist Appointment" })).eventType).toBe("personal");
+  });
+
+  it("scheduleRowToView falls back to inference for an unknown stored type", () => {
+    const view = scheduleRowToView(
+      row<"schedule_events">({ id: "e", title: "Lab Report due", event_type: "workshop", start_at: "s", end_at: "e", all_day: false, color: null }),
+      new Map()
+    );
+    expect(view.eventType).toBe("assignment");
+  });
+
+  it("eventTypeStyle prefers an explicit color and dims Google events", () => {
+    expect(eventTypeStyle({ eventType: "exam", color: "#123456", source: "user" })).toEqual({
+      bg: "#123456",
+      fg: "#FFFFFF",
+      opacity: 1,
+    });
+    expect(eventTypeStyle({ eventType: "assignment", color: null, source: "user" })).toEqual({
+      bg: EVENT_TYPE_COLOR.assignment,
+      fg: EVENT_TYPE_ON_COLOR.assignment,
+      opacity: 1,
+    });
+    expect(eventTypeStyle({ eventType: "class", color: null, source: "google" }).opacity).toBeLessThan(1);
+    expect(eventTypeStyle({ eventType: "nope" as never, color: null, source: "user" }).bg).toBe(EVENT_TYPE_COLOR.other);
   });
 });

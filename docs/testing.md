@@ -38,7 +38,8 @@ npx vitest run -t "nextRecurrence"        # tests whose name matches
 | `lib/taskFilters.test.ts` | Task search/status/priority/course filtering, scheduler inputs, reopen/completion helpers, shared `matchesCourseFilter`, `withXpToast` |
 | `lib/authGate.test.ts` | Request-gate rules: auth-link rescue (incl. `/api/*` and `/login?error` exclusions), sign-in redirect, public routes, first-login password change |
 | `lib/notesForm.test.ts` | Note PDF-attachment link helpers (pending/unlinked attachments, link stripping, PDF validation, storage keys), Markdown selection wrapping, note ↔ form mapping, Study Hub note search/filters |
-| `lib/views.test.ts` | Row → view mappers: `courseView`, `taskView` (+ `taskToDraft`), `scheduleView` / `calendarRowToView` fallbacks |
+| `lib/views.test.ts` | Row → view mappers: `courseView`, `taskView` (+ `taskToDraft`), `scheduleView` / `calendarRowToView` fallbacks, `eventTypeStyle` colour precedence |
+| `lib/eventTypeInference.test.ts` | Schedule event-type keyword inference: per-type matches, case/punctuation tolerance, word boundaries, precedence, reported keyword |
 | `lib/noteView.test.ts` | Notes row → view mapping, draft → column payload (omitted category left alone), orphan PDF detection |
 | `lib/flashcardView.test.ts` | Flashcard row → view mapping, form ↔ draft, write payloads and review counters, filters, study deck, known %, deck wrap-around |
 | `lib/quizView.test.ts` | Quiz + question row mapping (position order, grouping), form → draft → question rows, grading, filters |
@@ -53,6 +54,8 @@ npx vitest run -t "nextRecurrence"        # tests whose name matches
 | `lib/validations/courses.test.ts` | Course schema: required/trimmed name, field length limits, palette colors |
 | `lib/validations/schedule.test.ts` | Event schema: required fields, event types, end-after-start, length limits; draft ↔ form mapping (09:00–10:00 default on a picked date) |
 | `lib/validations/wellness.test.ts` | Mood 1–5 and journal length |
+| `lib/theme.test.ts` | Theme resolution (`system` vs stored light/dark), the `data-theme` attribute, localStorage read/write, cross-tab `storage` events |
+| `components/layout/Navbar.test.tsx` | Theme toggle: Sun/Moon icons by active theme, toggling light↔dark, switching back to system |
 | `lib/supabase/errors.test.ts` | Friendly auth error message mapping |
 | `components/study/MarkdownPreview.test.ts` | Markdown link scheme allow-list, attribute escaping, formatting inside URLs |
 | `hooks/hooks.test.tsx` | `useGroupedEvents` day/hour bucketing and memoization; `useEscapeKey` activation and cleanup |
@@ -84,6 +87,9 @@ npx vitest run -t "nextRecurrence"        # tests whose name matches
 - **Error mapping**: Supabase auth errors map to friendly messages, with a
   generic fallback.
 - **Utilities**: class merging and open-redirect protection.
+- **Theme**: `lib/theme.ts` resolves `system` against the OS preference and is
+  driven by `useSyncExternalStore`, so the toggle, the pre-paint bootstrap, and
+  cross-tab `storage` events all share one tested source of truth.
 
 ## Coverage notes
 

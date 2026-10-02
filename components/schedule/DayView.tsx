@@ -1,6 +1,6 @@
 "use client";
 
-import { EVENT_TYPE_COLOR } from "@/types/schedule";
+import { eventTypeStyle } from "@/lib/scheduleView";
 import type { ScheduleEvent } from "@/types/schedule";
 import { formatTime } from "@/utils/date";
 import { dayKey, useGroupedEvents } from "@/hooks/useGroupedEvents";
@@ -21,8 +21,8 @@ export function DayView({ currentDate, events, onEventClick, onTimeClick }: DayV
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-      <div className="border-b border-gray-200 bg-brand-gray/30 px-4 py-3">
+    <div className="overflow-hidden rounded-lg border border-gray-200">
+      <div className="border-b border-gray-200 bg-brand-gray px-4 py-3">
         <h3 className="font-semibold text-brand-dark">
           {currentDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
         </h3>
@@ -32,30 +32,33 @@ export function DayView({ currentDate, events, onEventClick, onTimeClick }: DayV
           const hourEvents = (byDayHour.get(`${key}:${hour}`) ?? []).filter((e) => !e.allDayFlag);
           const label = hour === 0 ? "12 AM" : hour === 12 ? "12 PM" : hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
           return (
-            <div key={hour} className="flex min-h-[48px]">
+            <div key={hour} className="flex min-h-[48px] bg-white">
               <button
                 onClick={() => onTimeClick(hour)}
-                className="w-20 shrink-0 border-r border-gray-100 px-3 py-2 text-left text-xs text-gray-400 hover:bg-brand-gray/20"
+                className="w-20 shrink-0 border-r border-gray-100 px-3 py-2 text-left text-xs text-gray-500 hover:bg-brand-gray/40"
               >
                 {label}
               </button>
               <div className="flex-1 p-1">
                 {hourEvents.length > 0 ? (
                   <div className="space-y-1">
-                    {hourEvents.map((e) => (
-                      <button
-                        key={e.id}
-                        onClick={() => onEventClick(e)}
-                        className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm font-medium text-white"
-                        style={{ backgroundColor: e.color || EVENT_TYPE_COLOR[e.eventType], opacity: e.source === "google" ? 0.9 : 1 }}
-                      >
-                        <span className="truncate">{e.title}</span>
-                        <span className="ml-auto shrink-0 text-xs opacity-80">
-                          {formatTime(e.startAt)} - {formatTime(e.endAt)}
-                        </span>
-                        {e.source === "google" && <span className="text-[10px] opacity-70">• Google</span>}
-                      </button>
-                    ))}
+                    {hourEvents.map((e) => {
+                      const chip = eventTypeStyle(e);
+                      return (
+                        <button
+                          key={e.id}
+                          onClick={() => onEventClick(e)}
+                          className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm font-medium"
+                          style={{ backgroundColor: chip.bg, color: chip.fg, opacity: chip.opacity }}
+                        >
+                          <span className="truncate">{e.title}</span>
+                          <span className="ml-auto shrink-0 text-xs opacity-80">
+                            {formatTime(e.startAt)} - {formatTime(e.endAt)}
+                          </span>
+                          {e.source === "google" && <span className="text-[10px] opacity-70">• Google</span>}
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="h-full w-full" />
@@ -68,16 +71,19 @@ export function DayView({ currentDate, events, onEventClick, onTimeClick }: DayV
           <div className="bg-amber-50 p-3">
             <div className="text-xs font-medium text-amber-700">All day</div>
             <div className="mt-1 flex flex-wrap gap-1">
-              {allDayEvents.map((e) => (
+              {allDayEvents.map((e) => {
+                const chip = eventTypeStyle(e);
+                return (
                   <button
                     key={e.id}
                     onClick={() => onEventClick(e)}
-                    className="rounded px-2 py-1 text-xs font-medium text-white"
-                    style={{ backgroundColor: e.color || EVENT_TYPE_COLOR[e.eventType] }}
+                    className="rounded px-2 py-1 text-xs font-medium"
+                    style={{ backgroundColor: chip.bg, color: chip.fg, opacity: chip.opacity }}
                   >
                     {e.title}
                   </button>
-                ))}
+                );
+              })}
             </div>
           </div>
         )}

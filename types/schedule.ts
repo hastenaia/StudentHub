@@ -20,12 +20,25 @@ export const EVENT_TYPE_LABEL: Record<ScheduleEventType, string> = {
 
 export const EVENT_TYPE_COLOR: Record<ScheduleEventType, string> = {
   class: "#0033A0",
-  assignment: "#0EA5E9",
-  exam: "#EF4444",
-  study_session: "#10B981",
-  personal: "#8B5CF6",
+  assignment: "#F59E0B",
+  exam: "#DC2626",
+  study_session: "#14B8A6",
+  personal: "#10B981",
   other: "#6B7280",
 };
+
+export const EVENT_TYPE_ON_COLOR: Record<ScheduleEventType, string> = {
+  class: "#FFFFFF",
+  assignment: "#1F1300",
+  exam: "#FFFFFF",
+  study_session: "#04231F",
+  personal: "#022C20",
+  other: "#FFFFFF",
+};
+
+export function isScheduleEventType(value: unknown): value is ScheduleEventType {
+  return typeof value === "string" && SCHEDULE_EVENT_TYPES.includes(value as ScheduleEventType);
+}
 
 export interface ScheduleEvent {
   id: string;

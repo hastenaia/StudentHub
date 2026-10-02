@@ -3,7 +3,7 @@
 import * as React from "react";
 import { ChevronLeft, ChevronRight, Plus, CalendarDays, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useToast } from "@/hooks/useToast";
 import { scheduleClientService } from "@/services/scheduleClient.service";
 import { MonthView } from "@/components/schedule/MonthView";
@@ -12,7 +12,12 @@ import { DayView } from "@/components/schedule/DayView";
 import { AgendaView } from "@/components/schedule/AgendaView";
 import { EventForm } from "@/components/schedule/EventForm";
 import type { CalendarView, ScheduleCourseOption, ScheduleDraft, ScheduleEvent } from "@/types/schedule";
-import { EVENT_TYPE_COLOR, EVENT_TYPE_LABEL } from "@/types/schedule";
+import {
+  EVENT_TYPE_COLOR,
+  EVENT_TYPE_LABEL,
+  SCHEDULE_EVENT_TYPES,
+} from "@/types/schedule";
+import { eventTypeStyle } from "@/lib/scheduleView";
 import { formatDate, formatTime } from "@/utils/date";
 
 interface ScheduleViewProps {
@@ -193,88 +198,107 @@ export function ScheduleView({ initialEvents, courses }: ScheduleViewProps) {
     return "Agenda";
   })();
 
+  const detailChip = detailEvent ? eventTypeStyle(detailEvent) : null;
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>
-            Today
-          </Button>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate(1)}>
-              <ChevronRight className="h-4 w-4" />
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>
+                Today
+              </Button>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" onClick={() => navigate(-1)} aria-label="Previous period">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => navigate(1)} aria-label="Next period">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <h2 className="text-lg font-semibold text-brand-dark">{headerLabel}</h2>
+            </div>
+            <Button onClick={() => openCreate()} size="sm">
+              <Plus className="h-4 w-4" /> New event
             </Button>
           </div>
-          <h2 className="text-lg font-semibold text-brand-dark">{headerLabel}</h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-md border border-gray-200 bg-white p-1">
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             {(["month", "week", "day", "agenda"] as const).map((v) => (
-              <button
+              <Button
                 key={v}
+                size="sm"
+                variant={view === v ? "default" : "outline"}
                 onClick={() => setView(v)}
-                className={`rounded px-3 py-1 text-xs font-medium capitalize transition ${
-                  view === v ? "bg-brand-royal text-white" : "text-gray-600 hover:bg-gray-100"
-                }`}
+                className="capitalize"
               >
                 {v}
-              </button>
+              </Button>
             ))}
+            <span className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+              {SCHEDULE_EVENT_TYPES.map((t) => (
+                <span key={t} className="flex items-center gap-1.5">
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: EVENT_TYPE_COLOR[t] }}
+                    aria-hidden
+                  />
+                  {EVENT_TYPE_LABEL[t]}
+                </span>
+              ))}
+            </span>
           </div>
-          <Button onClick={() => openCreate()} size="sm">
-            <Plus className="h-4 w-4" /> New event
-          </Button>
-        </div>
-      </div>
+        </CardHeader>
 
-      {view !== "agenda" && filtered.length === 0 && (
-        <div className="flex flex-col items-start gap-2 rounded-md border border-dashed border-gray-200 bg-brand-gray/30 px-4 py-3 text-sm text-gray-600 sm:flex-row sm:items-center sm:justify-between">
-          <span>{view === "month" ? "No events this month." : `No events this ${view} — click a time slot or create one.`}</span>
-          <Button onClick={() => openCreate()} size="sm" variant="outline">
-            <Plus className="h-4 w-4" /> New event
-          </Button>
-        </div>
-      )}
+        <CardContent>
+          {view !== "agenda" && filtered.length === 0 && (
+            <div className="mb-4 flex flex-col items-start gap-2 rounded-md border border-dashed border-gray-200 bg-brand-gray/30 px-4 py-3 text-sm text-gray-600 sm:flex-row sm:items-center sm:justify-between">
+              <span>{view === "month" ? "No events this month." : `No events this ${view} — click a time slot or create one.`}</span>
+              <Button onClick={() => openCreate()} size="sm" variant="outline">
+                <Plus className="h-4 w-4" /> New event
+              </Button>
+            </div>
+          )}
 
-      {view === "month" && (
-        <MonthView
-          currentDate={currentDate}
-          events={filtered}
-          onEventClick={onEventClick}
-          onDateClick={(d) => {
-            setCurrentDate(d);
-            setView("day");
-          }}
-        />
-      )}
-      {view === "week" && (
-        <WeekView
-          currentDate={currentDate}
-          events={filtered}
-          onEventClick={onEventClick}
-          onTimeClick={(date, hour) => {
-            const d = new Date(date);
-            d.setHours(hour, 0, 0, 0);
-            openCreate(d);
-          }}
-        />
-      )}
-      {view === "day" && (
-        <DayView
-          currentDate={currentDate}
-          events={filtered}
-          onEventClick={onEventClick}
-          onTimeClick={(hour) => {
-            const d = new Date(currentDate);
-            d.setHours(hour, 0, 0, 0);
-            openCreate(d);
-          }}
-        />
-      )}
-      {view === "agenda" && <AgendaView events={filtered} onEventClick={onEventClick} />}
+          {view === "month" && (
+            <MonthView
+              currentDate={currentDate}
+              events={filtered}
+              onEventClick={onEventClick}
+              onDateClick={(d) => {
+                setCurrentDate(d);
+                setView("day");
+              }}
+            />
+          )}
+          {view === "week" && (
+            <WeekView
+              currentDate={currentDate}
+              events={filtered}
+              onEventClick={onEventClick}
+              onTimeClick={(date, hour) => {
+                const d = new Date(date);
+                d.setHours(hour, 0, 0, 0);
+                openCreate(d);
+              }}
+            />
+          )}
+          {view === "day" && (
+            <DayView
+              currentDate={currentDate}
+              events={filtered}
+              onEventClick={onEventClick}
+              onTimeClick={(hour) => {
+                const d = new Date(currentDate);
+                d.setHours(hour, 0, 0, 0);
+                openCreate(d);
+              }}
+            />
+          )}
+          {view === "agenda" && <AgendaView events={filtered} onEventClick={onEventClick} />}
+        </CardContent>
+      </Card>
 
       <EventForm
         open={formOpen}
@@ -299,12 +323,14 @@ export function ScheduleView({ initialEvents, courses }: ScheduleViewProps) {
               <div className="min-w-0">
                 <h3 className="truncate text-lg font-semibold text-brand-dark">{detailEvent.title}</h3>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <span
-                    className="rounded px-2 py-0.5 text-xs font-medium text-white"
-                    style={{ backgroundColor: detailEvent.color || EVENT_TYPE_COLOR[detailEvent.eventType] }}
-                  >
-                    {EVENT_TYPE_LABEL[detailEvent.eventType]}
-                  </span>
+                  {detailChip && (
+                    <span
+                      className="rounded px-2 py-0.5 text-xs font-medium"
+                      style={{ backgroundColor: detailChip.bg, color: detailChip.fg }}
+                    >
+                      {EVENT_TYPE_LABEL[detailEvent.eventType] ?? "Other"}
+                    </span>
+                  )}
                   {detailEvent.source === "google" ? (
                     <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">Google • read-only</span>
                   ) : (

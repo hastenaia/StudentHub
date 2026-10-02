@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { CourseSelectField, TextField } from "@/components/common/FormFields";
 import { cn } from "@/utils/cn";
-import { EVENT_TYPE_LABEL, type ScheduleCourseOption, type ScheduleDraft } from "@/types/schedule";
+import { inferEventType } from "@/lib/eventTypeInference";
+import {
+  EVENT_TYPE_COLOR,
+  EVENT_TYPE_LABEL,
+  isScheduleEventType,
+  type ScheduleCourseOption,
+  type ScheduleDraft,
+} from "@/types/schedule";
 import {
   EMPTY_SCHEDULE_FORM,
   scheduleDraftToForm,
@@ -36,6 +43,21 @@ export function EventForm({ open, initialDraft, courses, defaultDate, onClose, o
   });
 
   const allDay = useWatch({ control: form.control, name: "allDay" });
+  const title = useWatch({ control: form.control, name: "title" });
+  const description = useWatch({ control: form.control, name: "description" });
+  const eventType = useWatch({ control: form.control, name: "eventType" });
+
+  const selectedType = isScheduleEventType(eventType) ? eventType : "other";
+  const suggestion = React.useMemo(
+    () => inferEventType(title ?? "", description ?? null),
+    [title, description]
+  );
+
+  const showSuggestion =
+    !initialDraft &&
+    !form.formState.dirtyFields.eventType &&
+    suggestion.matched !== null &&
+    suggestion.type !== selectedType;
 
   React.useEffect(() => {
     if (!open) return;
@@ -71,6 +93,24 @@ export function EventForm({ open, initialDraft, courses, defaultDate, onClose, o
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4" noValidate>
             <TextField name="title" label="Title *" placeholder="e.g. Calculus lecture" />
+
+            {showSuggestion && (
+              <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-brand-royal/30 bg-brand-royal/5 px-3 py-2 text-xs text-gray-600">
+                <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-royal" aria-hidden />
+                <span className="min-w-0 flex-1">
+                  Looks like <strong className="font-semibold text-brand-dark">{EVENT_TYPE_LABEL[suggestion.type]}</strong>
+                  {suggestion.matched ? <> — matched “{suggestion.matched}”</> : null}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => form.setValue("eventType", suggestion.type, { shouldDirty: true })}
+                >
+                  Use {EVENT_TYPE_LABEL[suggestion.type]}
+                </Button>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
@@ -163,18 +203,29 @@ export function EventForm({ open, initialDraft, courses, defaultDate, onClose, o
 
             <FormField
               name="color"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Color</FormLabel>
-                  <FormControl>
-                    <div className="flex items-center gap-2">
-                      <Input type="color" value={field.value || "#0033A0"} onChange={field.onChange} className="h-9 w-14 p-1" />
-                      <span className="text-xs text-gray-500">Pick a color for this event</span>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const isCustom = Boolean(field.value);
+                const activeColor = isCustom ? (field.value as string) : EVENT_TYPE_COLOR[selectedType];
+                return (
+                  <FormItem>
+                    <FormLabel>Color</FormLabel>
+                    <FormControl>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Input type="color" value={activeColor} onChange={field.onChange} className="h-9 w-14 p-1" />
+                        <span className="text-xs text-gray-500">
+                          {isCustom ? "Custom color" : `${EVENT_TYPE_LABEL[selectedType]} default`}
+                        </span>
+                        {isCustom && (
+                          <Button type="button" size="sm" variant="ghost" onClick={() => field.onChange("")}>
+                            Use {EVENT_TYPE_LABEL[selectedType].toLowerCase()} color
+                          </Button>
+                        )}
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
 
             <div className="flex justify-end gap-2 pt-2">

@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/utils/cn";
-import { EVENT_TYPE_COLOR } from "@/types/schedule";
+import { eventTypeStyle } from "@/lib/scheduleView";
 import type { ScheduleEvent } from "@/types/schedule";
 import { formatTime } from "@/utils/date";
 import * as React from "react";
@@ -81,18 +81,18 @@ export function MonthView({ currentDate, events, onEventClick, onDateClick }: Mo
   };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-      <div className="grid grid-cols-7 border-b border-gray-200 bg-brand-gray/30">
+    <div className="overflow-hidden rounded-lg border border-gray-200">
+      <div className="grid grid-cols-7 border-b border-gray-200 bg-brand-gray">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-          <div key={d} className="px-2 py-2 text-center text-xs font-medium text-gray-500">
+          <div key={d} className="px-2 py-2 text-center text-xs font-medium text-gray-600">
             {d}
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 auto-rows-fr">
+      <div className="grid grid-cols-7 gap-px bg-gray-200 auto-rows-fr">
         {cells.map((date, idx) => {
           if (!date) {
-            return <div key={idx} className="min-h-[96px] border-b border-r border-gray-100 bg-gray-50/50" />;
+            return <div key={idx} className="min-h-[96px] bg-white" />;
           }
           const evs = dayEvents(date);
           const overflow = overflowCount(date);
@@ -101,30 +101,33 @@ export function MonthView({ currentDate, events, onEventClick, onDateClick }: Mo
               key={idx}
               onClick={() => onDateClick(date)}
               className={cn(
-                "min-h-[96px] border-b border-r border-gray-100 p-1 text-left hover:bg-brand-gray/20",
-                isToday(date) && "bg-brand-royal/5"
+                "min-h-[96px] bg-white p-1 text-left hover:bg-brand-gray/40",
+                isToday(date) && "ring-2 ring-inset ring-brand-royal"
               )}
             >
-              <div className={cn("text-xs font-medium", isToday(date) ? "text-brand-royal" : "text-gray-700")}>
+              <div className={cn("text-xs font-medium", isToday(date) ? "font-bold text-brand-royal" : "text-gray-700")}>
                 {date.getDate()}
               </div>
               <div className="mt-1 space-y-1">
-                {evs.map((e) => (
-                  <div
-                    key={e.id}
-                    onClick={(evt) => {
-                      evt.stopPropagation();
-                      onEventClick(e);
-                    }}
-                    className="truncate rounded px-1.5 py-0.5 text-[11px] font-medium text-white"
-                    style={{ backgroundColor: e.color || EVENT_TYPE_COLOR[e.eventType] || "#0033A0", opacity: e.source === "google" ? 0.85 : 1 }}
-                    title={`${e.title} ${e.allDay ? "" : formatTime(e.startAt)}`}
-                  >
-                    {e.allDay ? "" : formatTime(e.startAt) + " "}
-                    {e.title}
-                    {e.source === "google" ? " •" : ""}
-                  </div>
-                ))}
+                {evs.map((e) => {
+                  const chip = eventTypeStyle(e);
+                  return (
+                    <div
+                      key={e.id}
+                      onClick={(evt) => {
+                        evt.stopPropagation();
+                        onEventClick(e);
+                      }}
+                      className="truncate rounded px-1.5 py-0.5 text-[11px] font-medium"
+                      style={{ backgroundColor: chip.bg, color: chip.fg, opacity: chip.opacity }}
+                      title={`${e.title} ${e.allDay ? "" : formatTime(e.startAt)}`}
+                    >
+                      {e.allDay ? "" : formatTime(e.startAt) + " "}
+                      {e.title}
+                      {e.source === "google" ? " •" : ""}
+                    </div>
+                  );
+                })}
                 {overflow > 0 && <div className="text-[11px] text-gray-400">+{overflow} more</div>}
               </div>
             </button>

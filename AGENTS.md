@@ -28,7 +28,7 @@ Setup: copy `.env.local.example` → `.env.local`; never commit keys. Migrations
 - Google: pages read Supabase cache only, never Google. Sole Google caller is `POST /api/dashboard/sync` (`services/google.service.ts` → `classroom/calendar.service.ts`). OAuth is `app/api/google/auth` → `app/api/google/callback`; tokens AES-256-GCM encrypted (`lib/google/crypto.ts`, key `GOOGLE_TOKEN_ENCRYPTION_KEY`). Supabase auth callbacks (`app/auth/callback`, `app/auth/confirm`) are separate.
 - AI: `app/api/ai/*` handlers use `lib/ai/route.ts` (`startAIRoute`, `resolveNoteSource`, `runAI`) + `callAI()` in `lib/ai/provider.ts` (raw `fetch`, first configured provider `OPENAI_API_KEY`/`AI_API_KEY` → `ANTHROPIC_API_KEY` → `GOOGLE_AI_API_KEY`/`GEMINI_API_KEY`, ~15s timeout). Unconfigured → 503 error, never fake output. Five prompt routes cache answers in `ai_cache` (`lib/ai/cache.ts`, `lib/ai/cacheKey.ts`) and return `cached`; `refresh: true` in the body forces a re-ask. `wellness-tip` is uncached.
 - Study AI history: `components/study/AIAssistantTab.tsx` renders the cache/history list; `services/aiCache.service.ts` (server read) + `services/aiCacheClient.service.ts` (list/delete), row→view in `lib/aiCacheView.ts`.
-- Leftovers: Schedule page renders mock `CalendarShell` below real `ScheduleView`; `academic_settings`, `courses.manual_grade`/`target_pct` are unused schema.
+- Leftovers: `academic_settings`, `courses.manual_grade`/`target_pct` are unused schema.
 
 ## Database
 

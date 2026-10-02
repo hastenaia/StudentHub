@@ -3,7 +3,8 @@
 import { Clock, MapPin } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { EVENT_TYPE_COLOR, EVENT_TYPE_LABEL } from "@/types/schedule";
+import { EVENT_TYPE_LABEL } from "@/types/schedule";
+import { eventTypeStyle } from "@/lib/scheduleView";
 import type { ScheduleEvent } from "@/types/schedule";
 import { formatTime, formatDate } from "@/utils/date";
 
@@ -70,41 +71,44 @@ export function AgendaView({ events, onEventClick }: AgendaViewProps) {
             <ul className="space-y-2">
               {group.items
                 .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
-                .map((e) => (
-                  <li
-                    key={e.id}
-                    className="flex items-start gap-3 rounded-md border px-3 py-2.5 hover:bg-brand-gray/20"
-                    style={{ borderLeftWidth: 4, borderLeftColor: e.color || EVENT_TYPE_COLOR[e.eventType] }}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-medium text-brand-dark">{e.title}</p>
-                        <span
-                          className="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium text-white"
-                          style={{ backgroundColor: e.color || EVENT_TYPE_COLOR[e.eventType] }}
-                        >
-                          {EVENT_TYPE_LABEL[e.eventType]}
-                        </span>
-                        {e.source === "google" && (
-                          <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-500">Google</span>
-                        )}
-                      </div>
-                      {e.description && <p className="truncate text-xs text-gray-500">{e.description}</p>}
-                      <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-400">
-                        <span>{e.allDay ? "All day" : `${formatTime(e.startAt)} - ${formatTime(e.endAt)}`}</span>
-                        {e.location && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" /> {e.location}
+                .map((e) => {
+                  const chip = eventTypeStyle(e);
+                  return (
+                    <li
+                      key={e.id}
+                      className="flex items-start gap-3 rounded-md border bg-white px-3 py-2.5 hover:bg-brand-gray/20"
+                      style={{ borderLeftWidth: 4, borderLeftColor: chip.bg }}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate text-sm font-medium text-brand-dark">{e.title}</p>
+                          <span
+                            className="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium"
+                            style={{ backgroundColor: chip.bg, color: chip.fg, opacity: chip.opacity }}
+                          >
+                            {EVENT_TYPE_LABEL[e.eventType]}
                           </span>
-                        )}
-                        {e.courseName && <span className="rounded bg-brand-gray px-1.5 py-0.5 text-gray-600">{e.courseName}</span>}
+                          {e.source === "google" && (
+                            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-500">Google</span>
+                          )}
+                        </div>
+                        {e.description && <p className="truncate text-xs text-gray-500">{e.description}</p>}
+                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
+                          <span>{e.allDay ? "All day" : `${formatTime(e.startAt)} - ${formatTime(e.endAt)}`}</span>
+                          {e.location && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" /> {e.location}
+                            </span>
+                          )}
+                          {e.courseName && <span className="rounded bg-brand-gray px-1.5 py-0.5 text-gray-600">{e.courseName}</span>}
+                        </div>
                       </div>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={() => onEventClick(e)}>
-                      View
-                    </Button>
-                  </li>
-                ))}
+                      <Button variant="ghost" size="sm" onClick={() => onEventClick(e)}>
+                        View
+                      </Button>
+                    </li>
+                  );
+                })}
             </ul>
           </CardContent>
         </Card>
