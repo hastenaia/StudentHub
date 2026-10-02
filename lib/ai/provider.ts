@@ -83,7 +83,7 @@ function getAIConfig(json: boolean | undefined): { ok: true; config: AIConfig } 
   return {
     ok: false,
     error:
-      "AI is not configured. Set OPENAI_API_KEY (or AI_API_KEY) in .env.local. See .env.local.example. No fake responses are returned when unconfigured.",
+      "AI is not configured. Set one of OPENAI_API_KEY (or AI_API_KEY), ANTHROPIC_API_KEY, or GOOGLE_AI_API_KEY (or GEMINI_API_KEY) in .env.local and restart the dev server — env vars are read at startup only. See .env.local.example. No fake responses are returned when unconfigured.",
   };
 }
 

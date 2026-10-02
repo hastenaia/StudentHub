@@ -316,7 +316,7 @@ function AIErrorNotice({ error }: { error: string | null }) {
       <div>
         <p className="font-medium">AI not configured</p>
         <p className="text-xs">{error}</p>
-        <p className="mt-1 text-xs">Add <code>OPENAI_API_KEY</code> (or <code>AI_API_KEY</code>) to <code>.env.local</code> and restart. See <code>.env.local.example</code>. Keys are server-only.</p>
+        <p className="mt-1 text-xs">Env vars are read when the server starts, so restart <code>npm run dev</code> after editing <code>.env.local</code>. Keys are server-only.</p>
       </div>
     </div>
   );
