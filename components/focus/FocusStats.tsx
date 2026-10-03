@@ -70,7 +70,7 @@ export function FocusStats({
         </CardContent>
       </Card>
 
-      <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
+      <Card className="border-amber-200 bg-amber-50">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-medium text-amber-700">
             <Flame className="h-4 w-4 text-amber-600" /> Streak

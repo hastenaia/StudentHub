@@ -11,6 +11,7 @@ const config: Config = {
     extend: {
       colors: {
         gray: {
+          50: "hsl(var(--subtle-2))",
           100: "hsl(var(--subtle))",
           200: "hsl(var(--border))",
           300: "hsl(var(--border-strong))",
@@ -18,6 +19,59 @@ const config: Config = {
           500: "hsl(var(--muted-fg))",
           600: "hsl(var(--fg-muted))",
           700: "hsl(var(--fg))",
+        },
+        emerald: {
+          50: "hsl(var(--c-emerald-50))",
+          100: "hsl(var(--c-emerald-100))",
+          200: "hsl(var(--c-emerald-200))",
+          600: "hsl(var(--c-emerald-600))",
+          700: "hsl(var(--c-emerald-700))",
+        },
+        sky: {
+          50: "hsl(var(--c-sky-50))",
+          100: "hsl(var(--c-sky-100))",
+          200: "hsl(var(--c-sky-200))",
+          600: "hsl(var(--c-sky-600))",
+          700: "hsl(var(--c-sky-700))",
+          900: "hsl(var(--c-sky-900))",
+        },
+        amber: {
+          50: "hsl(var(--c-amber-50))",
+          100: "hsl(var(--c-amber-100))",
+          200: "hsl(var(--c-amber-200))",
+          600: "hsl(var(--c-amber-600))",
+          700: "hsl(var(--c-amber-700))",
+          800: "hsl(var(--c-amber-800))",
+        },
+        purple: {
+          50: "hsl(var(--c-purple-50))",
+          100: "hsl(var(--c-purple-100))",
+          300: "hsl(var(--c-purple-300))",
+          600: "hsl(var(--c-purple-600))",
+          700: "hsl(var(--c-purple-700))",
+        },
+        red: {
+          50: "hsl(var(--c-red-50))",
+          100: "hsl(var(--c-red-100))",
+          200: "hsl(var(--c-red-200))",
+          600: "hsl(var(--c-red-600))",
+          700: "hsl(var(--c-red-700))",
+          800: "hsl(var(--c-red-800))",
+          900: "hsl(var(--c-red-900))",
+        },
+        green: {
+          50: "hsl(var(--c-green-50))",
+          200: "hsl(var(--c-green-200))",
+          600: "hsl(var(--c-green-600))",
+          800: "hsl(var(--c-green-800))",
+        },
+        orange: {
+          50: "hsl(var(--c-orange-50))",
+          700: "hsl(var(--c-orange-700))",
+        },
+        yellow: {
+          100: "hsl(var(--c-yellow-100))",
+          200: "hsl(var(--c-yellow-200))",
         },
         brand: {
           royal: "#0033A0",
@@ -41,8 +95,14 @@ const config: Config = {
           foreground: "#1A1A1A",
         },
         destructive: {
-          DEFAULT: "hsl(0 84% 60%)",
+          // red-600, matching the button's pre-token color (white text keeps 4.5:1)
+          DEFAULT: "hsl(0 72.2% 50.6%)",
           foreground: "#FFFFFF",
+          hover: "hsl(0 73.7% 41.8%)",
+        },
+        success: {
+          DEFAULT: "hsl(161.4 93.5% 30.4%)",
+          hover: "hsl(162.9 93.5% 24.3%)",
         },
         muted: {
           DEFAULT: "hsl(var(--surface-muted))",
