@@ -16,6 +16,7 @@ function stubClient(rows: Rows) {
     const chain: Record<string, unknown> = {
       select: () => chain,
       eq: () => chain,
+      not: () => chain,
       gte: () => chain,
       lte: () => chain,
       order: () => chain,
@@ -55,12 +56,32 @@ const calendarRow = {
   all_day: false,
 };
 
+const taskRow = {
+  id: "k1",
+  user_id: "u1",
+  course_id: "c1",
+  title: "Read chapter 4",
+  description: null,
+  status: "todo",
+  priority: "medium",
+  tags: [],
+  due_at: "2026-09-14T12:00:00.000Z",
+  estimate_minutes: 30,
+  recurrence_freq: null,
+  recurrence_interval: 1,
+  recur_until: null,
+  sort_order: 0,
+  completed_at: null,
+  created_at: "2026-09-01T00:00:00.000Z",
+};
+
 beforeEach(() => {
   clientRef.current = stubClient({
     schedule_events: [scheduleRow],
     calendar_events: [calendarRow],
     courses: [{ id: "c1", name: "Chem 101", course_name: "Chemistry", color: "#00f" }],
     profiles: [{ default_calendar_view: "week" }],
+    tasks: [],
   });
 });
 
@@ -101,10 +122,84 @@ describe("getScheduleData", () => {
   });
 
   it("returns empty collections instead of throwing when every table is empty", async () => {
-    clientRef.current = stubClient({ schedule_events: [], calendar_events: [], courses: [], profiles: [] });
+    clientRef.current = stubClient({
+      schedule_events: [],
+      calendar_events: [],
+      courses: [],
+      profiles: [],
+      tasks: [],
+    });
     const data = await getScheduleData("u1");
     expect(data.events).toEqual([]);
     expect(data.courses).toEqual([]);
+    expect(data.taskEvents).toEqual([]);
     expect(data.defaultView).toBe("month");
+  });
+});
+
+describe("getScheduleData task deadlines", () => {
+  beforeEach(() => {
+    clientRef.current = stubClient({
+      schedule_events: [scheduleRow],
+      calendar_events: [calendarRow],
+      courses: [{ id: "c1", name: "Chem 101", course_name: "Chemistry", color: "#00f" }],
+      profiles: [{ default_calendar_view: "week" }],
+      tasks: [taskRow],
+    });
+  });
+
+  it("derives an all-day deadline chip from a task due date", async () => {
+    const [deadline] = (await getScheduleData("u1")).taskEvents;
+    expect(deadline).toMatchObject({
+      id: "task:k1",
+      title: "Read chapter 4",
+      eventType: "assignment",
+      allDay: true,
+      source: "task",
+      courseName: "Chemistry",
+    });
+  });
+
+  it("merges deadlines into the main event list in start order", async () => {
+    const { events } = await getScheduleData("u1");
+    // task due 09-14, schedule event 09-15, Google event 09-16.
+    expect(events.map((e) => e.id)).toEqual(["task:k1", "e1", "g1"]);
+  });
+
+  it("leaves the stored event lists untouched by derived deadlines", async () => {
+    const data = await getScheduleData("u1");
+    expect(data.userEvents.map((e) => e.id)).toEqual(["e1"]);
+    expect(data.googleEvents.map((e) => e.id)).toEqual(["g1"]);
+  });
+
+  it("drops a completed task's deadline", async () => {
+    clientRef.current = stubClient({
+      schedule_events: [],
+      calendar_events: [],
+      courses: [],
+      profiles: [],
+      tasks: [{ ...taskRow, status: "done", completed_at: "2026-09-13T00:00:00.000Z" }],
+    });
+    const data = await getScheduleData("u1");
+    expect(data.taskEvents).toEqual([]);
+    expect(data.events).toEqual([]);
+  });
+
+  it("drops an in-window task that has no due date", async () => {
+    clientRef.current = stubClient({
+      schedule_events: [],
+      calendar_events: [],
+      courses: [],
+      profiles: [],
+      tasks: [{ ...taskRow, due_at: null }],
+    });
+    expect((await getScheduleData("u1")).taskEvents).toEqual([]);
+  });
+
+  it("shows a deadline alongside real events without displacing them", async () => {
+    const { events } = await getScheduleData("u1");
+    expect(events.filter((e) => e.source === "task")).toHaveLength(1);
+    expect(events.filter((e) => e.source === "user")).toHaveLength(1);
+    expect(events.filter((e) => e.source === "google")).toHaveLength(1);
   });
 });

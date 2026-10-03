@@ -1,26 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { ChevronLeft, ChevronRight, Plus, CalendarDays, AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { useToast } from "@/hooks/useToast";
-import { scheduleClientService } from "@/services/scheduleClient.service";
-import { MonthView } from "@/components/schedule/MonthView";
-import { WeekView } from "@/components/schedule/WeekView";
-import { DayView } from "@/components/schedule/DayView";
-import { AgendaView } from "@/components/schedule/AgendaView";
-import { EventForm } from "@/components/schedule/EventForm";
+import { Card, CardContent } from "@/components/ui/card";
+import { useFilteredEvents } from "@/hooks/useFilteredEvents";
+import { useScheduleEvents } from "@/hooks/useScheduleEvents";
+import { useScheduleDialogs } from "@/hooks/useScheduleDialogs";
 import { EventEmptyState } from "@/components/schedule/EventEmptyState";
+import { ScheduleToolbar } from "@/components/schedule/ScheduleToolbar";
+import { ScheduleCalendarView } from "@/components/schedule/ScheduleCalendarView";
+import { ScheduleFooter } from "@/components/schedule/ScheduleFooter";
+import { ScheduleDialogs } from "@/components/schedule/ScheduleDialogs";
+import { countEventSources, stepPeriod } from "@/lib/scheduleView";
 import type { CalendarView, ScheduleCourseOption, ScheduleDraft, ScheduleEvent } from "@/types/schedule";
-import {
-  CALENDAR_VIEWS,
-  EVENT_TYPE_COLOR,
-  EVENT_TYPE_LABEL,
-  SCHEDULE_EVENT_TYPES,
-} from "@/types/schedule";
-import { eventTypeStyle } from "@/lib/scheduleView";
-import { formatDate, formatTime } from "@/utils/date";
 
 interface ScheduleViewProps {
   initialEvents: ScheduleEvent[];
@@ -29,401 +20,101 @@ interface ScheduleViewProps {
   initialView?: CalendarView;
 }
 
-function startOfWeek(date: Date): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() - d.getDay());
-  d.setHours(0, 0, 0, 0);
-  return d;
+function draftFromEvent(event: ScheduleEvent | null): ScheduleDraft | null {
+  if (!event) return null;
+  return {
+    title: event.title,
+    description: event.description ?? "",
+    location: event.location ?? "",
+    eventType: event.eventType,
+    startAt: event.startAt,
+    endAt: event.endAt,
+    allDay: event.allDay,
+    color: event.color ?? "",
+    courseId: event.courseId ?? "",
+  };
 }
 
-function endOfWeek(date: Date): Date {
-  const s = startOfWeek(date);
-  return new Date(s.getTime() + 7 * 24 * 60 * 60 * 1000);
-}
-
-function startOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function endOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
-}
-
+/**
+ * Wires the schedule screen together. State lives in `useScheduleEvents`/`useScheduleDialogs`
+ * and presentation in the child components. Only `user` events are writable — Google entries
+ * are replaced by the next sync and task deadlines are derived from `tasks.due_at`.
+ */
 export function ScheduleView({ initialEvents, courses, initialView }: ScheduleViewProps) {
-  const { notify } = useToast();
-  const [events, setEvents] = React.useState<ScheduleEvent[]>(initialEvents);
   const [view, setView] = React.useState<CalendarView>(initialView ?? "month");
   const [currentDate, setCurrentDate] = React.useState<Date>(() => new Date());
-  const [formOpen, setFormOpen] = React.useState(false);
-  const [editing, setEditing] = React.useState<ScheduleEvent | null>(null);
-  const [defaultDate, setDefaultDate] = React.useState<string | undefined>(undefined);
-  const [detailEvent, setDetailEvent] = React.useState<ScheduleEvent | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = React.useState<string | null>(null);
 
-  const navigate = (dir: number) => {
-    setCurrentDate((prev) => {
-      const d = new Date(prev);
-      if (view === "month") d.setMonth(d.getMonth() + dir);
-      else if (view === "week") d.setDate(d.getDate() + dir * 7);
-      else d.setDate(d.getDate() + dir);
-      return d;
-    });
+  const { events, createEvent, updateEvent, deleteEvent } = useScheduleEvents(initialEvents);
+  const dialogs = useScheduleDialogs(currentDate);
+  const filtered = useFilteredEvents(events, view, currentDate);
+  const counts = React.useMemo(() => countEventSources(events), [events]);
+
+  const handleSubmit = async (draft: ScheduleDraft) => {
+    const id = dialogs.editing?.id;
+    const ok = id ? await updateEvent(id, draft) : await createEvent(draft);
+    if (ok) dialogs.dismissAll();
   };
 
-  const filtered = React.useMemo(() => {
-    // Decorate once: parse timestamps a single time for sort/filter.
-    const decorated = events.map((e) => ({
-      e,
-      s: Date.parse(e.startAt) || 0,
-      ee: Date.parse(e.endAt) || 0,
-    }));
-    // For agenda, show all upcoming sorted; for others filter by view range
-    if (view === "agenda") {
-      decorated.sort((a, b) => a.s - b.s);
-      return decorated.map((d) => d.e);
-    }
-    let start: Date;
-    let end: Date;
-    if (view === "month") {
-      start = startOfMonth(currentDate);
-      end = endOfMonth(currentDate);
-      // Include overflow days for month view completeness
-      const padStart = start.getDay();
-      start = new Date(start.getTime() - padStart * 24 * 60 * 60 * 1000);
-      end = new Date(end.getTime() + (6 - end.getDay()) * 24 * 60 * 60 * 1000);
-    } else if (view === "week") {
-      start = startOfWeek(currentDate);
-      end = endOfWeek(currentDate);
-    } else {
-      start = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
-      end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-    }
-    const startMs = start.getTime();
-    const endMs = end.getTime();
-    return decorated.filter((d) => d.s < endMs && d.ee > startMs).map((d) => d.e);
-  }, [events, view, currentDate]);
-
-  const { userCount, googleCount } = React.useMemo(() => {
-    let u = 0;
-    let g = 0;
-    for (const e of events) {
-      if (e.source === "google") g++;
-      else u++;
-    }
-    return { userCount: u, googleCount: g };
-  }, [events]);
-
-  const handleCreate = async (draft: ScheduleDraft) => {
-    const result = await scheduleClientService.createEvent(draft);
-    if (result.success && result.data) {
-      setEvents((prev) => [...prev, result.data as ScheduleEvent].sort((a, b) => (Date.parse(a.startAt) || 0) - (Date.parse(b.startAt) || 0)));
-      setFormOpen(false);
-      setDefaultDate(undefined);
-      notify(true, "Event created", result.message);
-    } else {
-      notify(false, "Couldn't create event", result.message);
-    }
+  const handleConfirmDelete = async (event: ScheduleEvent) => {
+    dialogs.cancelDelete();
+    dialogs.closeDetail();
+    await deleteEvent(event.id);
   };
 
-  const handleUpdate = async (draft: ScheduleDraft) => {
-    if (!editing) return;
-    const result = await scheduleClientService.updateEvent(editing.id, draft);
-    if (result.success && result.data) {
-      setEvents((prev) => prev.map((e) => (e.id === editing.id ? (result.data as ScheduleEvent) : e)));
-      setEditing(null);
-      setFormOpen(false);
-      setDetailEvent(null);
-      notify(true, "Event updated", result.message);
-    } else {
-      notify(false, "Couldn't update event", result.message);
-    }
+  const openCreateAt = (date: Date, hour: number) => {
+    const d = new Date(date);
+    d.setHours(hour, 0, 0, 0);
+    dialogs.openCreate(d);
   };
-
-  const handleDelete = async (id: string) => {
-    setDeleteConfirm(null);
-    setDetailEvent(null);
-    const result = await scheduleClientService.deleteEvent(id);
-    if (result.success) {
-      setEvents((prev) => prev.filter((e) => e.id !== id));
-      notify(true, "Event deleted", result.message);
-    } else {
-      notify(false, "Couldn't delete event", result.message);
-    }
-  };
-
-  // Google events are read-only, but they still open the same detail dialog; only
-  // openEdit and the dialog footer branch on source.
-  const onEventClick = (event: ScheduleEvent) => setDetailEvent(event);
-
-  const openCreate = (date?: Date | string) => {
-    setEditing(null);
-    if (date) {
-      setDefaultDate(date instanceof Date ? date.toISOString() : date);
-    } else {
-      setDefaultDate(currentDate.toISOString());
-    }
-    setFormOpen(true);
-  };
-
-  const openEdit = (event: ScheduleEvent) => {
-    if (event.source === "google") return;
-    setEditing(event);
-    setDetailEvent(null);
-    setFormOpen(true);
-  };
-
-  const draftFromEvent = (event: ScheduleEvent | null): ScheduleDraft | null => {
-    if (!event) return null;
-    return {
-      title: event.title,
-      description: event.description ?? "",
-      location: event.location ?? "",
-      eventType: event.eventType,
-      startAt: event.startAt,
-      endAt: event.endAt,
-      allDay: event.allDay,
-      color: event.color ?? "",
-      courseId: event.courseId ?? "",
-    };
-  };
-
-  const headerLabel = (() => {
-    if (view === "month") return currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-    if (view === "week") {
-      const s = startOfWeek(currentDate);
-      const e = new Date(s.getTime() + 6 * 24 * 60 * 60 * 1000);
-      return `${s.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${e.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
-    }
-    if (view === "day") return currentDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-    return "Agenda";
-  })();
-
-  const detailChip = detailEvent ? eventTypeStyle(detailEvent) : null;
 
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>
-                Today
-              </Button>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" onClick={() => navigate(-1)} aria-label="Previous period">
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => navigate(1)} aria-label="Next period">
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-              <h2 className="text-lg font-semibold text-brand-dark">{headerLabel}</h2>
-            </div>
-            <Button onClick={() => openCreate()} size="sm">
-              <Plus className="h-4 w-4" /> New event
-            </Button>
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {CALENDAR_VIEWS.map((v) => (
-              <Button
-                key={v}
-                size="sm"
-                variant={view === v ? "default" : "outline"}
-                onClick={() => setView(v)}
-                className="capitalize"
-              >
-                {v}
-              </Button>
-            ))}
-            <span className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-              {SCHEDULE_EVENT_TYPES.map((t) => (
-                <span key={t} className="flex items-center gap-1.5">
-                  <span
-                    className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: EVENT_TYPE_COLOR[t] }}
-                    aria-hidden
-                  />
-                  {EVENT_TYPE_LABEL[t]}
-                </span>
-              ))}
-            </span>
-          </div>
-        </CardHeader>
+        <ScheduleToolbar
+          view={view}
+          currentDate={currentDate}
+          onViewChange={setView}
+          onToday={() => setCurrentDate(new Date())}
+          onStep={(direction) => setCurrentDate((prev) => stepPeriod(view, prev, direction))}
+          onNewEvent={() => dialogs.openCreate()}
+        />
 
         <CardContent>
           <div className={filtered.length === 0 ? "mb-4" : undefined}>
-            {filtered.length === 0 && <EventEmptyState view={view} onCreate={() => openCreate()} />}
+            {filtered.length === 0 && <EventEmptyState view={view} onCreate={() => dialogs.openCreate()} />}
           </div>
 
-          {view === "month" && (
-            <MonthView
-              currentDate={currentDate}
-              events={filtered}
-              onEventClick={onEventClick}
-              onDateClick={(d) => {
-                setCurrentDate(d);
-                setView("day");
-              }}
-            />
-          )}
-          {view === "week" && (
-            <WeekView
-              currentDate={currentDate}
-              events={filtered}
-              onEventClick={onEventClick}
-              onTimeClick={(date, hour) => {
-                const d = new Date(date);
-                d.setHours(hour, 0, 0, 0);
-                openCreate(d);
-              }}
-            />
-          )}
-          {view === "day" && (
-            <DayView
-              currentDate={currentDate}
-              events={filtered}
-              onEventClick={onEventClick}
-              onTimeClick={(hour) => {
-                const d = new Date(currentDate);
-                d.setHours(hour, 0, 0, 0);
-                openCreate(d);
-              }}
-            />
-          )}
-          {view === "agenda" && <AgendaView events={filtered} onEventClick={onEventClick} />}
+          <ScheduleCalendarView
+            view={view}
+            currentDate={currentDate}
+            events={filtered}
+            onEventClick={dialogs.openDetail}
+            onDateClick={(d) => {
+              setCurrentDate(d);
+              setView("day");
+            }}
+            onCreateAt={openCreateAt}
+          />
         </CardContent>
       </Card>
 
-      <EventForm
-        open={formOpen}
-        initialDraft={draftFromEvent(editing)}
+      <ScheduleDialogs
         courses={courses}
-        defaultDate={defaultDate}
-        onClose={() => {
-          setFormOpen(false);
-          setEditing(null);
-          setDefaultDate(undefined);
-        }}
-        onSubmit={editing ? handleUpdate : handleCreate}
+        formOpen={dialogs.formOpen}
+        draft={draftFromEvent(dialogs.editing)}
+        defaultDate={dialogs.defaultDate}
+        onSubmit={handleSubmit}
+        onCloseForm={dialogs.closeForm}
+        detail={dialogs.detailEvent}
+        onCloseDetail={dialogs.closeDetail}
+        onEdit={dialogs.openEdit}
+        onRequestDelete={dialogs.requestDelete}
+        deleteEvent={dialogs.deleteEvent}
+        onCancelDelete={dialogs.cancelDelete}
+        onConfirmDelete={handleConfirmDelete}
       />
 
-      {detailEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setDetailEvent(null)}>
-          <div
-            className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="truncate text-lg font-semibold text-brand-dark">{detailEvent.title}</h3>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  {detailChip && (
-                    <span
-                      className="rounded px-2 py-0.5 text-xs font-medium"
-                      style={{
-                        backgroundColor: detailChip.bg,
-                        color: detailChip.fg,
-                        opacity: detailChip.opacity,
-                      }}
-                    >
-                      {EVENT_TYPE_LABEL[detailEvent.eventType]}
-                    </span>
-                  )}
-                  {detailEvent.source === "google" ? (
-                    <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                      <span aria-hidden>•</span> Google
-                      <span className="sr-only"> (Google Calendar, read-only)</span>
-                    </span>
-                  ) : (
-                    <span className="rounded bg-brand-gray px-2 py-0.5 text-xs text-gray-600">
-                      {detailEvent.courseName ?? "No course"}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setDetailEvent(null)}>
-                ✕
-              </Button>
-            </div>
-
-            <div className="space-y-3 text-sm">
-              <div>
-                <p className="text-xs font-medium text-gray-500">When</p>
-                <p className="text-gray-700">
-                  {detailEvent.allDay
-                    ? `${formatDate(detailEvent.startAt)} (All day)`
-                    : `${formatDate(detailEvent.startAt)} ${formatTime(detailEvent.startAt)} - ${formatTime(detailEvent.endAt)}`}
-                </p>
-              </div>
-              {detailEvent.location && (
-                <div>
-                  <p className="text-xs font-medium text-gray-500">Location</p>
-                  <p className="text-gray-700">{detailEvent.location}</p>
-                </div>
-              )}
-              {detailEvent.description && (
-                <div>
-                  <p className="text-xs font-medium text-gray-500">Description</p>
-                  <p className="text-gray-700 whitespace-pre-wrap">{detailEvent.description}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setDetailEvent(null)}>
-                Close
-              </Button>
-              {detailEvent.source === "user" ? (
-                <>
-                  <Button variant="outline" onClick={() => openEdit(detailEvent)}>
-                    Edit
-                  </Button>
-                  <Button variant="destructive" onClick={() => setDeleteConfirm(detailEvent.id)}>
-                    Delete
-                  </Button>
-                </>
-              ) : (
-                <span className="px-3 py-2 text-xs text-gray-400">Google events are read-only via sync.</span>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
-              </div>
-              <h3 className="font-semibold text-brand-dark">Delete event?</h3>
-            </div>
-            <p className="mb-6 text-sm text-gray-600">This will permanently delete the event.</p>
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setDeleteConfirm(null)}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={() => handleDelete(deleteConfirm)}>
-                Delete
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <Card className="border-dashed">
-        <CardContent className="flex flex-wrap items-center gap-4 py-3 text-xs text-gray-500">
-          <span className="flex items-center gap-1">
-            <CalendarDays className="h-3.5 w-3.5" /> {userCount} your events
-          </span>
-          <span className="flex items-center gap-1">
-            <CalendarDays className="h-3.5 w-3.5 text-gray-400" /> {googleCount} Google events (read-only)
-          </span>
-          <span className="ml-auto">Click a date or time slot to create an event.</span>
-        </CardContent>
-      </Card>
+      <ScheduleFooter counts={counts} />
     </div>
   );
 }

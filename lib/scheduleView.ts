@@ -1,4 +1,4 @@
-import type { ScheduleEvent } from "@/types/schedule";
+import type { CalendarView, ScheduleEvent } from "@/types/schedule";
 import {
   CHIP_TEXT_DARK,
   CHIP_TEXT_LIGHT,
@@ -11,6 +11,8 @@ import { inferEventType } from "@/lib/eventTypeInference";
 
 type ScheduleRow = Database["public"]["Tables"]["schedule_events"]["Row"];
 type CalendarRow = Database["public"]["Tables"]["calendar_events"]["Row"];
+/** Half-open `[start, end)` window. */
+type DateRange = [Date, Date];
 
 export interface EventChipStyle {
   bg: string;
@@ -66,6 +68,98 @@ export function eventTypeStyle(event: Pick<ScheduleEvent, "eventType" | "color" 
     fg: event.color ? readableTextColor(event.color) : EVENT_TYPE_ON_COLOR[type],
     opacity: event.source === "google" ? 0.85 : 1,
   };
+}
+
+export interface EventSourceCounts {
+  userCount: number;
+  googleCount: number;
+  taskCount: number;
+}
+
+/** Tally the calendar footer. Kept pure and exhaustive so a new `source` can't be miscounted. */
+export function countEventSources(events: readonly Pick<ScheduleEvent, "source">[]): EventSourceCounts {
+  const counts: EventSourceCounts = { userCount: 0, googleCount: 0, taskCount: 0 };
+  for (const e of events) {
+    if (e.source === "google") counts.googleCount++;
+    else if (e.source === "task") counts.taskCount++;
+    else counts.userCount++;
+  }
+  return counts;
+}
+
+function startOfWeek(date: Date): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() - d.getDay());
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/**
+ * The month grid renders whole weeks, so pad to the Sunday before the 1st and the Saturday
+ * after the last day. Otherwise a leading event would vanish on the 1st and a trailing one on
+ * the 31st. Uses calendar-day arithmetic, not +86_400_000, to stay correct across DST shifts.
+ */
+function monthGridRange(currentDate: Date): DateRange {
+  const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+  start.setDate(start.getDate() - start.getDay());
+  end.setDate(end.getDate() + (6 - end.getDay()));
+  return [start, end];
+}
+
+function weekRange(currentDate: Date): DateRange {
+  const start = startOfWeek(currentDate);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+  return [start, end];
+}
+
+function dayRange(currentDate: Date): DateRange {
+  const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return [start, end];
+}
+
+/**
+ * Half-open `[start, end)` window a view should display. Agenda returns the whole timeline —
+ * it paginates on its own rather than clipping to the visible period.
+ */
+export function viewRange(view: CalendarView, currentDate: Date): DateRange {
+  if (view === "month") return monthGridRange(currentDate);
+  if (view === "week") return weekRange(currentDate);
+  if (view === "day") return dayRange(currentDate);
+  return [new Date(-8.64e15), new Date(8.64e15)];
+}
+
+/** Toolbar heading for the visible period. */
+export function viewHeaderLabel(view: CalendarView, currentDate: Date): string {
+  if (view === "month") return currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  if (view === "week") {
+    const s = startOfWeek(currentDate);
+    const e = new Date(s);
+    e.setDate(e.getDate() + 6);
+    return `${s.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${e.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })}`;
+  }
+  if (view === "day")
+    return currentDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  return "Agenda";
+}
+
+/**
+ * Advance the visible period by one step. Month steps use `setMonth` so short months need no
+ * special-casing. Note this overflows rather than clamping: stepping forward from 31 Jan lands
+ * on 3 Mar, which matches the month view's own previous/next behaviour.
+ */
+export function stepPeriod(view: CalendarView, currentDate: Date, direction: 1 | -1): Date {
+  const d = new Date(currentDate);
+  if (view === "month") d.setMonth(d.getMonth() + direction);
+  else d.setDate(d.getDate() + direction * (view === "week" ? 7 : 1));
+  return d;
 }
 
 export function scheduleRowToView(

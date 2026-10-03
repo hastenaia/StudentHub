@@ -193,6 +193,19 @@ which is the read-only Google snapshot that each sync replaces.
 **Indexes:** `(user_id, start_at)`, `(user_id, course_id)`,
 `(user_id, event_type)`, `(user_id, event_type, start_at)`.
 
+**Task deadlines are derived, not stored here.** There is no FK between the two
+tables. `services/schedule.service.ts` also reads `tasks` (same −60d/+120d window)
+and `lib/taskSchedule.ts` maps each `due_at` into a read-only `ScheduleEvent` with
+`source: "task"` and an id prefixed `task:` so it can never collide with a
+`schedule_events` uuid. It is flagged `allDay` (so it lands in the all-day lane
+rather than the hour grid) while `start_at` keeps the exact instant the user picked,
+and `end_at` is the next local midnight so the chip touches one day and still
+satisfies the CHECK. `event_type` reuses `assignment`. Because nothing is
+materialised, completing a recurring task — which advances `tasks.due_at` via
+`nextRecurrence` — is reflected on the calendar with no sync step. Deadlines are
+read-only there: `openEdit` and the detail dialog only offer Edit/Delete for
+`source: "user"`.
+
 ### `tasks`
 
 To-Do Tracker items.

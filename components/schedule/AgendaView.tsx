@@ -28,6 +28,15 @@ function toDateLabel(iso: string): string {
 }
 
 /**
+ * A task deadline is flagged all-day so it lands in the all-day lane, but the user set a
+ * clock time on the task, so show that rather than a bare "All day".
+ */
+function timeLabel(e: ScheduleEvent): string {
+  if (e.source === "task") return `Due ${formatTime(e.startAt)}`;
+  return e.allDay ? "All day" : `${formatTime(e.startAt)} - ${formatTime(e.endAt)}`;
+}
+
+/**
  * A list rather than a grid, so it drops the filled chip for a bordered row with a coloured
  * left edge. Like every other view it lists a multi-day event once, on the day it starts.
  */
@@ -92,10 +101,16 @@ export function AgendaView({ events, onEventClick }: AgendaViewProps) {
                               <span className="sr-only"> (Google Calendar, read-only)</span>
                             </span>
                           )}
+                          {e.source === "task" && (
+                            <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600">
+                              <span aria-hidden>•</span> Task
+                              <span className="sr-only"> (task due date)</span>
+                            </span>
+                          )}
                         </div>
                         {e.description && <p className="truncate text-xs text-gray-500">{e.description}</p>}
                         <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
-                          <span>{e.allDay ? "All day" : `${formatTime(e.startAt)} - ${formatTime(e.endAt)}`}</span>
+                          <span>{timeLabel(e)}</span>
                           {e.location && (
                             <span className="flex items-center gap-1">
                               <MapPin className="h-3 w-3" aria-hidden /> {e.location}

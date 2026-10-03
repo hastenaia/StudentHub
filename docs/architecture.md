@@ -88,7 +88,7 @@ Every page under `app/(dashboard)/dashboard/` is listed in the sidebar
 |---|---|---|
 | `/dashboard` | `dashboard.service.ts` → `getProductivityDashboardData` | tasks, schedule_events, calendar_events, assignments, announcements, courses, focus_sessions, notes, google_accounts |
 | `/dashboard/courses` | `courses.service.ts` (+ 0–100 progress via `lib/progress.ts`) | courses, assignments |
-| `/dashboard/schedule` | `schedule.service.ts` | schedule_events (editable) + calendar_events (Google, read-only) |
+| `/dashboard/schedule` | `schedule.service.ts` | schedule_events (editable) + calendar_events (Google, read-only) + tasks (due dates, derived read-only) |
 | `/dashboard/tasks` | `tasks.service.ts` (runs the task scheduler) | tasks, courses |
 | `/dashboard/study` | `notes.service.ts`, `flashcards.service.ts`, `quizzes.service.ts` | notes, note_attachments, flashcards, quizzes, quiz_questions, quiz_attempts |
 | `/dashboard/focus` | `focus.service.ts` | focus_sessions |
@@ -123,9 +123,19 @@ value is corrupt data and maps to `other`.
 
 ### Schedule views
 
-`ScheduleView` owns the toolbar, CRUD wiring and date navigation; `MonthView`,
-`WeekView`, `DayView` and `AgendaView` are pure renderers over the same
-`ScheduleEvent[]`. Three shared pieces keep the four views consistent:
+`ScheduleView` is a thin orchestrator — it holds view/date state and wires the
+pieces together; `MonthView`, `WeekView`, `DayView` and `AgendaView` are pure
+renderers over the same `ScheduleEvent[]`. `ScheduleEvent.source` is
+`"user" | "google" | "task"`, and every branch on it is explicit: only `user` is
+writable. State lives in two hooks (`useScheduleEvents` for the list plus its three
+mutations, `useScheduleDialogs` for which dialog is open) so the container itself
+stays within the project's complexity budget; `ScheduleToolbar`,
+`ScheduleCalendarView`, `ScheduleDialogs` and `ScheduleFooter` render the chrome.
+Period arithmetic (`viewRange`, `stepPeriod`, `viewHeaderLabel`) is pure and lives in
+`lib/scheduleView.ts`, and `useFilteredEvents` clips the list to the visible period
+while keeping events that merely overlap it.
+
+Three shared pieces keep the four views consistent:
 
 - `components/schedule/EventChip.tsx` — the one chip used by month, week and day
   (`layout="row"` for the day view's title-left/time-right treatment), so colour,
@@ -139,6 +149,10 @@ value is corrupt data and maps to `other`.
   view clamps expansion to the days it renders; the end is exclusive, so an event
   ending exactly at 00:00 — a Google all-day event — doesn't also claim the next
   day.
+- `components/schedule/EventDetailDialog.tsx` — one detail dialog for all three
+  sources; the footer offers Edit/Delete only for `user` events and otherwise
+  explains why the entry is read-only. A task deadline is flagged all-day but
+  shows its due time, since the user set a clock time on the task.
 
 All-day events get their own lane in both week and day, and are filtered out of the
 hour grid. Week and day step days with `setDate` rather than `+24h` arithmetic, so

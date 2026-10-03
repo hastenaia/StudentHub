@@ -61,7 +61,9 @@ export function DayView({ currentDate, events, onEventClick, onTimeClick }: DayV
           <div className="text-xs font-medium text-gray-600">All day</div>
           <div className="mt-1 flex flex-wrap gap-1">
             {allDayEvents.map((e) => (
-              <EventChip key={e.id} event={e} onClick={onEventClick} className="px-2 py-1 text-xs" />
+              // showTime: this lane has room, and it is the one place a deadline would
+              // otherwise show without its due time. Real all-day events stay title-only.
+              <EventChip key={e.id} event={e} showTime onClick={onEventClick} className="px-2 py-1 text-xs" />
             ))}
           </div>
         </div>
@@ -71,7 +73,7 @@ export function DayView({ currentDate, events, onEventClick, onTimeClick }: DayV
         {hours.map((hour) => {
           const hourEvents = byHour.get(hour) ?? [];
           return (
-            <div key={hour} className="flex min-h-[48px] bg-white">
+            <div key={hour} className="flex min-h-12 bg-white">
               <button
                 onClick={() => onTimeClick(hour)}
                 aria-label={`Add event at ${hourLabel(hour)}`}

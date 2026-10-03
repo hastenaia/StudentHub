@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { courseRowToView, toCourseOptions } from "@/lib/courseView";
 import { taskRowToView, taskToDraft } from "@/lib/taskView";
-import { calendarRowToView, contrastRatio, eventTypeStyle, readableTextColor, relativeLuminance, scheduleRowToView } from "@/lib/scheduleView";
+import {
+  calendarRowToView,
+  contrastRatio,
+  countEventSources,
+  eventTypeStyle,
+  readableTextColor,
+  relativeLuminance,
+  scheduleRowToView,
+  stepPeriod,
+  viewHeaderLabel,
+  viewRange,
+} from "@/lib/scheduleView";
 import { CHIP_TEXT_DARK, CHIP_TEXT_LIGHT, EVENT_TYPE_COLOR, EVENT_TYPE_ON_COLOR } from "@/types/schedule";
 import type { Database } from "@/types/database.types";
 
@@ -150,5 +161,113 @@ describe("scheduleView", () => {
     }
     // A malformed colour falls back to the previous behaviour rather than guessing.
     expect(readableTextColor("not-a-colour")).toBe(CHIP_TEXT_LIGHT);
+  });
+});
+describe("countEventSources", () => {
+  const ev = (source: "user" | "google" | "task") => ({ source });
+
+  it("returns zeroed counts for an empty list", () => {
+    expect(countEventSources([])).toEqual({ userCount: 0, googleCount: 0, taskCount: 0 });
+  });
+
+  it("tallies each source separately", () => {
+    expect(
+      countEventSources([ev("user"), ev("task"), ev("google"), ev("user"), ev("task")])
+    ).toEqual({ userCount: 2, googleCount: 1, taskCount: 2 });
+  });
+
+  it("keeps derived task deadlines out of the user count", () => {
+    // A regression guard: an `else user++` tally would report 3 user events here.
+    expect(countEventSources([ev("task"), ev("user"), ev("google")])).toEqual({
+      userCount: 1,
+      googleCount: 1,
+      taskCount: 1,
+    });
+  });
+
+  it("counts only what it is given", () => {
+    expect(countEventSources([ev("task")])).toEqual({ userCount: 0, googleCount: 0, taskCount: 1 });
+  });
+});
+describe("viewRange", () => {
+  it("pads the month grid to whole weeks so leading/trailing events still show", () => {
+    // 1 Sep 2026 is a Tuesday, so the grid starts Sun 30 Aug and ends Sat 3 Oct.
+    const [start, end] = viewRange("month", new Date(2026, 8, 15));
+    expect(start).toEqual(new Date(2026, 7, 30));
+    expect(end).toEqual(new Date(2026, 9, 3));
+  });
+
+  it("starts the month grid on a Sunday even when the 1st is one", () => {
+    // 1 Jun 2025 is a Sunday, so no leading padding is needed.
+    const [start] = viewRange("month", new Date(2025, 5, 15));
+    expect(start.getDay()).toBe(0);
+    expect(start).toEqual(new Date(2025, 5, 1));
+  });
+
+  it("returns a full week for the week view", () => {
+    const [start, end] = viewRange("week", new Date(2026, 8, 15));
+    expect(start.getDay()).toBe(0);
+    expect(Math.round((end.getTime() - start.getTime()) / 86400000)).toBe(7);
+  });
+
+  it("returns the local day for the day view", () => {
+    const [start, end] = viewRange("day", new Date(2026, 8, 15, 13, 45));
+    expect(start).toEqual(new Date(2026, 8, 15));
+    expect(end).toEqual(new Date(2026, 8, 16));
+  });
+
+  it("does not clip the agenda to a period", () => {
+    const [start, end] = viewRange("agenda", new Date(2026, 8, 15));
+    expect(start.getTime()).toBeLessThan(new Date(2000, 0, 1).getTime());
+    expect(end.getTime()).toBeGreaterThan(new Date(2100, 0, 1).getTime());
+  });
+});
+
+describe("stepPeriod", () => {
+  it("steps a whole month forward and back", () => {
+    expect(stepPeriod("month", new Date(2026, 8, 15), 1)).toEqual(new Date(2026, 9, 15));
+    expect(stepPeriod("month", new Date(2026, 8, 15), -1)).toEqual(new Date(2026, 7, 15));
+  });
+
+  it("steps seven days for the week view", () => {
+    expect(stepPeriod("week", new Date(2026, 8, 15), 1)).toEqual(new Date(2026, 8, 22));
+  });
+
+  it("steps one day for the day view and the agenda", () => {
+    expect(stepPeriod("day", new Date(2026, 8, 15), 1)).toEqual(new Date(2026, 8, 16));
+    expect(stepPeriod("day", new Date(2026, 8, 15), -1)).toEqual(new Date(2026, 8, 14));
+    expect(stepPeriod("agenda", new Date(2026, 8, 15), 1)).toEqual(new Date(2026, 8, 16));
+  });
+
+  it("does not mutate the date it was given", () => {
+    const original = new Date(2026, 8, 15);
+    stepPeriod("month", original, 1);
+    expect(original).toEqual(new Date(2026, 8, 15));
+  });
+
+it("overflows rather than clamping on a month-end step (pinned behaviour)", () => {
+    // 31 Jan + setMonth(1) is 31 Feb, which JS rolls into 3 Mar. The month view has always
+    // behaved this way, so the step is pinned rather than silently changed here.
+    const stepped = stepPeriod("month", new Date(2026, 0, 31), 1);
+    expect(stepped.getMonth()).toBe(2);
+    expect(stepped.getDate()).toBe(3);
+  });
+});
+
+describe("viewHeaderLabel", () => {
+  it("names the month and year", () => {
+    expect(viewHeaderLabel("month", new Date(2026, 8, 15))).toBe("September 2026");
+  });
+
+  it("spans a week from its first to last day", () => {
+    expect(viewHeaderLabel("week", new Date(2026, 8, 15))).toMatch(/^[A-Z][a-z]+ \d+ - [A-Z][a-z]+ \d+, 2026$/);
+  });
+
+  it("names the day in full", () => {
+    expect(viewHeaderLabel("day", new Date(2026, 8, 15))).toBe("Tuesday, September 15, 2026");
+  });
+
+  it("says Agenda for the agenda view", () => {
+    expect(viewHeaderLabel("agenda", new Date(2026, 8, 15))).toBe("Agenda");
   });
 });

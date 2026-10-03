@@ -30,6 +30,16 @@ function event(id: string, start: Date, end: Date, over: Partial<ScheduleEvent> 
 
 const at = (day: number, hour: number, minute = 0) => new Date(2026, 8, day, hour, minute);
 const GOOGLE_READ_ONLY = /Google Calendar, read-only/;
+const TASK_DUE = /task due date/;
+
+/** A deadline as `lib/taskSchedule.ts` derives it: all-day flag, `assignment`, `task` source. */
+function deadline(title: string, day: number, hour = 17): ScheduleEvent {
+  return event(title, new Date(2026, 8, day, hour), new Date(2026, 8, day + 1, 0), {
+    eventType: "assignment",
+    allDay: true,
+    source: "task",
+  });
+}
 
 describe("EventChip", () => {
   it("takes its colour from eventTypeStyle so every view agrees", () => {
@@ -341,6 +351,88 @@ describe("AgendaView", () => {
   it("shows all-day events without a time range", () => {
     render(<AgendaView events={[event("Reading day", at(15, 0), at(16, 0), { allDay: true })]} onEventClick={vi.fn()} />);
     expect(screen.getByText("All day")).toBeTruthy();
+  });
+});
+
+describe("task deadlines", () => {
+  it("appears in the month cell for the due day", () => {
+    render(
+      <MonthView
+        currentDate={new Date(2026, 8, 15)}
+        events={[deadline("Read chapter 4", 15)]}
+        onEventClick={vi.fn()}
+        onDateClick={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/Read chapter 4/)).toBeTruthy();
+  });
+
+  it("sits in the week all-day lane, not in an hour row", () => {
+    const onTimeClick = vi.fn();
+    render(
+      <WeekView
+        currentDate={new Date(2026, 8, 15)}
+        events={[deadline("Read chapter 4", 15)]}
+        onEventClick={vi.fn()}
+        onTimeClick={onTimeClick}
+      />
+    );
+    expect(screen.getByText("All day")).toBeTruthy();
+    const lane = screen.getByText("All day").closest("div")!.parentElement!;
+    expect(lane.textContent).toContain("Read chapter 4");
+    // A deadline is never a bookable hour slot.
+    expect(onTimeClick).not.toHaveBeenCalled();
+  });
+
+  it("appears in the day view and keeps its due time visible", () => {
+    render(
+      <DayView
+        currentDate={new Date(2026, 8, 15)}
+        events={[deadline("Read chapter 4", 15, 17)]}
+        onEventClick={vi.fn()}
+        onTimeClick={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/Read chapter 4/)).toBeTruthy();
+    expect(screen.getByText(/Due 5:00 PM/)).toBeTruthy();
+  });
+
+  it("shows as a deadline rather than a bare all-day entry in the agenda", () => {
+    render(<AgendaView events={[deadline("Read chapter 4", 15, 17)]} onEventClick={vi.fn()} />);
+    expect(screen.getByText("Due 5:00 PM")).toBeTruthy();
+    expect(screen.queryByText("All day")).toBeNull();
+    expect(screen.getByText(TASK_DUE)).toBeTruthy();
+  });
+
+  it("marks the chip as a task for screen readers", () => {
+    render(<EventChip event={deadline("Read chapter 4", 15)} />);
+    expect(screen.getByText(TASK_DUE)).toBeTruthy();
+  });
+
+  it("does not masquerade as a Google event", () => {
+    render(<EventChip event={deadline("Read chapter 4", 15)} />);
+    expect(screen.queryByText(GOOGLE_READ_ONLY)).toBeNull();
+  });
+
+  it("uses the assignment colour so the existing legend still explains it", () => {
+    const due = deadline("Read chapter 4", 15);
+    render(<EventChip event={due} />);
+    expect(screen.getByText(/Read chapter 4/)).toHaveStyle({
+      backgroundColor: EVENT_TYPE_COLOR.assignment,
+    });
+  });
+
+  it("surfaces the due time in the chip tooltip", () => {
+    render(<EventChip event={deadline("Read chapter 4", 15, 17)} />);
+    const chip = screen.getByTitle(/Due .*Read chapter 4/);
+    expect(chip.getAttribute("title")).toContain("5:00 PM");
+  });
+
+  it("opens the shared detail dialog when clicked, like any other entry", () => {
+    const onEventClick = vi.fn();
+    render(<EventChip event={deadline("Read chapter 4", 15)} onClick={onEventClick} />);
+    fireEvent.click(screen.getByText(/Read chapter 4/));
+    expect(onEventClick).toHaveBeenCalledTimes(1);
   });
 });
 

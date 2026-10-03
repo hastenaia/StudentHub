@@ -57,7 +57,8 @@ export interface ScheduleEvent {
   endAt: string;
   allDay: boolean;
   color: string | null;
-  source: "user" | "google";
+  /** `task` events are derived from `tasks.due_at` for display only — they are never writable. */
+  source: "user" | "google" | "task";
   googleEventId?: string | null;
 }
 
