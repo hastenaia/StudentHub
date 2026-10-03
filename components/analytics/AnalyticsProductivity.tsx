@@ -22,18 +22,18 @@ export function AnalyticsProductivity({ data }: Props) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-lg bg-brand-gray/60 px-3 py-3">
-            <p className="flex items-center gap-1 text-xs font-medium text-gray-600">
+          <div className="rounded-lg bg-brand-gray/60 px-3 py-3 text-center">
+            <p className="flex min-h-[16px] items-center justify-center gap-1 text-xs font-medium text-gray-600">
               <CalendarDays className="h-3 w-3" /> Most productive day
             </p>
-            <p className="mt-1 text-sm font-bold text-brand-dark">{data.mostProductiveDay ?? "—"}</p>
+            <p className="mt-1 text-xl font-bold text-brand-dark">{data.mostProductiveDay ?? "—"}</p>
             <p className="text-xs text-gray-500">{data.mostProductiveMinutes} focus minutes</p>
           </div>
-          <div className="rounded-lg bg-emerald-50 px-3 py-3">
-            <p className="flex items-center gap-1 text-xs font-medium text-emerald-700">
+          <div className="rounded-lg bg-emerald-50 px-3 py-3 text-center">
+            <p className="flex min-h-[16px] items-center justify-center gap-1 text-xs font-medium text-emerald-700">
               <Clock className="h-3 w-3" /> Average focus session
             </p>
-            <p className="mt-1 text-sm font-bold text-emerald-700">{data.averageFocusSession} min</p>
+            <p className="mt-1 text-xl font-bold text-emerald-700">{data.averageFocusSession} min</p>
             <p className="text-xs text-gray-500">per session</p>
           </div>
         </div>

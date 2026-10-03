@@ -23,7 +23,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     // In production, wire this up to your error-tracking service.
-    console.error("ErrorBoundary caught an error:", error, info);
+    if (process.env.NODE_ENV === "development") console.error("ErrorBoundary caught an error:", error, info);
   }
 
   reset = () => this.setState({ hasError: false, error: undefined });

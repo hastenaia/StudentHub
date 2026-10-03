@@ -54,7 +54,7 @@ export function AnalyticsFocus({ data }: Props) {
             <p className="text-xs text-gray-500">{data.weeklySessions} sessions</p>
           </div>
           <div className="rounded-lg bg-purple-50 px-3 py-3 text-center">
-            <p className="text-xs font-medium text-purple-700">Month</p>
+            <p className="flex min-h-[16px] items-center justify-center gap-1 text-xs font-medium text-purple-700">Month</p>
             <p className="mt-1 text-xl font-bold text-purple-700">{data.monthlyMinutes}m</p>
             <p className="text-xs text-gray-500">{data.monthlySessions} sessions</p>
           </div>

@@ -27,11 +27,22 @@ export function useAuth() {
 
   useEffect(() => {
     const supabase = createClient();
+    let cancelled = false;
 
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(mapUser(data.user));
-      setIsLoading(false);
-    });
+    supabase
+      .auth.getUser()
+      .then(({ data }) => {
+        if (!cancelled) {
+          setUser(mapUser(data.user));
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setUser(null);
+          setIsLoading(false);
+        }
+      });
 
     const {
       data: { subscription },
@@ -39,7 +50,10 @@ export function useAuth() {
       setUser(mapUser(session?.user ?? null));
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const logout = useCallback(async () => {

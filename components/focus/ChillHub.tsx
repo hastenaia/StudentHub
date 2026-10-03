@@ -5,6 +5,7 @@ import * as React from "react";
 import { Volume2, VolumeX, Waves, CloudRain, Coffee, Trees, Wind, Music } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { nextActiveId } from "@/lib/chill";
 
 // Minimal slider component if not exists, fallback to input range
 function SimpleSlider({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled?: boolean }) {
@@ -45,14 +46,11 @@ const VOLUME_KEY = "studenthub.chillhub.volume";
 export function ChillHub() {
   const audioRef = React.useRef<AudioContext | null>(null);
   const nodesRef = React.useRef<Map<AmbientId, { gain: GainNode; source?: AudioBufferSourceNode; oscillators: OscillatorNode[] }>>(new Map());
-  const [playing, setPlaying] = React.useState<Record<AmbientId, boolean>>({
-    brown: false,
-    rain: false,
-    cafe: false,
-    forest: false,
-    white: false,
-    lofi: false,
-  });
+  // Single-track rule: at most one ambient is active. nodesRef is the audio truth,
+  // activeId is the UI truth, activeRef avoids stale closures on rapid clicks.
+  const [activeId, setActiveId] = React.useState<AmbientId | null>(null);
+  const activeRef = React.useRef<AmbientId | null>(null);
+  const genRef = React.useRef(0);
   const [volume, setVolume] = React.useState<Record<AmbientId, number>>({
     brown: 60,
     rain: 50,
@@ -101,24 +99,44 @@ export function ChillHub() {
     return source;
   };
 
-  const toggle = async (id: AmbientId) => {
+  const setActive = (id: AmbientId | null) => {
+    activeRef.current = id;
+    setActiveId(id);
+  };
+
+  const stopAll = (ctx: AudioContext | null) => {
+    // Bump generation so pending forest chirps / delayed disconnects become no-ops.
+    genRef.current += 1;
+    const nodes = Array.from(nodesRef.current.values());
+    nodesRef.current.clear();
+    for (const node of nodes) {
+      try {
+        if (ctx) {
+          try {
+            node.gain.gain.cancelScheduledValues(ctx.currentTime);
+          } catch {}
+          node.gain.gain.setValueAtTime(node.gain.gain.value, ctx.currentTime);
+          node.gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.15);
+        }
+      } catch {}
+      const gen = genRef.current;
+      setTimeout(() => {
+        if (gen !== genRef.current) return;
+        node.oscillators.forEach((o) => { try { o.stop(); } catch {} });
+        try { node.source?.stop(); } catch {}
+        try { node.source?.disconnect(); } catch {}
+        try { node.gain.disconnect(); } catch {}
+      }, 200);
+    }
+  };
+
+  const toggle = (id: AmbientId) => {
     const ctx = ensureContext();
-    const isPlaying = playing[id];
-    if (isPlaying) {
-      const node = nodesRef.current.get(id);
-      if (node) {
-        try {
-          node.gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2);
-          setTimeout(() => {
-            node.oscillators.forEach((o) => { try { o.stop(); } catch {} });
-            node.source?.stop();
-            node.source?.disconnect();
-            node.gain.disconnect();
-          }, 250);
-        } catch {}
-        nodesRef.current.delete(id);
-      }
-      setPlaying((p) => ({ ...p, [id]: false }));
+    const next = nextActiveId(activeRef.current, id);
+    // Always stop everything first — single write, no stale-merge of booleans.
+    stopAll(ctx);
+    if (next === null) {
+      setActive(null);
       return;
     }
 
@@ -184,13 +202,18 @@ export function ChillHub() {
         osc.connect(g);
         g.connect(gain);
         osc.start();
+        const gen = genRef.current;
         const chirp = () => {
-          if (!playing[id] && !nodesRef.current.has(id)) return;
-          const now = ctx.currentTime;
-          g.gain.setValueAtTime(0, now);
-          g.gain.linearRampToValueAtTime(0.08, now + 0.05);
-          g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-          osc.frequency.setValueAtTime(1800 + Math.random() * 1200, now);
+          if (gen !== genRef.current || !nodesRef.current.has(id)) return;
+          try {
+            const now = ctx.currentTime;
+            g.gain.setValueAtTime(0, now);
+            g.gain.linearRampToValueAtTime(0.08, now + 0.05);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+            osc.frequency.setValueAtTime(1800 + Math.random() * 1200, now);
+          } catch {
+            return;
+          }
           setTimeout(chirp, 3000 + Math.random() * 5000);
         };
         setTimeout(chirp, 1000 + Math.random() * 2000);
@@ -216,7 +239,7 @@ export function ChillHub() {
     }
 
     nodesRef.current.set(id, { gain, source, oscillators });
-    setPlaying((p) => ({ ...p, [id]: true }));
+    setActive(id);
   };
 
   const handleVolume = (id: AmbientId, v: number) => {
@@ -237,15 +260,17 @@ export function ChillHub() {
 
   React.useEffect(() => {
     const nodes = nodesRef.current;
-    const audio = audioRef.current;
     return () => {
-      try {
-        audio?.close();
-      } catch {}
+      genRef.current += 1;
+      activeRef.current = null;
       nodes.forEach((n) => {
         try { n.source?.stop(); } catch {}
         n.oscillators.forEach((o) => { try { o.stop(); } catch {} });
       });
+      nodes.clear();
+      try {
+        audioRef.current?.close();
+      } catch {}
     };
   }, []);
 
@@ -256,12 +281,12 @@ export function ChillHub() {
           <Music className="h-4 w-4 text-brand-royal" /> Chill Hub
           <span className="ml-auto text-xs font-normal text-gray-400">Legally generated • CC0 • No copyrighted music</span>
         </CardTitle>
-        <p className="text-xs text-gray-500">Procedurally generated ambient audio — safe for study, no external tracks.</p>
+        <p className="text-xs text-gray-500">Procedurally generated ambient audio — safe for study, no external tracks. Only one sound plays at a time.</p>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {AMBIENTS.map((a) => {
-            const isOn = playing[a.id];
+            const isOn = activeId === a.id;
             const Icon = a.icon;
             return (
               <div key={a.id} className={`rounded-lg border p-3 ${isOn ? "border-brand-royal bg-brand-royal/[0.03]" : "border-gray-200 bg-white"}`}>

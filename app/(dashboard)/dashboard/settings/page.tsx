@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, KeyRound, Plug, ShieldCheck, UserCircle, Palette, LogOut } from "lucide-react";
+import { KeyRound, Plug, ShieldCheck, UserCircle, Palette, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_THEME, isTheme } from "@/lib/theme";
 import {
@@ -14,11 +14,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { getGoogleAccountView } from "@/services/academics.service";
 import { getGamificationData } from "@/services/gamification.service";
 import { GoogleConnectionCard } from "@/components/settings/GoogleConnectionCard";
-import { ManualCoursesCard } from "@/components/settings/ManualCoursesCard";
 import { ProfileCard } from "@/components/settings/ProfileCard";
 import { PreferencesCard } from "@/components/settings/PreferencesCard";
 import { AccountCard } from "@/components/settings/AccountCard";
-import type { DashboardCourse } from "@/types/academics";
 
 export const metadata: Metadata = { title: "Settings — StudentHub" };
 
@@ -34,35 +32,17 @@ export default async function SettingsPage() {
     return <p className="text-sm text-gray-500">You need to be signed in to view this page.</p>;
   }
 
-  const [account, profileRes, manualCoursesRes, gamification] = await Promise.all([
+  const [account, profileRes, gamification] = await Promise.all([
     getGoogleAccountView(user.id),
     supabase
       .from("profiles")
       .select("timezone, theme, default_calendar_view, default_task_view, notifications_enabled, full_name, avatar_url")
       .eq("id", user.id)
       .maybeSingle(),
-    supabase
-      .from("courses")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("source", "manual")
-      .order("created_at"),
     getGamificationData(user.id),
   ]);
 
   const profile = profileRes.data;
-
-  const manualCourseViews: DashboardCourse[] = (manualCoursesRes.data ?? []).map((c) => ({
-    id: c.id,
-    name: c.name,
-    section: c.section,
-    room: c.room,
-    teacherName: c.teacher_name,
-    color: c.color,
-    source: "manual",
-    creditHours: Number(c.credit_hours ?? 0),
-    upcomingAssignments: [],
-  }));
 
   const timezone = (profile as { timezone?: string } | null)?.timezone ?? "UTC";
   const storedTheme = (profile as { theme?: string } | null)?.theme;
@@ -128,18 +108,6 @@ export default async function SettingsPage() {
             initialTaskView={defaultTaskView}
             initialNotifications={notificationsEnabled}
           />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-brand-royal" /> Manual courses
-          </CardTitle>
-          <CardDescription>Add courses that aren&apos;t on Google Classroom.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ManualCoursesCard courses={manualCourseViews} />
         </CardContent>
       </Card>
 

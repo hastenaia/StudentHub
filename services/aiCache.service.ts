@@ -15,7 +15,7 @@ export async function getAiCacheData(userId: string): Promise<{ cachedResults: A
     .order("created_at", { ascending: false })
     .limit(HISTORY_LIMIT);
   if (error) {
-    console.warn("[ai-cache] history read failed:", error.message);
+    if (process.env.NODE_ENV === "development") console.warn("[ai-cache] history read failed:", error.message);
     return { cachedResults: [] };
   }
   return { cachedResults: aiCacheRowsToView(data) };

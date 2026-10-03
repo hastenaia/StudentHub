@@ -20,13 +20,14 @@ export async function readAiCache(
       .eq("cache_key", key)
       .maybeSingle();
     if (error) {
-      console.warn("[ai-cache] read failed:", error.message);
+      if (process.env.NODE_ENV === "development") console.warn("[ai-cache] read failed:", error.message);
       return null;
     }
     const stored = (data as { data?: Json } | null)?.data;
     return stored && typeof stored === "object" ? (stored as Record<string, unknown>) : null;
   } catch (err) {
-    console.warn("[ai-cache] read threw:", err instanceof Error ? err.message : err);
+    if (process.env.NODE_ENV === "development")
+      console.warn("[ai-cache] read threw:", err instanceof Error ? err.message : err);
     return null;
   }
 }
@@ -48,8 +49,9 @@ export async function writeAiCache(
       { user_id: userId, cache_key: key, action, label, data: data as unknown as Json },
       { onConflict: "user_id,cache_key" }
     );
-    if (error) console.warn("[ai-cache] write failed:", error.message);
+    if (error && process.env.NODE_ENV === "development") console.warn("[ai-cache] write failed:", error.message);
   } catch (err) {
-    console.warn("[ai-cache] write threw:", err instanceof Error ? err.message : err);
+    if (process.env.NODE_ENV === "development")
+      console.warn("[ai-cache] write threw:", err instanceof Error ? err.message : err);
   }
 }

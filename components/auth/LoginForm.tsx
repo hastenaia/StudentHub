@@ -22,9 +22,15 @@ export function LoginForm() {
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
-    const result = await authService.signInWithGoogle(safeRedirect(searchParams.get("redirectTo")));
-    if (!result.success) {
-      toast({ title: "Google sign-in failed", description: result.message, variant: "error" });
+    try {
+      const result = await authService.signInWithGoogle(safeRedirect(searchParams.get("redirectTo")));
+      if (!result.success) {
+        toast({ title: "Google sign-in failed", description: result.message, variant: "error" });
+        setIsGoogleLoading(false);
+      }
+      // On success signInWithGoogle redirects via window.location — keep loading state.
+    } catch {
+      toast({ title: "Google sign-in failed", description: "Something went wrong. Please try again.", variant: "error" });
       setIsGoogleLoading(false);
     }
   };

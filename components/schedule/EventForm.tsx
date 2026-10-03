@@ -139,7 +139,7 @@ export function EventForm({ open, initialDraft, courses, defaultDate, onClose, o
                 name="startAt"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{allDay ? "Date" : "Start"}</FormLabel>
+                    <FormLabel>Start date</FormLabel>
                     <FormControl>
                       <Input type={allDay ? "date" : "datetime-local"} {...field} />
                     </FormControl>
@@ -151,7 +151,7 @@ export function EventForm({ open, initialDraft, courses, defaultDate, onClose, o
                 name="endAt"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{allDay ? "Date" : "End"}</FormLabel>
+                    <FormLabel>End date</FormLabel>
                     <FormControl>
                       <Input type={allDay ? "date" : "datetime-local"} {...field} />
                     </FormControl>

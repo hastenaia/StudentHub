@@ -1,12 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Bell, LogOut, Menu, Moon, Settings, Sun, User as UserIcon } from "lucide-react";
+import { LogOut, Menu, Moon, Settings, Sun, User as UserIcon } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { getInitials } from "@/utils/validation";
 import { cn } from "@/utils/cn";
+import { getNavTitle } from "@/lib/nav";
+import { NotificationsMenu } from "@/components/layout/NotificationsMenu";
 import type { Theme } from "@/lib/theme";
 
 export function Navbar({
@@ -19,6 +22,8 @@ export function Navbar({
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const { resolved, mounted, toggle } = useTheme(initialTheme);
+  const pathname = usePathname();
+  const title = getNavTitle(pathname);
   const isDark = resolved === "dark";
   const label = `Switch to ${isDark ? "light" : "dark"} mode`;
 
@@ -32,17 +37,11 @@ export function Navbar({
         >
           <Menu className="h-5 w-5" />
         </button>
-        <h1 className="text-base font-semibold text-brand-dark sm:text-lg">Dashboard</h1>
+        <h1 className="text-base font-semibold text-brand-dark sm:text-lg">{title}</h1>
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
-        <button
-          className="relative rounded-full p-2 text-gray-500 hover:bg-brand-gray"
-          aria-label="Notifications"
-        >
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-brand-sky" />
-        </button>
+        <NotificationsMenu />
 
         <button
           onClick={toggle}

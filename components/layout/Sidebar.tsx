@@ -20,28 +20,29 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { NAV_ROUTES, isNavActive } from "@/lib/nav";
 
-const NAV_ITEMS = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Courses", href: "/dashboard/courses", icon: BookOpen },
-  { label: "Schedule", href: "/dashboard/schedule", icon: CalendarDays },
-  { label: "Tasks", href: "/dashboard/tasks", icon: ListTodo },
-  { label: "Study Hub", href: "/dashboard/study", icon: BookMarked },
-  { label: "Focus", href: "/dashboard/focus", icon: Timer },
-  { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-  { label: "Wellness", href: "/dashboard/wellness", icon: Heart },
-  { label: "Achievements", href: "/dashboard/achievements", icon: Award },
-  { label: "Settings", href: "/dashboard/settings", icon: Settings },
-];
+const NAV_ICONS: Record<string, typeof LayoutDashboard> = {
+  "/dashboard": LayoutDashboard,
+  "/dashboard/courses": BookOpen,
+  "/dashboard/schedule": CalendarDays,
+  "/dashboard/tasks": ListTodo,
+  "/dashboard/study": BookMarked,
+  "/dashboard/focus": Timer,
+  "/dashboard/analytics": BarChart3,
+  "/dashboard/wellness": Heart,
+  "/dashboard/achievements": Award,
+  "/dashboard/settings": Settings,
+};
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
     <nav className="flex flex-1 flex-col gap-1 px-3">
-      {NAV_ITEMS.map((item) => {
-        const isActive = pathname === item.href;
-        const Icon = item.icon;
+      {NAV_ROUTES.map((item) => {
+        const isActive = isNavActive(pathname, item.href);
+        const Icon = NAV_ICONS[item.href] ?? LayoutDashboard;
         return (
           <Link
             key={item.href}

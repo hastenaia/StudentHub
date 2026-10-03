@@ -44,7 +44,7 @@ app/
     ai/*/                explain, summarize, generate-flashcards, generate-quiz, study-plan
 components/
   ui/                    Primitives (Button, Input, Card, Form, Select, Skeleton, Toaster)
-  layout/                Sidebar, Navbar, DashboardShell
+  layout/                Sidebar, Navbar, NotificationsMenu, DashboardShell
   <domain>/              Feature components: auth, dashboard, courses, schedule,
                          tasks, study, focus, analytics, wellness, gamification, settings
   common/                ErrorBoundary, Skeletons, PageHeader
@@ -62,6 +62,8 @@ lib/
   focus.ts               Focus/Pomodoro helpers
   dates.ts               startOfDay/endOfDay, reporting windows, streaks (unit-tested)
   wellness.ts, taskSort.ts, aiRequests.ts   Pure page logic pulled out of services/components (unit-tested)
+  nav.ts                 Sidebar/Navbar title + active-route helpers (unit-tested)
+  notifications.ts       Announcement/deadline/overdue → notification items (unit-tested)
   taskView.ts, courseView.ts, scheduleView.ts   DB row → view-model mappers
   eventTypeInference.ts  Schedule event-type keyword inference (unit-tested)
   validations/           Zod schemas per domain
