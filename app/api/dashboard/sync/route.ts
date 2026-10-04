@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { googleNotConfiguredMessage, isGoogleConfigured } from "@/lib/google/config";
 import { syncGoogleData } from "@/services/google.service";
 import { shouldAutoSync } from "@/lib/google/autoSync";
 
@@ -21,6 +22,13 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ success: false, message: "Not authenticated." }, { status: 401 });
+  }
+
+  if (!isGoogleConfigured()) {
+    return NextResponse.json(
+      { success: false, message: googleNotConfiguredMessage() },
+      { status: 503 }
+    );
   }
 
   const body: unknown = await request.json().catch(() => null);

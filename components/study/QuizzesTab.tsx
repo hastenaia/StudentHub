@@ -95,7 +95,7 @@ export function QuizzesTab({ quizzes, setQuizzes, courses }: Props) {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3">
           {filtered.map((quiz) => (
             <QuizCard key={quiz.id} quiz={quiz} onStart={() => startQuiz(quiz)} onDelete={() => handleDelete(quiz.id)} />
           ))}

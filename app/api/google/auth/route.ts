@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { googleNotConfiguredMessage, isGoogleConfigured } from "@/lib/google/config";
 import { buildGoogleAuthUrl } from "@/services/google.service";
 
 /**
@@ -15,6 +16,11 @@ export async function GET(request: Request) {
 
   if (!user) {
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  if (!isGoogleConfigured()) {
+    const reason = encodeURIComponent(googleNotConfiguredMessage());
+    return NextResponse.redirect(new URL(`/dashboard?google=error&reason=${reason}`, request.url));
   }
 
   const { url, state, codeVerifier } = buildGoogleAuthUrl();

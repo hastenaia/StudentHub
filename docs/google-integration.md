@@ -58,6 +58,17 @@ Implemented in `lib/google/tokens.ts` (pure, stateless mechanics) and
 - **Identity:** after the exchange, the OpenID `userinfo` endpoint is called to
   resolve `sub` (stable Google id) and `email`, stored on `google_accounts`.
 
+## Not configured
+
+`lib/google/config.ts` (`missingGoogleEnvVars` / `isGoogleConfigured`) is the
+fail-fast guard: when any of `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+`GOOGLE_REDIRECT_URI` or `GOOGLE_TOKEN_ENCRYPTION_KEY` is missing or blank,
+`GET /api/google/auth` redirects to `/dashboard?google=error` with the missing
+names (surfaced as a toast by `GoogleOAuthStatus`), and
+`POST /api/dashboard/sync` plus `storeGoogleAccount` / `syncGoogleData` return
+the same message (sync uses a 503, mirroring the AI routes). Copy
+`.env.local.example` to `.env.local` to fix it.
+
 ## Token storage & encryption
 
 `lib/google/crypto.ts` encrypts both the access and refresh tokens with

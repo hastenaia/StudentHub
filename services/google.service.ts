@@ -10,6 +10,7 @@ import {
   refreshToken,
 } from "@/lib/google/tokens";
 import { decryptToken, encryptToken } from "@/lib/google/crypto";
+import { googleNotConfiguredMessage, isGoogleConfigured } from "@/lib/google/config";
 import { assignmentRowsForCourse, staleCourseWorkIds } from "@/lib/google/assignmentRows";
 import {
   listAnnouncements,
@@ -82,6 +83,7 @@ export async function storeGoogleAccount(
   code: string,
   codeVerifier: string
 ): Promise<ApiResult<{ email: string | null }>> {
+  if (!isGoogleConfigured()) return fail(googleNotConfiguredMessage());
   try {
     const supabase = await createClient();
     const config = getOAuthConfig();
@@ -120,6 +122,7 @@ export async function storeGoogleAccount(
  * never touched (they have no google_course_id and are filtered out).
  */
 export async function syncGoogleData(userId: string): Promise<ApiResult<SyncResult>> {
+  if (!isGoogleConfigured()) return fail(googleNotConfiguredMessage());
   const supabase = await createClient();
   const { data: account, error: accountError } = await supabase
     .from("google_accounts")
