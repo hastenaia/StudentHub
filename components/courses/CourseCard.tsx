@@ -1,6 +1,14 @@
 "use client";
 
-import { BookOpen, MapPin, User, Hash, CalendarDays, Pencil, Trash2 } from "lucide-react";
+import {
+  BookOpen,
+  MapPin,
+  User,
+  Hash,
+  CalendarDays,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/utils/date";
@@ -49,7 +57,9 @@ export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
         {course.progress && <CourseProgressBar progress={course.progress} />}
 
         {course.description && (
-          <p className="line-clamp-3 text-sm text-gray-600">{course.description}</p>
+          <p className="line-clamp-3 text-sm text-gray-600">
+            {course.description}
+          </p>
         )}
 
         <div className="flex flex-wrap gap-2 text-xs text-gray-500">
@@ -64,7 +74,8 @@ export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
             </span>
           )}
           <span className="inline-flex items-center gap-1">
-            <CalendarDays className="h-3.5 w-3.5" /> Added {formatDate(course.created_at)}
+            <CalendarDays className="h-3.5 w-3.5" /> Added{" "}
+            {formatDate(course.created_at)}
           </span>
         </div>
 

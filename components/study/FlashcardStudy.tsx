@@ -60,7 +60,7 @@ function StudyCard({ card, flipped, onFlip, onMark }: { card: Flashcard; flipped
           <Button variant="outline" className="flex-1 border-red-200 text-red-600 hover:bg-red-50" onClick={() => onMark(false)}>
             <X className="h-4 w-4" /> Unknown
           </Button>
-          <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => onMark(true)}>
+          <Button className="flex-1 bg-success hover:bg-success-hover" onClick={() => onMark(true)}>
             <Check className="h-4 w-4" /> Known
           </Button>
         </div>
