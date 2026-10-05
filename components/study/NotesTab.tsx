@@ -121,7 +121,20 @@ export function NotesTab({ notes, setNotes, courses }: Props) {
           onClose={() => setEditor(null)}
         />
       )}
-      {viewing && <NoteViewDialog note={viewing} onClose={() => setViewing(null)} />}
+      {viewing && (
+        <NoteViewDialog
+          note={viewing}
+          onClose={() => setViewing(null)}
+          onEdit={() => {
+            setViewing(null);
+            setEditor({ note: viewing });
+          }}
+          onDelete={() => {
+            setViewing(null);
+            void handleDelete(viewing.id);
+          }}
+        />
+      )}
     </div>
   );
 }

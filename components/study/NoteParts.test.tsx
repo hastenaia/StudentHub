@@ -43,7 +43,7 @@ describe("NoteCard", () => {
     for (const text of ["Mito", "Exams", "Biology", "bio"]) expect(screen.getByText(text)).toBeTruthy();
 
     fireEvent.click(screen.getByLabelText("Favorite"));
-    fireEvent.click(screen.getByRole("button", { name: "View" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cells" }));
     fireEvent.click(screen.getByLabelText("Edit Cells"));
     fireEvent.click(screen.getByLabelText("Delete Cells"));
     expect([h.onToggleFavorite, h.onView, h.onEdit, h.onDelete].map((f) => f.mock.calls.length)).toEqual([1, 1, 1, 1]);
@@ -94,7 +94,7 @@ describe("NoteViewDialog", () => {
   it("resolves attachment links once they load and lists the files", async () => {
     vi.mocked(notesClientService.getAttachments).mockResolvedValue([{ name: "a.pdf", url: "https://signed/a", path: "u/a.pdf" }]);
     const onClose = vi.fn();
-    render(<NoteViewDialog note={note({ content: "[PDF: a.pdf](attachment:u/a.pdf)", category: "Exams", tags: ["bio"] })} onClose={onClose} />);
+    render(<NoteViewDialog note={note({ content: "[PDF: a.pdf](attachment:u/a.pdf)", category: "Exams", tags: ["bio"] })} onClose={onClose} onEdit={vi.fn()} onDelete={vi.fn()} />);
     await waitFor(() => expect(screen.getAllByRole("link", { name: /a\.pdf/ })).toHaveLength(2));
     expect(screen.getByText("Attachments")).toBeTruthy();
     expect(screen.getByText(/^Exams • /)).toBeTruthy();
@@ -104,9 +104,20 @@ describe("NoteViewDialog", () => {
 
   it("shows no attachment section without files", async () => {
     vi.mocked(notesClientService.getAttachments).mockResolvedValue([]);
-    render(<NoteViewDialog note={note({ content: "plain" })} onClose={vi.fn()} />);
+    render(<NoteViewDialog note={note({ content: "plain" })} onClose={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} />);
     await waitFor(() => expect(notesClientService.getAttachments).toHaveBeenCalledWith("n1"));
     expect(screen.queryByText("Attachments")).toBeNull();
     expect(screen.getByText("plain")).toBeTruthy();
+  });
+
+  it("wires the Edit and Delete buttons", async () => {
+    vi.mocked(notesClientService.getAttachments).mockResolvedValue([]);
+    const onEdit = vi.fn();
+    const onDelete = vi.fn();
+    render(<NoteViewDialog note={note()} onClose={vi.fn()} onEdit={onEdit} onDelete={onDelete} />);
+    await waitFor(() => expect(notesClientService.getAttachments).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect([onEdit, onDelete].map((f) => f.mock.calls.length)).toEqual([1, 1]);
   });
 });

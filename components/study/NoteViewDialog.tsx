@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { X } from "lucide-react";
+import { Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MarkdownPreview } from "@/components/study/MarkdownPreview";
 import { notesClientService } from "@/services/notesClient.service";
@@ -9,7 +9,17 @@ import { resolveLinks, toUrlMap, type DialogPdf } from "@/lib/notesForm";
 import type { Note } from "@/types/study";
 
 /** Read-only note view; attachment links resolve once their signed URLs load. */
-export function NoteViewDialog({ note, onClose }: { note: Note; onClose: () => void }) {
+export function NoteViewDialog({
+  note,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  note: Note;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const [pdfs, setPdfs] = React.useState<DialogPdf[]>([]);
 
   React.useEffect(() => {
@@ -48,6 +58,14 @@ export function NoteViewDialog({ note, onClose }: { note: Note; onClose: () => v
               {t}
             </span>
           ))}
+        </div>
+        <div className="mt-6 flex justify-end gap-2 border-t border-gray-100 pt-4">
+          <Button variant="outline" size="sm" onClick={onEdit}>
+            <Pencil className="h-3.5 w-3.5" /> Edit
+          </Button>
+          <Button variant="outline" size="sm" className="text-red-600" onClick={onDelete}>
+            <Trash2 className="h-3.5 w-3.5" /> Delete
+          </Button>
         </div>
       </div>
     </div>

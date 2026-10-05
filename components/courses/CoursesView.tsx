@@ -156,7 +156,7 @@ export function CoursesView({ initialCourses }: CoursesViewProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {filtered.map((course) => (
             <CourseCard
               key={course.id}
