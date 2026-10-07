@@ -1,7 +1,8 @@
 /**
  * AI Provider abstraction — server-side only.
  * Never expose keys to client. Checks env and returns either a real
- * OpenAI-compatible call or a configuration error.
+ * provider call or a configuration error. Every configured provider is tried in
+ * priority order (OpenAI → Anthropic → Google) until one answers.
  */
 
 type AIProvider = "openai" | "anthropic" | "google";
@@ -38,32 +39,28 @@ function splitFallbacks(raw: string | undefined): string[] {
   return (raw || "").split(",").map((m) => m.trim()).filter(Boolean);
 }
 
-function getAIConfig(json: boolean | undefined): { ok: true; config: AIConfig } | { ok: false; error: string } {
+/** Every configured provider, in priority order. Empty means nothing is configured. */
+function getAIConfigs(json: boolean | undefined): AIConfig[] {
   // `||`, not `??`: an empty `KEY=` line in .env.local must count as unset, not hide the fallback.
   const openaiKey = process.env.OPENAI_API_KEY || process.env.AI_API_KEY;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const googleKey = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
+  const configs: AIConfig[] = [];
 
   if (openaiKey) {
-    return {
-      ok: true,
-      config: {
-        provider: "openai",
-        apiKey: openaiKey,
-        models: [process.env.AI_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini"],
-        baseUrl: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
-      },
-    };
+    configs.push({
+      provider: "openai",
+      apiKey: openaiKey,
+      models: [process.env.AI_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini"],
+      baseUrl: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
+    });
   }
   if (anthropicKey) {
-    return {
-      ok: true,
-      config: {
-        provider: "anthropic",
-        apiKey: anthropicKey,
-        models: [process.env.ANTHROPIC_MODEL || "claude-3-haiku-20240307"],
-      },
-    };
+    configs.push({
+      provider: "anthropic",
+      apiKey: anthropicKey,
+      models: [process.env.ANTHROPIC_MODEL || "claude-3-haiku-20240307"],
+    });
   }
   if (googleKey) {
     const proseModel = process.env.GOOGLE_AI_MODEL || process.env.GEMINI_MODEL;
@@ -71,21 +68,17 @@ function getAIConfig(json: boolean | undefined): { ok: true; config: AIConfig } 
     // need reliable structured output more than they need maximum capability.
     const structuredModel = process.env.GOOGLE_AI_STRUCTURED_MODEL || proseModel;
     const primary = (json ? structuredModel : proseModel) || "gemini-3.5-flash-lite";
-    return {
-      ok: true,
-      config: {
-        provider: "google",
-        apiKey: googleKey,
-        models: dedupeModels([primary, ...splitFallbacks(process.env.GOOGLE_AI_FALLBACK_MODELS)]),
-      },
-    };
+    configs.push({
+      provider: "google",
+      apiKey: googleKey,
+      models: dedupeModels([primary, ...splitFallbacks(process.env.GOOGLE_AI_FALLBACK_MODELS)]),
+    });
   }
-  return {
-    ok: false,
-    error:
-      "AI is not configured. Set one of OPENAI_API_KEY (or AI_API_KEY), ANTHROPIC_API_KEY, or GOOGLE_AI_API_KEY (or GEMINI_API_KEY) in .env.local and restart the dev server — env vars are read at startup only. See .env.local.example. No fake responses are returned when unconfigured.",
-  };
+  return configs;
 }
+
+const NOT_CONFIGURED =
+  "AI is not configured. Set one of OPENAI_API_KEY (or AI_API_KEY), ANTHROPIC_API_KEY, or GOOGLE_AI_API_KEY (or GEMINI_API_KEY) in .env.local and restart the dev server — env vars are read at startup only. See .env.local.example. No fake responses are returned when unconfigured.";
 
 async function withAbort<T>(ms: number, fn: (signal: AbortSignal | undefined) => Promise<T>): Promise<T> {
   // Create the signal before calling `fn`: if `fn`'s error were caught here it would fall through and fire
@@ -162,47 +155,49 @@ function buildRequest(config: AIConfig, model: string, prompt: string, systemPro
 type Attempt = { text: string } | { error: string; retryable: boolean };
 
 export async function callAI(prompt: string, systemPrompt?: string, opts?: { json?: boolean }): Promise<{ text: string } | { error: string }> {
-  const cfg = getAIConfig(opts?.json);
-  if (!cfg.ok) return { error: cfg.error };
+  const configs = getAIConfigs(opts?.json);
+  if (configs.length === 0) return { error: NOT_CONFIGURED };
 
-  const { config } = cfg;
-  // The budget covers every attempt, so a long chain can never outlive the callers' abort windows.
+  // The budget covers every attempt on every provider, so a long chain can never outlive the callers' abort windows.
   const deadline = Date.now() + AI_TIMEOUT_MS;
   let last: Attempt = { error: "AI request failed.", retryable: true };
 
-  for (let i = 0; i < config.models.length; i++) {
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) break;
+  for (const config of configs) {
+    for (let i = 0; i < config.models.length; i++) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) return { error: last.error };
 
-    const request = buildRequest(config, config.models[i], prompt, systemPrompt, opts?.json);
-    let attempt: Attempt = { error: "AI request failed.", retryable: true };
-    try {
-      attempt = await withAbort(remaining, async (signal) => {
-        const res = await fetch(request.url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...request.headers },
-          body: JSON.stringify(request.body),
-          signal,
+      const request = buildRequest(config, config.models[i], prompt, systemPrompt, opts?.json);
+      let attempt: Attempt = { error: "AI request failed.", retryable: true };
+      try {
+        attempt = await withAbort(remaining, async (signal) => {
+          const res = await fetch(request.url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...request.headers },
+            body: JSON.stringify(request.body),
+            signal,
+          });
+          if (!res.ok) {
+            const txt = await res.text();
+            return { error: `AI provider error (${res.status}): ${txt.slice(0, 500)}`, retryable: RETRYABLE_STATUS.has(res.status) };
+          }
+          const text = request.pick(await res.json())?.trim();
+          if (!text) return { error: "AI returned empty response.", retryable: true };
+          return { text };
         });
-        if (!res.ok) {
-          const txt = await res.text();
-          return { error: `AI provider error (${res.status}): ${txt.slice(0, 500)}`, retryable: RETRYABLE_STATUS.has(res.status) };
-        }
-        const text = request.pick(await res.json())?.trim();
-        if (!text) return { error: "AI returned empty response.", retryable: true };
-        return { text };
-      });
-    } catch (e) {
-      const timedOut = e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError");
-      attempt = timedOut
-        ? { error: `AI timed out (>${AI_TIMEOUT_MS / 1000}s), try again.`, retryable: true }
-        : { error: e instanceof Error ? e.message : "AI request failed.", retryable: true };
-    }
+      } catch (e) {
+        const timedOut = e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError");
+        attempt = timedOut
+          ? { error: `AI timed out (>${AI_TIMEOUT_MS / 1000}s), try again.`, retryable: true }
+          : { error: e instanceof Error ? e.message : "AI request failed.", retryable: true };
+      }
 
-    if ("text" in attempt) return { text: attempt.text };
-    last = attempt;
-    // A bad key or a malformed request won't be fixed by a different model; contention might be.
-    if (!attempt.retryable) break;
+      if ("text" in attempt) return { text: attempt.text };
+      last = attempt;
+      // A bad key or a malformed request won't be fixed by a different model of this provider (but
+      // may be by the next provider); contention might be fixed by another model.
+      if (!attempt.retryable) break;
+    }
   }
 
   return { error: last.error };

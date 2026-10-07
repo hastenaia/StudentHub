@@ -151,11 +151,14 @@ All five routes live under `app/api/ai/` and share the same shape:
   `.eq("user_id", user.id)` (`404` if not found) and its content replaces
   `content`. Content is truncated to 6000 characters in the prompt.
 - The prompt goes to `callAI(prompt, system)` in `lib/ai/provider.ts`, which
-  picks the first configured provider (`OPENAI_API_KEY`/`AI_API_KEY`, then
-  `ANTHROPIC_API_KEY`, then `GOOGLE_AI_API_KEY`/`GEMINI_API_KEY`) and aborts
-  after 15 seconds. The Google chain falls back through
-  `GOOGLE_AI_FALLBACK_MODELS` on a 404/429/5xx, sharing that one budget; a
-  400/401/403 fails immediately.
+  tries every configured provider in priority order (`OPENAI_API_KEY`/
+  `AI_API_KEY`, then `ANTHROPIC_API_KEY`, then `GOOGLE_AI_API_KEY`/
+  `GEMINI_API_KEY`) and aborts after 15 seconds across all of them. Any
+  failure (out of credits, bad key, outage, timeout) moves on to the next
+  provider. Within Google, the chain also falls back through
+  `GOOGLE_AI_FALLBACK_MODELS` on a 404/429/5xx; a 400/401/402/403 skips the
+  rest of that provider's models. The last provider's error is reported if
+  all fail.
 - Errors: `503` when no provider is configured, `502` for provider errors,
   timeouts or unparseable JSON output. Responses are
   `{ success, message?, data? }`.
