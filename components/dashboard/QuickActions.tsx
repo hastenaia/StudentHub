@@ -20,6 +20,13 @@ import type { CourseDraft } from "@/types/courses";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+const AI_SUGGESTIONS = [
+  "How do I prioritize my assignments this week?",
+  "Give me a 25-minute study routine",
+  "Tips to stop procrastinating",
+  "How can I prepare for an exam in 3 days?",
+];
+
 interface Props { courses: ScheduleCourseOption[] }
 
 export function QuickActions({ courses }: Props) {
@@ -34,6 +41,29 @@ export function QuickActions({ courses }: Props) {
   const [focusMinutes, setFocusMinutes] = React.useState("25");
   const [noteTitle, setNoteTitle] = React.useState("");
   const [noteContent, setNoteContent] = React.useState("");
+
+  const [aiQuestion, setAiQuestion] = React.useState("");
+  const [aiAnswer, setAiAnswer] = React.useState<string | null>(null);
+  const [aiError, setAiError] = React.useState<string | null>(null);
+  const [aiLoading, setAiLoading] = React.useState(false);
+
+  const handleAsk = async (override?: string) => {
+    const question = (override ?? aiQuestion).trim();
+    if (!question) return;
+    setAiLoading(true);
+    setAiError(null);
+    setAiAnswer(null);
+    try {
+      const res = await fetch("/api/ai/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }) });
+      const data = await res.json();
+      if (!res.ok || !data.success) setAiError(data.message ?? `Request failed (${res.status})`);
+      else setAiAnswer(data.data.answer);
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const handleCreateTask = async (draft: TaskDraft) => {
     const res = await tasksClientService.createTask(draft);
@@ -168,13 +198,37 @@ export function QuickActions({ courses }: Props) {
 
       {aiOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setAiOpen(false)}>
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="flex items-center gap-2 font-semibold text-brand-dark">
               <Bot className="h-5 w-5 text-purple-600" /> Ask AI
             </h3>
-            <p className="mt-2 text-sm text-gray-600">AI assistance is coming soon. For now, try the smart recommendation on your dashboard or create a task to stay focused.</p>
-            <div className="mt-4 flex justify-end">
-              <Button onClick={() => setAiOpen(false)}>Close</Button>
+            <p className="mt-1 text-sm text-gray-500">Ask a study question, or pick a suggestion.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {AI_SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  disabled={aiLoading}
+                  onClick={() => { setAiQuestion(s); void handleAsk(s); }}
+                  className="rounded-full border border-gray-300 px-3 py-1 text-xs text-brand-dark hover:border-purple-400 hover:bg-purple-50 disabled:opacity-50"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+            <textarea
+              rows={3}
+              maxLength={1000}
+              value={aiQuestion}
+              onChange={(e) => setAiQuestion(e.target.value)}
+              placeholder="Type your question..."
+              className="mt-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+            {aiError && <p className="mt-2 text-sm text-red-600">{aiError}</p>}
+            {aiAnswer && <div className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-md bg-gray-50 p-3 text-sm text-brand-dark">{aiAnswer}</div>}
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setAiOpen(false)}>Close</Button>
+              <Button onClick={() => handleAsk()} disabled={aiLoading || !aiQuestion.trim()}>{aiLoading ? "Thinking..." : "Ask"}</Button>
             </div>
           </div>
         </div>

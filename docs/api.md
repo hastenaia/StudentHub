@@ -187,6 +187,7 @@ prompt.
 | `/api/ai/generate-quiz` | `{ noteId?, content?, count?, title? }` (content ≥ 30 chars, count 1–8, default 5) | `{ questions: { question_text, question_type, options?, correct_answer, explanation }[] }` |
 | `/api/ai/study-plan` | `{ topic, courseId?, durationDays? }` (1–30, default 7) | `{ plan, topic, durationDays }` |
 | `/api/ai/wellness-tip` | `{ focusMinutesToday, upcomingDeadlinesCount }` (numbers, clamped) | `{ tip }` (one plain-text sentence, ≤ 220 chars) |
+| `/api/ai/ask` | `{ question }` (≤ 1000 chars; uncached, used by the dashboard Quick Actions "Ask AI" dialog) | `{ answer }` |
 
 The routes only generate content; saving flashcards/quizzes happens
 client-side through `flashcardsClientService` / `quizzesClientService`. Stored
