@@ -26,7 +26,7 @@ Setup: copy `.env.local.example` → `.env.local`; never commit keys. Migrations
 - Supabase clients: `lib/supabase/server.ts` (server/route handlers), `lib/supabase/client.ts` (browser), shared cookie wiring in `lib/supabase/factory.ts`. DB types are generated `types/database.types.ts`.
 - Pure logic lives in `lib/`: row→view mappers (`taskView.ts`, `courseView.ts`, `scheduleView.ts`), algorithms (`scheduling.ts` scored ordering + heap Top-K + recurrence, `progress.ts` 0–100 course score, `dates.ts`), `withActiveCourses` in `lib/supabase/queries.ts`. Zod schemas in `lib/validations/`, domain types in `types/<domain>.ts`.
 - Google: pages read Supabase cache only, never Google. Sole Google caller is `POST /api/dashboard/sync` (`services/google.service.ts` → `classroom/calendar.service.ts`). OAuth is `app/api/google/auth` → `app/api/google/callback`; tokens AES-256-GCM encrypted (`lib/google/crypto.ts`, key `GOOGLE_TOKEN_ENCRYPTION_KEY`). Supabase auth callbacks (`app/auth/callback`, `app/auth/confirm`) are separate.
-- AI: `app/api/ai/*` handlers use `lib/ai/route.ts` (`startAIRoute`, `resolveNoteSource`, `runAI`) + `callAI()` in `lib/ai/provider.ts` (raw `fetch`, first configured provider `OPENAI_API_KEY`/`AI_API_KEY` → `ANTHROPIC_API_KEY` → `GOOGLE_AI_API_KEY`/`GEMINI_API_KEY`, ~15s timeout). Unconfigured → 503 error, never fake output. Five prompt routes cache answers in `ai_cache` (`lib/ai/cache.ts`, `lib/ai/cacheKey.ts`) and return `cached`; `refresh: true` in the body forces a re-ask. `wellness-tip` is uncached.
+- AI: `app/api/ai/*` handlers use `lib/ai/route.ts` (`startAIRoute`, `resolveNoteSource`, `runAI`) + `callAI()` in `lib/ai/provider.ts` (raw `fetch`, every configured provider in priority order `OPENAI_API_KEY`/`AI_API_KEY` → `ANTHROPIC_API_KEY` → `GOOGLE_AI_API_KEY`/`GEMINI_API_KEY`, failing over to the next on any error, one shared ~15s budget). Unconfigured → 503 error, never fake output. Five prompt routes cache answers in `ai_cache` (`lib/ai/cache.ts`, `lib/ai/cacheKey.ts`) and return `cached`; `refresh: true` in the body forces a re-ask. `wellness-tip` is uncached.
 - Study AI history: `components/study/AIAssistantTab.tsx` renders the cache/history list; `services/aiCache.service.ts` (server read) + `services/aiCacheClient.service.ts` (list/delete), row→view in `lib/aiCacheView.ts`.
 - Leftovers: `academic_settings`, `courses.manual_grade`/`target_pct` are unused schema.
 
@@ -45,3 +45,13 @@ Setup: copy `.env.local.example` → `.env.local`; never commit keys. Migrations
 - Path alias is `@/*` → repo root (not `src/`). Tailwind brand tokens live in `tailwind.config.ts` (`bg-brand-royal`, etc.).
 - Dark mode is class-based on `<html>` and **token-driven, not `dark:`-variants**: `gray-*`, `brand.gray` and `brand.dark` resolve to CSS vars from `app/globals.css`, so they flip automatically — never hand-add `dark:` to them. Pastel palette shades used in markup (`emerald/sky/amber/purple/red/green/orange/yellow` in `tailwind.config.ts`) follow the same rule via `--c-<hue>-<shade>` vars (`:root` = light palette value, `.dark` = theme tint/lift); a new pastel shade needs the config entry plus both var definitions. `lib/theme.ts` owns resolution, `hooks/useTheme.ts` owns state, the toggle lives in `Navbar` beside the bell, and `profiles.theme` persists it.
 - Before `git commit`/`push`: `fallow audit --format json --quiet --explain --gate-marker agent`; fix `fail` verdicts first.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

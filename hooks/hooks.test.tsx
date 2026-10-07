@@ -70,6 +70,20 @@ describe("useGroupedEvents", () => {
     expect(result.current.byDaySpan.get(dayKey(new Date(2026, 8, 16)))).toBeUndefined();
   });
 
+  it("byDaySpan reads an all-day end written in another zone as its calendar day, not an instant", () => {
+    // An exclusive next-midnight stored as UTC midnight reads as 08:00 the next local day for a
+    // viewer east of UTC, so `endMs - 1` alone would claim that extra day. Built from local
+    // dates so the shifted end reproduces in any timezone.
+    const day = event("day", new Date(2026, 9, 6, 9).toISOString(), new Date(2026, 9, 7, 9).toISOString(), { allDay: true });
+    const span = event("span", new Date(2026, 9, 6, 9).toISOString(), new Date(2026, 9, 9, 9).toISOString(), { allDay: true });
+    const { result } = renderHook(() => useGroupedEvents([day, span]));
+
+    expect(result.current.byDaySpan.get(dayKey(new Date(2026, 9, 6)))?.map((e) => e.id)).toEqual(["day", "span"]);
+    expect(result.current.byDaySpan.get(dayKey(new Date(2026, 9, 7)))?.map((e) => e.id)).toEqual(["span"]);
+    expect(result.current.byDaySpan.get(dayKey(new Date(2026, 9, 8)))?.map((e) => e.id)).toEqual(["span"]);
+    expect(result.current.byDaySpan.get(dayKey(new Date(2026, 9, 9)))?.map((e) => e.id)).toBeUndefined();
+  });
+
   it("byDaySpan clamps expansion to the rendered range", () => {
     // A month-long event would otherwise expand across every day in the dataset.
     const long = event("long", new Date(2026, 8, 1).toISOString(), new Date(2026, 8, 31).toISOString());

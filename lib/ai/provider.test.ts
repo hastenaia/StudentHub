@@ -284,3 +284,90 @@ describe("callAI model chain", () => {
     nowSpy.mockRestore();
   });
 });
+
+describe("callAI provider failover", () => {
+  const openaiOk = (text: string) => jsonResponse({ choices: [{ message: { content: text } }] });
+  const geminiOk = (text: string) => jsonResponse({ candidates: [{ content: { parts: [{ text }] } }] });
+  const urls = () => fetchMock.mock.calls.map((c) => String(c[0]));
+
+  it.each([429, 402, 401, 403, 500])("moves to the next configured provider when OpenAI answers %i", async (status) => {
+    vi.stubEnv("OPENAI_API_KEY", "sk");
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    fetchMock.mockImplementation(async (url) =>
+      String(url).includes("openai.com") ? new Response("no credits", { status }) : geminiOk("from gemini")
+    );
+
+    expect(await callAI("p")).toEqual({ text: "from gemini" });
+    expect(urls()[0]).toContain("api.openai.com");
+    expect(urls()[1]).toContain("generativelanguage.googleapis.com");
+  });
+
+  it("walks OpenAI → Anthropic → Gemini in priority order", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk");
+    vi.stubEnv("ANTHROPIC_API_KEY", "ak");
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    fetchMock.mockImplementation(async (url) =>
+      String(url).includes("generativelanguage") ? geminiOk("last resort") : new Response("down", { status: 503 })
+    );
+
+    expect(await callAI("p")).toEqual({ text: "last resort" });
+    expect(urls().map((u) => new URL(u).hostname)).toEqual(["api.openai.com", "api.anthropic.com", "generativelanguage.googleapis.com"]);
+  });
+
+  it("does not call later providers once one succeeds", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk");
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    fetchMock.mockImplementation(async () => openaiOk("first"));
+
+    expect(await callAI("p")).toEqual({ text: "first" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("walks a provider's whole model chain before moving to the next provider", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "ak");
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    vi.stubEnv("GOOGLE_AI_MODEL", "g1");
+    vi.stubEnv("GOOGLE_AI_FALLBACK_MODELS", "g2");
+    fetchMock.mockImplementation(async () => new Response("busy", { status: 503 }));
+
+    await callAI("p");
+    expect(urls()).toEqual([
+      expect.stringContaining("api.anthropic.com"),
+      expect.stringContaining("/models/g1:generateContent"),
+      expect.stringContaining("/models/g2:generateContent"),
+    ]);
+  });
+
+  it("reports the last provider's error when every provider fails", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk");
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    fetchMock.mockImplementation(async (url) =>
+      String(url).includes("openai.com") ? new Response("no credits", { status: 429 }) : new Response("quota", { status: 403 })
+    );
+
+    expect(await callAI("p")).toEqual({ error: expect.stringContaining("AI provider error (403): quota") });
+  });
+
+  it("falls through to the next provider on a network error", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk");
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    fetchMock.mockRejectedValueOnce(new TypeError("fetch failed")).mockImplementation(async () => geminiOk("ok"));
+
+    expect(await callAI("p")).toEqual({ text: "ok" });
+  });
+
+  it("shares one time budget across providers", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk");
+    vi.stubEnv("GEMINI_API_KEY", "gk");
+    let clock = 1_000_000;
+    const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => clock);
+    fetchMock.mockImplementation(async () => {
+      clock += 16_000;
+      return new Response("late", { status: 503 });
+    });
+
+    expect(await callAI("p")).toEqual({ error: expect.stringContaining("503") });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    nowSpy.mockRestore();
+  });
+});

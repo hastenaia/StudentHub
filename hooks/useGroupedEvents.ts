@@ -75,7 +75,16 @@ export function useGroupedEvents(events: ScheduleEvent[], range?: EventRange) {
       push(byDayHour, `${dateKey}:${grouped.hour}`, grouped);
 
       // Step with setDate, not +24h, so DST changes can't skip or repeat a day.
-      const last = new Date(Math.max(startMs, endMs - 1));
+      // An all-day `endAt` is an *exclusive* next-midnight written in the writer's zone
+      // (date-only form input parses as UTC midnight; a UTC sync server stores UTC midnight),
+      // so on a viewer east of that zone it lands mid-morning the next local day and
+      // `endMs - 1` would claim that day. Take the calendar day of `endAt` and drop back one
+      // day instead — identical to `endMs - 1` whenever `endAt` already sits on a local
+      // midnight, so only the shifted case changes.
+      // ponytail: if the viewer can be west of the writer's zone, store all-day rows as
+      // date-only and bucket on their UTC date parts instead.
+      const endBoundary = e.allDay ? startOfDayMs(new Date(endMs)) : endMs;
+      const last = new Date(Math.max(startMs, endBoundary - 1));
       last.setHours(0, 0, 0, 0);
       const lower = fromMs === null ? startOfDayMs(start) : Math.max(startOfDayMs(start), fromMs);
       const upper = toMs === null ? last.getTime() : Math.min(last.getTime(), toMs);

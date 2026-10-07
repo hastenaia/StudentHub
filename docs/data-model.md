@@ -422,6 +422,7 @@ and would allow a self-signed privilege escalation.
 | `20260930000002_gamification.sql` | `profiles` XP/streak columns, `badges`, `user_badges`, `xp_ledger`, XP guard trigger, `award_*_xp` RPCs |
 | `20260930000003_note_categories.sql` | `notes.category` + `notes_category_idx` |
 | `20261002000001_ai_cache.sql` | `ai_cache` — persistent AI answer cache/history |
+| `20261007000002_note_attachments_ownership.sql` | `note_attachments` insert policy also requires an owned `note_id` and a `file_url` inside the caller's own `<uid>/` folder |
 
 After adding a migration, run `npm run typegen` to regenerate
 `types/database.types.ts`.
