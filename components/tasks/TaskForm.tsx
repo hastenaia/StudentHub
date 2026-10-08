@@ -48,6 +48,7 @@ const EMPTY_VALUES: TaskFormValues = {
   estimateMinutes: "",
   recurrenceFreq: "none",
   recurrenceInterval: "1",
+  recurrenceDays: [],
   recurUntil: "",
   courseId: "",
 };

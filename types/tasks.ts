@@ -21,6 +21,8 @@ export interface Task {
   estimateMinutes: number | null;
   recurrenceFreq: RecurrenceFreq | null;
   recurrenceInterval: number;
+  /** weekly: weekdays 0 (Sun)-6 (Sat); monthly: days of month 1-31; empty = repeat from due date. */
+  recurrenceDays: number[];
   recurUntil: string | null;
   courseId: string | null;
   courseName: string | null;
@@ -33,7 +35,7 @@ export interface Task {
 /** Form payload sent to the client service to create or update a task. */
 export type TaskDraft = Pick<
   Task,
-  "title" | "status" | "priority" | "tags" | "dueAt" | "estimateMinutes" | "recurrenceFreq" | "recurrenceInterval" | "recurUntil" | "courseId"
+  "title" | "status" | "priority" | "tags" | "dueAt" | "estimateMinutes" | "recurrenceFreq" | "recurrenceInterval" | "recurrenceDays" | "recurUntil" | "courseId"
 > & { description?: string | null };
 
 export interface TaskCourseOption {

@@ -35,6 +35,13 @@ describe("courseView", () => {
     );
     expect(view).toMatchObject({ id: "c", course_name: "Legacy", instructor: "Dr. T", source: "classroom", google_course_id: "g1", course_code: null, room: null });
   });
+
+  it("courseRowToView hides a numeric Google user ID stored as the instructor", () => {
+    const view = courseRowToView(
+      row<"courses">({ id: "c", name: "Old", course_name: null, instructor: null, teacher_name: "104857392011", source: "classroom", google_course_id: "g1", created_at: "a", updated_at: "b" })
+    );
+    expect(view.instructor).toBeNull();
+  });
 });
 
 describe("taskView", () => {
@@ -49,6 +56,7 @@ describe("taskView", () => {
     estimate_minutes: 30,
     recurrence_freq: null,
     recurrence_interval: 1,
+    recurrence_days: [],
     recur_until: null,
     course_id: "c1",
     sort_order: 3,

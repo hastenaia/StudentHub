@@ -5,6 +5,7 @@ import type {
   GoogleCourseWork,
   GoogleListResponse,
   GoogleStudentSubmission,
+  GoogleTeacher,
 } from "@/types/google";
 
 /**
@@ -46,6 +47,11 @@ export function listCourses(accessToken: string): Promise<GoogleCourse[]> {
     `${CLASSROOM_ROOT}/courses?courseStates=ACTIVE`,
     "courses"
   );
+}
+
+/** Teachers of a course (names need classroom.rosters.readonly). */
+export function listTeachers(accessToken: string, courseId: string): Promise<GoogleTeacher[]> {
+  return paginate<GoogleTeacher>(accessToken, `${CLASSROOM_ROOT}/courses/${courseId}/teachers`, "teachers");
 }
 
 /** All published/draft "courseWork" items for a course. */

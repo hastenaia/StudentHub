@@ -45,9 +45,15 @@ Implemented in `lib/google/tokens.ts` (pure, stateless mechanics) and
   email
   https://www.googleapis.com/auth/calendar.readonly
   https://www.googleapis.com/auth/classroom.courses.readonly
+  https://www.googleapis.com/auth/classroom.rosters.readonly
   https://www.googleapis.com/auth/classroom.coursework.me.readonly
   https://www.googleapis.com/auth/classroom.announcements.readonly
   ```
+
+  `classroom.rosters.readonly` lets sync resolve each course's teacher name
+  (`courses.teachers.list`) into `courses.instructor` / `teacher_name`; Classroom's
+  `ownerId` is only a numeric ID. Users connected before this scope was added must
+  reconnect Google; until then the instructor is left empty.
 
 - **State / verifier handling:** `GET /api/google/auth` generates a random
   `state` and PKCE `code_verifier`, stores both in short-lived (10 min)

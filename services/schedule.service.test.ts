@@ -69,6 +69,7 @@ const taskRow = {
   estimate_minutes: 30,
   recurrence_freq: null,
   recurrence_interval: 1,
+  recurrence_days: [],
   recur_until: null,
   sort_order: 0,
   completed_at: null,

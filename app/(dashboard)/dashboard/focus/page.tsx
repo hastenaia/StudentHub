@@ -54,6 +54,7 @@ export default async function FocusPage({ searchParams }: FocusPageProps) {
     createdAt: t.created_at,
     recurrenceFreq: null,
     recurrenceInterval: 1,
+    recurrenceDays: [],
     recurUntil: null,
   }));
 

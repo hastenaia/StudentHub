@@ -19,12 +19,17 @@ export function toCourseOptions(rows?: CourseOptionRow[] | null): CourseOptionLi
   }));
 }
 
+/** Older Classroom syncs stored the owner's numeric Google ID as the name; hide those. */
+function displayInstructor(value?: string | null): string | null {
+  return value && !/^\d+$/.test(value.trim()) ? value : null;
+}
+
 export function courseRowToView(row: CourseRow): Course {
   return {
     id: row.id,
     course_code: row.course_code ?? null,
     course_name: row.course_name ?? row.name,
-    instructor: row.instructor ?? row.teacher_name ?? null,
+    instructor: displayInstructor(row.instructor ?? row.teacher_name),
     description: row.description ?? null,
     room: row.room ?? null,
     color: row.color ?? null,

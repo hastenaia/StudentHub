@@ -13,6 +13,7 @@ const task = (id: string, over: Partial<Task> = {}): Task => ({
   estimateMinutes: null,
   recurrenceFreq: null,
   recurrenceInterval: 1,
+  recurrenceDays: [],
   recurUntil: null,
   courseId: null,
   courseName: null,

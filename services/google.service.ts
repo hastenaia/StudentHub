@@ -11,12 +11,14 @@ import {
 } from "@/lib/google/tokens";
 import { decryptToken, encryptToken } from "@/lib/google/crypto";
 import { googleNotConfiguredMessage, isGoogleConfigured } from "@/lib/google/config";
+import { teacherNameFor } from "@/lib/google/courseTeacher";
 import { assignmentRowsForCourse, staleCourseWorkIds } from "@/lib/google/assignmentRows";
 import {
   listAnnouncements,
   listCourseWork,
   listCourses,
   listMySubmissions,
+  listTeachers,
 } from "./classroom.service";
 import { buildWindow, listEvents } from "./calendar.service";
 
@@ -276,6 +278,16 @@ async function performSync(
   const googleCourses = await listCourses(accessToken);
   const googleCourseIds = new Set(googleCourses.map((c) => c.id));
 
+  // `ownerId` is only a numeric user ID; resolve a display name per course. A failed lookup
+  // (e.g. rosters scope not granted yet) just leaves the instructor empty.
+  const teacherResults = await Promise.allSettled(googleCourses.map((gc) => listTeachers(accessToken, gc.id)));
+  const instructorByCourse = new Map(
+    googleCourses.map((gc, i) => {
+      const r = teacherResults[i];
+      return [gc.id, r.status === "fulfilled" ? teacherNameFor(gc.ownerId, r.value) : null] as const;
+    })
+  );
+
   // Upsert first so we get real DB ids back for the assignment announcements.
   const { data: upsertedCourses, error: courseError } = await supabase
     .from("courses")
@@ -287,7 +299,8 @@ async function performSync(
         name: gc.name || "Untitled course",
         section: gc.section ?? null,
         room: gc.room ?? null,
-        teacher_name: gc.ownerId ?? null,
+        teacher_name: instructorByCourse.get(gc.id) ?? null,
+        instructor: instructorByCourse.get(gc.id) ?? null,
         color: null,
         credit_hours: 3,
         archived: false,

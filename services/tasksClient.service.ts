@@ -42,6 +42,7 @@ export const tasksClientService = {
         estimate_minutes: draft.estimateMinutes,
         recurrence_freq: draft.recurrenceFreq,
         recurrence_interval: draft.recurrenceInterval,
+        recurrence_days: draft.recurrenceDays,
         recur_until: draft.recurUntil,
         sort_order: 0,
       })
@@ -65,6 +66,7 @@ export const tasksClientService = {
         estimate_minutes: draft.estimateMinutes,
         recurrence_freq: draft.recurrenceFreq,
         recurrence_interval: draft.recurrenceInterval,
+        recurrence_days: draft.recurrenceDays,
         recur_until: draft.recurUntil,
       })
       .eq("id", id)
@@ -104,7 +106,7 @@ export const tasksClientService = {
     const supabase = createClient();
     const { data: row } = await supabase
       .from("tasks")
-      .select("due_at, recurrence_freq, recurrence_interval, recur_until")
+      .select("due_at, recurrence_freq, recurrence_interval, recurrence_days, recur_until")
       .eq("id", id)
       .maybeSingle();
     if (!row) return fail("Task not found.");
@@ -114,6 +116,7 @@ export const tasksClientService = {
           row.due_at,
           row.recurrence_freq as RecurrenceFreq,
           row.recurrence_interval,
+          row.recurrence_days,
           row.recur_until
         )
       : null;

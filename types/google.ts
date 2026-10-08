@@ -17,6 +17,12 @@ export interface GoogleCourse {
   courseGroupEmail?: string;
 }
 
+/** A course teacher from `courses.teachers.list` (needs classroom.rosters.readonly). */
+export interface GoogleTeacher {
+  userId: string;
+  profile?: { name?: { fullName?: string } };
+}
+
 /** A Classroom assignment ("courseWork") as seen by a student. */
 export interface GoogleCourseWork {
   id: string;
@@ -117,6 +123,7 @@ export const GOOGLE_SCOPES = [
   "email",
   "https://www.googleapis.com/auth/calendar.readonly",
   "https://www.googleapis.com/auth/classroom.courses.readonly",
+  "https://www.googleapis.com/auth/classroom.rosters.readonly",
   "https://www.googleapis.com/auth/classroom.coursework.me.readonly",
   "https://www.googleapis.com/auth/classroom.announcements.readonly",
 ].join(" ");

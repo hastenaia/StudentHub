@@ -44,7 +44,7 @@ const KPI_ICONS: Record<string, LucideIcon> = {
   mood: Heart,
 };
 
-function OverviewPanel({ data, onExplore }: { data: AnalyticsData; onExplore: (tab: AnalyticsTabId) => void }) {
+function OverviewPanel({ data }: { data: AnalyticsData }) {
   const summary = React.useMemo(() => getOverviewSummary(data), [data]);
   const [expanded, setExpanded] = React.useState(false);
   const visibleInsights = expanded ? data.insights : summary.topInsights;
@@ -90,22 +90,6 @@ function OverviewPanel({ data, onExplore }: { data: AnalyticsData; onExplore: (t
           </button>
         </div>
       )}
-
-      <div>
-        <p className="mb-2 text-xs font-medium text-gray-500">Explore details</p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-          {TABS.filter((t) => t.id !== "overview").map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => onExplore(t.id)}
-              className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-brand-dark shadow-sm transition-colors hover:bg-gray-50"
-            >
-              <t.icon className="h-4 w-4 text-brand-royal" /> {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
@@ -175,7 +159,7 @@ export function AnalyticsView({ data, initialTab }: AnalyticsViewProps) {
       </div>
 
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-        {tab === "overview" && <OverviewPanel data={data} onExplore={selectTab} />}
+        {tab === "overview" && <OverviewPanel data={data} />}
 
         {tab === "tasks" && (
           <div className="space-y-4">

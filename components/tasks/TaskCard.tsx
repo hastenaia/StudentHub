@@ -118,10 +118,10 @@ const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(
             {task.recurrenceFreq && (
               <span
                 className="flex items-center gap-1 text-[11px] text-gray-400"
-                title={formatRecurrenceLabel(task.recurrenceFreq, task.recurrenceInterval)}
+                title={formatRecurrenceLabel(task.recurrenceFreq, task.recurrenceInterval, task.recurrenceDays)}
               >
                 <Repeat className="h-3 w-3" />
-                {formatRecurrenceLabel(task.recurrenceFreq, task.recurrenceInterval)}
+                {formatRecurrenceLabel(task.recurrenceFreq, task.recurrenceInterval, task.recurrenceDays)}
               </span>
             )}
           </div>

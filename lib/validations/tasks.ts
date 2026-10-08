@@ -38,6 +38,7 @@ export const taskFormSchema = z.object({
   estimateMinutes: MINUTES_FIELD,
   recurrenceFreq: z.enum(FREQ_VALUES),
   recurrenceInterval: INTERVAL_FIELD,
+  recurrenceDays: z.array(z.number().int().min(0).max(31)),
   recurUntil: z.string(),
   courseId: z.string(),
 });
@@ -63,7 +64,12 @@ export function taskFormToDraft(values: TaskFormValues): TaskDraft {
     dueAt: values.dueAt ? new Date(values.dueAt).toISOString() : null,
     estimateMinutes: values.estimateMinutes ? Number(values.estimateMinutes) : null,
     recurrenceFreq: values.recurrenceFreq === "none" ? null : values.recurrenceFreq,
-    recurrenceInterval: Number(values.recurrenceInterval),
+    // Weekly/monthly repeat on the chosen days, so the "every N" counter only applies to daily.
+    recurrenceInterval: values.recurrenceFreq === "daily" ? Number(values.recurrenceInterval) : 1,
+    recurrenceDays:
+      values.recurrenceFreq === "weekly" || values.recurrenceFreq === "monthly"
+        ? [...new Set(values.recurrenceDays)].sort((a, b) => a - b)
+        : [],
     recurUntil: values.recurUntil ? new Date(values.recurUntil).toISOString() : null,
     courseId: values.courseId || null,
   };
@@ -81,6 +87,7 @@ export function taskDraftToForm(draft: TaskDraft): TaskFormValues {
     estimateMinutes: draft.estimateMinutes ? String(draft.estimateMinutes) : "",
     recurrenceFreq: draft.recurrenceFreq ?? "none",
     recurrenceInterval: String(draft.recurrenceInterval),
+    recurrenceDays: draft.recurrenceDays,
     recurUntil: draft.recurUntil ? draft.recurUntil.slice(0, 10) : "",
     courseId: draft.courseId ?? "",
   };

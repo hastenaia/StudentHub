@@ -887,6 +887,7 @@ export type Database = {
           recur_until: string | null
           recurrence_freq: string | null
           recurrence_interval: number
+          recurrence_days: number[]
           sort_order: number
           status: string
           tags: string[]
@@ -906,6 +907,7 @@ export type Database = {
           recur_until?: string | null
           recurrence_freq?: string | null
           recurrence_interval?: number
+          recurrence_days?: number[]
           sort_order?: number
           status?: string
           tags?: string[]
@@ -925,6 +927,7 @@ export type Database = {
           recur_until?: string | null
           recurrence_freq?: string | null
           recurrence_interval?: number
+          recurrence_days?: number[]
           sort_order?: number
           status?: string
           tags?: string[]

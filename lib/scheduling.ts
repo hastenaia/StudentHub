@@ -211,17 +211,38 @@ export function nextRecurrence(
   baseDueAt: string | null,
   freq: RecurrenceFreq,
   interval: number,
+  days: number[],
   recurUntil: string | null,
   now: Date = new Date()
 ): string | null {
   if (baseDueAt == null) return null;
 
-  const baseMs = Math.max(new Date(baseDueAt).getTime(), now.getTime());
-  const next = advanceFrequency(new Date(baseMs), freq, interval);
+  const base = new Date(Math.max(new Date(baseDueAt).getTime(), now.getTime()));
+  const next = (freq !== "daily" && days.length > 0 && nextOnDays(base, freq, days)) || advanceFrequency(base, freq, interval);
 
   if (recurUntil != null && next.getTime() > new Date(recurUntil).getTime()) return null;
   return next.toISOString();
 }
+
+/**
+ * Next date strictly after `base` that lands on a chosen day (local time, time of
+ * day kept): weekdays 0-6 for weekly, days of month 1-31 for monthly. A day that
+ * a short month lacks (31 in April) falls on that month's last day.
+ */
+function nextOnDays(base: Date, freq: "weekly" | "monthly", days: number[]): Date | null {
+  for (let i = 1; i <= 400; i++) {
+    const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i, base.getHours(), base.getMinutes(), base.getSeconds(), base.getMilliseconds());
+    if (freq === "weekly") {
+      if (days.includes(d.getDay())) return d;
+      continue;
+    }
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    if (days.some((day) => day === d.getDate() || (d.getDate() === lastDay && day > lastDay))) return d;
+  }
+  return null;
+}
+
+export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 function advanceFrequency(base: Date, freq: RecurrenceFreq, interval: number): Date {
   switch (freq) {
@@ -253,8 +274,14 @@ function advanceFrequency(base: Date, freq: RecurrenceFreq, interval: number): D
 }
 
 /** Human label for a recurrence rule ("Every week", "Every 2 months"). */
-export function formatRecurrenceLabel(freq: RecurrenceFreq | null, interval: number): string {
+export function formatRecurrenceLabel(freq: RecurrenceFreq | null, interval: number, days: number[] = []): string {
   if (!freq) return "Does not repeat";
+  if (freq === "weekly" && days.length > 0) {
+    return `Weekly on ${[...days].sort((a, b) => a - b).map((d) => WEEKDAY_LABELS[d]).join(", ")}`;
+  }
+  if (freq === "monthly" && days.length > 0) {
+    return `Monthly on day ${[...days].sort((a, b) => a - b).join(", ")}`;
+  }
   const noun: Record<RecurrenceFreq, string> = { daily: "day", weekly: "week", monthly: "month" };
   return interval === 1 ? `Every ${noun[freq]}` : `Every ${interval} ${noun[freq]}s`;
 }

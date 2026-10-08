@@ -115,49 +115,49 @@ describe("buildTopSchedule (bounded heap)", () => {
 describe("nextRecurrence", () => {
   it("advances daily tasks by the interval", () => {
     const now = new Date("2026-08-15T08:00:00Z");
-    expect(nextRecurrence("2026-08-15T09:00:00Z", "daily", 1, null, now)).toBe(
+    expect(nextRecurrence("2026-08-15T09:00:00Z", "daily", 1, [], null, now)).toBe(
       "2026-08-16T09:00:00.000Z"
     );
-    expect(nextRecurrence("2026-08-15T09:00:00Z", "daily", 3, null, now)).toBe(
+    expect(nextRecurrence("2026-08-15T09:00:00Z", "daily", 3, [], null, now)).toBe(
       "2026-08-18T09:00:00.000Z"
     );
   });
 
   it("advances weekly tasks by the interval", () => {
     const now = new Date("2026-08-15T08:00:00Z");
-    expect(nextRecurrence("2026-08-15T09:00:00Z", "weekly", 2, null, now)).toBe(
+    expect(nextRecurrence("2026-08-15T09:00:00Z", "weekly", 2, [], null, now)).toBe(
       "2026-08-29T09:00:00.000Z"
     );
   });
 
   it("advances monthly tasks, clamping to the target month's last day", () => {
     const now = new Date("2026-01-01T00:00:00Z");
-    expect(nextRecurrence("2026-01-31T10:00:00Z", "monthly", 1, null, now)).toBe(
+    expect(nextRecurrence("2026-01-31T10:00:00Z", "monthly", 1, [], null, now)).toBe(
       "2026-02-28T10:00:00.000Z"
     );
-    expect(nextRecurrence("2026-01-15T10:00:00Z", "monthly", 1, null, now)).toBe(
+    expect(nextRecurrence("2026-01-15T10:00:00Z", "monthly", 1, [], null, now)).toBe(
       "2026-02-15T10:00:00.000Z"
     );
   });
 
   it("re-bases overdue recurrences from now instead of the past", () => {
-    expect(nextRecurrence("2026-08-01T09:00:00Z", "daily", 1, null, NOW)).toBe(
+    expect(nextRecurrence("2026-08-01T09:00:00Z", "daily", 1, [], null, NOW)).toBe(
       "2026-08-16T12:00:00.000Z"
     );
   });
 
   it("returns null once the next instance passes recurUntil", () => {
     const now = new Date("2026-08-15T08:00:00Z");
-    expect(nextRecurrence("2026-08-15T09:00:00Z", "daily", 1, "2026-08-16T00:00:00Z", now)).toBe(
+    expect(nextRecurrence("2026-08-15T09:00:00Z", "daily", 1, [], "2026-08-16T00:00:00Z", now)).toBe(
       null
     );
-    expect(nextRecurrence("2026-08-15T09:00:00Z", "daily", 1, "2026-08-16T23:00:00Z", now)).toBe(
+    expect(nextRecurrence("2026-08-15T09:00:00Z", "daily", 1, [], "2026-08-16T23:00:00Z", now)).toBe(
       "2026-08-16T09:00:00.000Z"
     );
   });
 
   it("returns null when there is no base due date", () => {
-    expect(nextRecurrence(null, "daily", 1, null, NOW)).toBeNull();
+    expect(nextRecurrence(null, "daily", 1, [], null, NOW)).toBeNull();
   });
 });
 
@@ -167,5 +167,22 @@ describe("formatRecurrenceLabel", () => {
     expect(formatRecurrenceLabel("weekly", 2)).toBe("Every 2 weeks");
     expect(formatRecurrenceLabel("monthly", 1)).toBe("Every month");
     expect(formatRecurrenceLabel(null, 1)).toBe("Does not repeat");
+  });
+});
+
+describe("nextRecurrence with chosen days", () => {
+  it("weekly lands on the next chosen weekday", () => {
+    // Sat 2026-08-15; Mon(1)/Wed(3) -> Mon 2026-08-17
+    const now = new Date(2026, 7, 15, 8, 0);
+    const next = nextRecurrence(new Date(2026, 7, 15, 9, 0).toISOString(), "weekly", 1, [1, 3], null, now);
+    expect(new Date(next!).getDay()).toBe(1);
+    expect(new Date(next!).getDate()).toBe(17);
+  });
+
+  it("monthly lands on the next chosen day, clamping to month end", () => {
+    const now = new Date(2026, 3, 20, 8, 0);
+    const next = nextRecurrence(new Date(2026, 3, 20, 9, 0).toISOString(), "monthly", 1, [31], null, now);
+    expect(new Date(next!).getMonth()).toBe(3);
+    expect(new Date(next!).getDate()).toBe(30);
   });
 });

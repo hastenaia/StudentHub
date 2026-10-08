@@ -17,6 +17,7 @@ export function taskRowToView(row: TaskRow, courseMap: Map<string, TaskCourseOpt
     estimateMinutes: row.estimate_minutes,
     recurrenceFreq: row.recurrence_freq as Task["recurrenceFreq"],
     recurrenceInterval: row.recurrence_interval,
+    recurrenceDays: row.recurrence_days ?? [],
     recurUntil: row.recur_until,
     courseId: row.course_id,
     courseName: course?.name ?? null,
@@ -39,6 +40,7 @@ export function taskToDraft(task: Task): TaskDraft {
     estimateMinutes: task.estimateMinutes,
     recurrenceFreq: task.recurrenceFreq,
     recurrenceInterval: task.recurrenceInterval,
+    recurrenceDays: task.recurrenceDays,
     recurUntil: task.recurUntil,
     courseId: task.courseId,
   };
