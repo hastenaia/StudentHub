@@ -49,9 +49,9 @@ export function LineDots({ data }: { data: { label: string; value: number }[] })
               return (
                 <div key={d.label} className="flex flex-1 flex-col items-center gap-1">
                   {d.value > 0 ? (
-                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${d.value >= 4 ? "bg-emerald-100 text-emerald-700" : d.value <= 2 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{d.value}</span>
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${d.value >= 4 ? "bg-emerald-100 text-emerald-700" : d.value <= 2 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{d.value}</span>
                   ) : (
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-50 text-xs text-gray-400" title="No check-in">—</span>
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-50 text-sm text-gray-400" title="No check-in">—</span>
                   )}
                   <div className="w-0.5 flex-1 bg-gray-100" style={{ height: `${h}%` }} />
                   <span className="text-[11px] text-gray-500">{d.label}</span>

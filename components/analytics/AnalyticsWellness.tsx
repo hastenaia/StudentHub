@@ -19,16 +19,16 @@ export function AnalyticsWellness({ data }: Props) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex h-20 items-end gap-1">
+        <div className="flex h-24 items-end gap-1">
           {data.moodTrend.map((d) => (
             <div key={d.date} className="flex flex-1 flex-col items-center gap-1">
-              <div className="flex w-full justify-center" style={{ height: "64px" }}>
+              <div className="flex w-full items-end justify-center" style={{ height: "64px" }}>
                 {d.mood !== null ? (
                   <div
-                    className="flex w-full max-w-10 items-center justify-center rounded-t border text-[11px] transition-all"
+                    className="flex w-full max-w-10 items-center justify-center rounded-t border text-lg leading-none transition-all"
                     style={{
                       height: `${(d.mood / max) * 64}px`,
-                      minHeight: "18px",
+                      minHeight: "28px",
                       backgroundColor: d.mood <= 2 ? "#fee2e2" : d.mood === 3 ? "#fef9c3" : d.mood === 4 ? "#dcfce7" : "#e0f2fe",
                       borderColor: d.mood <= 2 ? "#fecaca" : d.mood === 3 ? "#fde68a" : d.mood === 4 ? "#bbf7d0" : "#bae6fd",
                     }}

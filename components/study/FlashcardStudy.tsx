@@ -56,14 +56,16 @@ function StudyCard({ card, flipped, onFlip, onMark }: { card: Flashcard; flipped
           <p className="mt-3 text-lg font-medium text-brand-dark">{flipped ? card.back : card.front}</p>
           <p className="mt-4 text-xs text-gray-400">Click to flip • {card.tags.join(", ")}</p>
         </div>
-        <div className="flex gap-2 border-t p-3">
-          <Button variant="outline" className="flex-1 border-red-200 text-red-600 hover:bg-red-50" onClick={() => onMark(false)}>
-            <X className="h-4 w-4" /> Unknown
-          </Button>
-          <Button className="flex-1 bg-success hover:bg-success-hover" onClick={() => onMark(true)}>
-            <Check className="h-4 w-4" /> Known
-          </Button>
-        </div>
+        {flipped && (
+          <div className="flex gap-2 border-t p-3">
+            <Button variant="outline" className="flex-1 border-red-200 text-red-600 hover:bg-red-50" onClick={() => onMark(false)}>
+              <X className="h-4 w-4" /> Unknown
+            </Button>
+            <Button className="flex-1 bg-success hover:bg-success-hover" onClick={() => onMark(true)}>
+              <Check className="h-4 w-4" /> Known
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

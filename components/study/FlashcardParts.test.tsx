@@ -57,7 +57,9 @@ describe("FlashcardStudy", () => {
     await act(async () => fireEvent.click(screen.getByRole("button", { name: /^Known/ })));
     expect(onMark).toHaveBeenLastCalledWith(expect.objectContaining({ id: "1" }), true);
     expect(screen.getByText("Q2")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Unknown/ })).toBeNull();
 
+    fireEvent.click(screen.getByText("Q2"));
     await act(async () => fireEvent.click(screen.getByRole("button", { name: /Unknown/ })));
     expect(onMark).toHaveBeenLastCalledWith(expect.objectContaining({ id: "2" }), false);
     expect(screen.getByText("Q1")).toBeTruthy();
@@ -65,6 +67,7 @@ describe("FlashcardStudy", () => {
 
   it("stays on the card when the mark fails", async () => {
     render(<FlashcardStudy deck={[card("1"), card("2")]} progress={0} onMark={vi.fn().mockResolvedValue(false)} onExit={vi.fn()} />);
+    fireEvent.click(screen.getByText("Q1"));
     await act(async () => fireEvent.click(screen.getByRole("button", { name: /^Known/ })));
     expect(screen.getByText("Q1")).toBeTruthy();
   });
