@@ -143,7 +143,8 @@ which then calls `router.refresh()` to re-render the server component tree.
 
 ## AI routes
 
-All five routes live under `app/api/ai/` and share the same shape:
+The JSON prompt routes live under `app/api/ai/` and share the same shape
+(`POST` with a JSON body; `/api/ai/from-document` is the multipart exception):
 
 - `POST` with a JSON body; session required (`401` otherwise), `400` on
   invalid JSON or missing input.
@@ -163,9 +164,10 @@ All five routes live under `app/api/ai/` and share the same shape:
   timeouts or unparseable JSON output. Responses are
   `{ success, message?, data? }`.
 
-Five of the six routes (`explain`, `summarize`, `generate-flashcards`,
+Five of the routes (`explain`, `summarize`, `generate-flashcards`,
 `generate-quiz`, `study-plan`) also persist their answer in `ai_cache` and add
-two fields to the response:
+two fields to the response (`/api/ai/from-document` reuses the `summarize` /
+`flashcards` entries keyed by the extracted text):
 
 - `cached: boolean` — `true` when the answer came from `ai_cache` and no
   provider call was made.
@@ -188,9 +190,13 @@ prompt.
 | `/api/ai/study-plan` | `{ topic, courseId?, durationDays? }` (1–30, default 7) | `{ plan, topic, durationDays }` |
 | `/api/ai/wellness-tip` | `{ focusMinutesToday, upcomingDeadlinesCount }` (numbers, clamped) | `{ tip }` (one plain-text sentence, ≤ 220 chars) |
 | `/api/ai/ask` | `{ question }` (≤ 1000 chars; uncached, used by the dashboard Quick Actions "Ask AI" dialog) | `{ answer }` |
+| `/api/ai/from-document` | multipart `FormData`: `file` (PDF/TXT/MD/DOCX ≤ 10MB), `title?`, `courseId?`, `makeFlashcards?` (default `"true"`), `count?` (1–10, default 5) | `{ note, flashcards, summary }` — the note (AI summary, tagged `imported`) and flashcards are created server-side and linked; answers reuse the `summarize`/`flashcards` cache entries |
 
 The routes only generate content; saving flashcards/quizzes happens
-client-side through `flashcardsClientService` / `quizzesClientService`. Stored
+client-side through `flashcardsClientService` / `quizzesClientService` — except
+`/api/ai/from-document`, which creates the note and flashcards server-side (Study
+Hub `Import` tab, `components/study/ImportTab.tsx`) so the cards link to the new
+note atomically. Stored
 answers are listed and deleted client-side through `aiCacheClientService` /
 `services/aiCache.service.ts` (RLS scopes both to the caller).
 
