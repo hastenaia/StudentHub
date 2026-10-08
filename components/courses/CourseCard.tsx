@@ -63,11 +63,10 @@ export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
         )}
 
         <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-          {course.instructor && (
-            <span className="inline-flex items-center gap-1">
-              <User className="h-3.5 w-3.5" /> {course.instructor}
-            </span>
-          )}
+          <span className="inline-flex items-center gap-1">
+            <User className="h-3.5 w-3.5" />{" "}
+            {course.instructor || "No instructor"}
+          </span>
           {course.room && (
             <span className="inline-flex items-center gap-1">
               <MapPin className="h-3.5 w-3.5" /> {course.room}
