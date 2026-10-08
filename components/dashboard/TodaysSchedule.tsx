@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { CalendarDays, Clock, MapPin, GraduationCap, BookOpen } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatTime } from "@/utils/date";
@@ -12,13 +15,18 @@ const TYPE_ICON: Record<string, typeof BookOpen> = {
 };
 
 export function TodaysSchedule({ items }: Props) {
+  // Times must be formatted in the browser's timezone; the server renders in UTC, so wait for mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const time = (iso: string | null) => (mounted ? formatTime(iso) : "");
+
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <CalendarDays className="h-4 w-4 text-brand-royal" /> Today&apos;s Schedule
           <span className="ml-auto text-xs font-normal text-gray-400">
-            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+            {mounted && new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
           </span>
         </CardTitle>
       </CardHeader>
@@ -43,7 +51,7 @@ export function TodaysSchedule({ items }: Props) {
                     <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {item.allDay ? "All day" : `${formatTime(item.startAt)}${item.endAt ? ` - ${formatTime(item.endAt)}` : ""}`}
+                        {item.allDay ? "All day" : `${time(item.startAt)}${item.endAt ? ` - ${time(item.endAt)}` : ""}`}
                       </span>
                       {item.location && (
                         <span className="flex items-center gap-1">
