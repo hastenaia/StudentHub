@@ -1,15 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { BookOpen, Layers, HelpCircle, Sparkles } from "lucide-react";
+import { BookOpen, Layers, HelpCircle, Sparkles, Upload } from "lucide-react";
 import type { Note, Flashcard, Quiz, CourseOption, AICachedResult } from "@/types/study";
 import { upsertById } from "@/utils/text";
 import { NotesTab } from "@/components/study/NotesTab";
 import { FlashcardsTab } from "@/components/study/FlashcardsTab";
 import { QuizzesTab } from "@/components/study/QuizzesTab";
 import { AIAssistantTab } from "@/components/study/AIAssistantTab";
+import { ImportTab } from "@/components/study/ImportTab";
 
-type Tab = "notes" | "flashcards" | "quizzes" | "ai";
+type Tab = "notes" | "flashcards" | "quizzes" | "ai" | "import";
 
 interface Props {
   initialNotes: Note[];
@@ -43,6 +44,7 @@ export function StudyHubView({ initialNotes, initialFlashcards, initialQuizzes, 
           { id: "flashcards" as Tab, label: "Flashcards", icon: Layers, count: flashcards.length },
           { id: "quizzes" as Tab, label: "Quizzes", icon: HelpCircle, count: quizzes.length },
           { id: "ai" as Tab, label: "AI Assistant", icon: Sparkles, count: null },
+          { id: "import" as Tab, label: "Import", icon: Upload, count: null },
         ].map((t) => (
           <button
             key={t.id}
@@ -67,6 +69,14 @@ export function StudyHubView({ initialNotes, initialFlashcards, initialQuizzes, 
           onNoteCreated={addNote}
           onCardsCreated={addCards}
           onQuizCreated={addQuiz}
+        />
+      )}
+      {tab === "import" && (
+        <ImportTab
+          courses={courses}
+          onNoteCreated={addNote}
+          onCardsCreated={addCards}
+          onImported={setTab}
         />
       )}
     </div>
