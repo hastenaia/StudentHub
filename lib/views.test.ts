@@ -76,7 +76,7 @@ describe("taskView", () => {
   it("taskToDraft keeps only the editable fields", () => {
     const draft = taskToDraft(taskRowToView(taskRow, new Map()));
     expect(Object.keys(draft).sort()).toEqual(
-      ["courseId", "description", "dueAt", "estimateMinutes", "priority", "recurUntil", "recurrenceFreq", "recurrenceInterval", "status", "tags", "title"].sort()
+      ["courseId", "description", "dueAt", "estimateMinutes", "priority", "recurUntil", "recurrenceDays", "recurrenceFreq", "recurrenceInterval", "status", "tags", "title"].sort()
     );
   });
 });
