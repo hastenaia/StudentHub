@@ -222,7 +222,8 @@ To-Do Tracker items.
 | `due_at` | `timestamptz` | |
 | `estimate_minutes` | `integer` | `> 0` when set |
 | `recurrence_freq` | `text` | null / `daily` / `weekly` / `monthly` |
-| `recurrence_interval` | `integer` | 1–31, default 1 |
+| `recurrence_interval` | `integer` | 1–31, default 1; only used by `daily` (weekly/monthly use `recurrence_days`) |
+| `recurrence_days` | `integer[]` | default `{}`; weekly: weekdays 0 (Sun)–6, monthly: days of month 1–31; empty = repeat from the due date |
 | `recur_until` | `timestamptz` | |
 | `sort_order` | `integer` | manual ordering within a column |
 | `completed_at` | `timestamptz` | |

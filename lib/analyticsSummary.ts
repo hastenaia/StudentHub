@@ -79,7 +79,7 @@ export function getOverviewSummary(input: AnalyticsOverviewInput): OverviewSumma
   };
 }
 
-export const ANALYTICS_TABS = [
+const ANALYTICS_TABS = [
   "overview",
   "tasks",
   "focus",

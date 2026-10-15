@@ -45,7 +45,14 @@ export function RecurrencePicker() {
             <FormItem>
               <FormLabel>Frequency</FormLabel>
               <FormControl>
-                <Select {...field}>
+                <Select
+                  {...field}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    // Weekdays (0-6) and month days (1-31) aren't interchangeable.
+                    form.setValue("recurrenceDays", [], { shouldDirty: true });
+                  }}
+                >
                   <option value="none">Does not repeat</option>
                   <option value="daily">Daily</option>
                   <option value="weekly">Weekly</option>

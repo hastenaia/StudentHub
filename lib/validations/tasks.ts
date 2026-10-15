@@ -28,20 +28,31 @@ const INTERVAL_FIELD = z
     "Interval must be 1-31"
   );
 
-export const taskFormSchema = z.object({
-  title: z.string().trim().min(1, "Title is required").max(200, "Title is too long"),
-  description: z.string().trim().max(2000, "Description is too long"),
-  status: z.enum(STATUS_VALUES),
-  priority: z.enum(PRIORITY_VALUES),
-  tags: z.string().trim().max(300, "Tags are too long"),
-  dueAt: z.string(),
-  estimateMinutes: MINUTES_FIELD,
-  recurrenceFreq: z.enum(FREQ_VALUES),
-  recurrenceInterval: INTERVAL_FIELD,
-  recurrenceDays: z.array(z.number().int().min(0).max(31)),
-  recurUntil: z.string(),
-  courseId: z.string(),
-});
+export const taskFormSchema = z
+  .object({
+    title: z.string().trim().min(1, "Title is required").max(200, "Title is too long"),
+    description: z.string().trim().max(2000, "Description is too long"),
+    status: z.enum(STATUS_VALUES),
+    priority: z.enum(PRIORITY_VALUES),
+    tags: z.string().trim().max(300, "Tags are too long"),
+    dueAt: z.string(),
+    estimateMinutes: MINUTES_FIELD,
+    recurrenceFreq: z.enum(FREQ_VALUES),
+    recurrenceInterval: INTERVAL_FIELD,
+    recurrenceDays: z.array(z.number().int().min(0).max(31)),
+    recurUntil: z.string(),
+    courseId: z.string(),
+  })
+  .superRefine((values, ctx) => {
+    // weekly: weekdays 0 (Sun) - 6 (Sat); monthly: days of month 1 - 31.
+    const [min, max] = values.recurrenceFreq === "weekly" ? [0, 6] : [1, 31];
+    if (
+      (values.recurrenceFreq === "weekly" || values.recurrenceFreq === "monthly") &&
+      values.recurrenceDays.some((d) => d < min || d > max)
+    ) {
+      ctx.addIssue({ code: "custom", path: ["recurrenceDays"], message: `Days must be ${min}-${max}` });
+    }
+  });
 export type TaskFormValues = z.infer<typeof taskFormSchema>;
 
 /** datetime-local input value ("2026-08-20T14:30") from an ISO timestamp. */

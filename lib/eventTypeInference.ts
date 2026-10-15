@@ -1,6 +1,6 @@
 import type { ScheduleEventType } from "@/types/schedule";
 
-export const EVENT_TYPE_KEYWORDS: Record<ScheduleEventType, string[]> = {
+const EVENT_TYPE_KEYWORDS: Record<ScheduleEventType, string[]> = {
   exam: [
     "exam",
     "midterm",

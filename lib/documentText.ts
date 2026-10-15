@@ -2,10 +2,10 @@
 // Binary parsing lives in app/api/ai/from-document/route.ts; everything here is
 // dependency-free so it stays unit-testable.
 
-export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
+const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
 
 /** Same slice the summarize/flashcards routes send the model, so cache keys and prompts agree. */
-export const DOCUMENT_SOURCE_CHARS = 6000;
+const DOCUMENT_SOURCE_CHARS = 6000;
 
 export const MIN_SUMMARY_CHARS = 20;
 export const MIN_FLASHCARDS_CHARS = 30;

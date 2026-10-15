@@ -22,4 +22,4 @@ export const manualCourseSchema = z.object({
       "Credits must be between 0 and 20"
     ),
 });
-export type ManualCourseFormInput = z.infer<typeof manualCourseSchema>;
+type ManualCourseFormInput = z.infer<typeof manualCourseSchema>;

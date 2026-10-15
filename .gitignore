@@ -18,3 +18,4 @@ docs/vc-control.md
 
 # Supabase CLI local state (linked project, pooler URL, versions)
 supabase/.temp/
+.mcp.json

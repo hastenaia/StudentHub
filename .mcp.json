@@ -2,8 +2,8 @@
   "mcpServers": {
     "fallow": {
       "type": "stdio",
-      "command": "fallow-mcp",
-      "args": []
+      "command": "powershell.exe",
+      "args": ["-NoLogo", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ". $PROFILE; fallow-mcp"]
     }
   }
 }

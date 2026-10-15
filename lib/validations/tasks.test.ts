@@ -15,7 +15,7 @@ const base = {
   estimateMinutes: "",
   recurrenceFreq: "none",
   recurrenceInterval: "1",
-  recurrenceDays: [],
+  recurrenceDays: [] as number[],
   recurUntil: "",
   courseId: "",
 };
@@ -42,6 +42,13 @@ describe("taskFormSchema", () => {
     expect(parse({ recurrenceInterval: "0" }).success).toBe(false);
     expect(parse({ recurrenceInterval: "32" }).success).toBe(false);
     expect(parse({ recurrenceInterval: "2" }).success).toBe(true);
+  });
+
+  it("validates recurrence days against the frequency", () => {
+    expect(parse({ recurrenceFreq: "weekly", recurrenceDays: [0, 6] }).success).toBe(true);
+    expect(parse({ recurrenceFreq: "weekly", recurrenceDays: [7] }).success).toBe(false);
+    expect(parse({ recurrenceFreq: "monthly", recurrenceDays: [1, 31] }).success).toBe(true);
+    expect(parse({ recurrenceFreq: "monthly", recurrenceDays: [0] }).success).toBe(false);
   });
 
   it("rejects unknown statuses and priorities", () => {

@@ -4,7 +4,7 @@
  * service, never straight from Google API responses.
  */
 
-export interface DashboardCourse {
+interface DashboardCourse {
   id: string;
   name: string;
   section: string | null;
@@ -17,7 +17,7 @@ export interface DashboardCourse {
   upcomingAssignments: DashboardAssignment[];
 }
 
-export interface DashboardAssignment {
+interface DashboardAssignment {
   id: string;
   title: string;
   courseName: string;
