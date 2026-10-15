@@ -5,8 +5,6 @@ import { scheduleRowToView, calendarRowToView } from "@/lib/scheduleView";
 import type { Task } from "@/types/tasks";
 import { computeStreak, endOfDay, startOfDay } from "@/lib/dates";
 import { courseRowToView, toCourseOptions } from "@/lib/courseView";
-import { progressByCourse } from "@/lib/progress";
-import type { CourseProgress } from "@/types/courses";
 
 export interface DashboardFocus {
   minutes: number;
@@ -53,7 +51,6 @@ export interface CourseSnapshotItem {
   name: string;
   color: string | null;
   instructor: string | null;
-  progress: CourseProgress | null;
 }
 
 export interface ProductivityDashboardData {
@@ -128,7 +125,6 @@ async function fetchDashboardRows(supabase: ServerClient, userId: string, w: Das
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
       .eq("event_type", "study_session"),
-    supabase.from("assignments").select("course_id, grade, max_points, weight").eq("user_id", userId).not("max_points", "is", null),
   ]);
 }
 
@@ -278,15 +274,14 @@ export async function getProductivityDashboardData(userId: string): Promise<Prod
   const supabase = await createClient();
   const w = dashboardWindows();
 
-  const [scheduleRes, calendarRes, tasksRes, coursesRes, assignmentsRes, announcementsRes, focusRes, notesRes, googleAccountRes, futureScheduleRes, studySessionsRes, scoredRes]: DashboardRows =
+  const [scheduleRes, calendarRes, tasksRes, coursesRes, assignmentsRes, announcementsRes, focusRes, notesRes, googleAccountRes, futureScheduleRes, studySessionsRes]: DashboardRows =
     await fetchDashboardRows(supabase, userId, w);
 
   const courses = toCourseOptions(coursesRes.data);
   const courseMap: CourseMap = new Map(courses.map((c) => [c.id, c]));
-  const progress = progressByCourse(scoredRes.data ?? []);
   const courseSnapshot: CourseSnapshotItem[] = (coursesRes.data ?? []).map((row) => {
     const v = courseRowToView(row);
-    return { id: v.id, name: v.course_name, color: v.color, instructor: v.instructor, progress: progress.get(v.id) ?? null };
+    return { id: v.id, name: v.course_name, color: v.color, instructor: v.instructor };
   });
 
   const todaySchedule = buildTodaySchedule(scheduleRes.data, calendarRes.data, courseMap);

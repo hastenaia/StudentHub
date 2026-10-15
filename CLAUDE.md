@@ -41,7 +41,7 @@ Tests run in jsdom with globals and the `@` → repo-root alias (`vitest.config.
 
 ## Docs
 
-Reference docs live in `docs/` (architecture, auth, data-model, api, google-integration, testing, deployment). `PROJECT_DOCUMENTATION.md` is a merged copy of `README.md` + those docs — edit the sources, not it. When changing routes, tables or auth flow, update the matching doc. The GPA feature (`lib/gpa.ts`), `lib/requireRole.ts` and `hooks/useRole` were removed; `academic_settings`, `courses.manual_grade` and `courses.target_pct` remain in the schema unused.
+Reference docs live in `docs/` (architecture, auth, data-model, api, google-integration, testing, deployment). `PROJECT_DOCUMENTATION.md` is a merged copy of `README.md` + those docs — edit the sources, not it. When changing routes, tables or auth flow, update the matching doc. The GPA feature (`lib/gpa.ts`), the course progress score (`lib/progress.ts`), `lib/requireRole.ts` and `hooks/useRole` were removed; `academic_settings`, `courses.manual_grade`, `courses.target_pct` and `assignments.weight` remain in the schema unused.
 
 <!-- fallow:agent-install v1 claude-import:start -->
 @AGENTS.md

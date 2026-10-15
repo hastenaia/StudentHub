@@ -2,12 +2,11 @@ import Link from "next/link";
 import { BookOpen, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-import { CourseProgressBar } from "@/components/courses/CourseProgressBar";
 import type { CourseSnapshotItem } from "@/services/dashboard.service";
 
 interface Props { courses: CourseSnapshotItem[] }
 
-/** Active courses with instructor and weighted 0–100 progress (FR-03 / FR-04). */
+/** Active courses with instructor (FR-03). */
 export function CourseSnapshot({ courses }: Props) {
   return (
     <Card>
@@ -41,7 +40,6 @@ export function CourseSnapshot({ courses }: Props) {
                     <User className="h-3 w-3 shrink-0" /> <span className="truncate">{course.instructor}</span>
                   </p>
                 )}
-                {course.progress && <CourseProgressBar progress={course.progress} />}
               </li>
             ))}
           </ul>

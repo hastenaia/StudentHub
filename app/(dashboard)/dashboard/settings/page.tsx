@@ -86,7 +86,7 @@ export default async function SettingsPage() {
             <Plug className="h-5 w-5 text-brand-royal" /> Google
           </CardTitle>
           <CardDescription>
-            Connect read-only access to your Google Calendar and Classroom to power the dashboard, including your returned grades for course progress.
+            Connect read-only access to your Google Calendar and Classroom to power the dashboard.
           </CardDescription>
         </CardHeader>
         <CardContent>
