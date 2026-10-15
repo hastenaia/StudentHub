@@ -358,7 +358,7 @@ function ResultCard({
             </span>
           )}
         </div>
-        <div className="whitespace-pre-wrap rounded bg-brand-gray/30 p-3 text-sm leading-relaxed text-gray-800">{result}</div>
+        <div className="whitespace-pre-wrap rounded bg-brand-gray/30 p-3 text-sm leading-relaxed text-gray-700">{result}</div>
         <div className="mt-3 flex flex-wrap gap-2">
           {save && (!save.needsData || hasData) && (
             <Button size="sm" onClick={onSave[save.kind]} disabled={saves.saving !== null}>
