@@ -19,6 +19,12 @@ type Mode = "focus" | "break";
 interface PomodoroTimerProps {
   initialTask?: Task | null;
   tasks?: Task[];
+  /** Seconds elapsed in the current focus session (0 during breaks or when idle); fires as the timer ticks. */
+  onFocusProgress?: (seconds: number) => void;
+  /** A focus session just finished, before it is saved. */
+  onSessionComplete?: (minutes: number) => void;
+  /** Result of saving that session. */
+  onSessionSaved?: (minutes: number, ok: boolean) => void;
 }
 
 const STORAGE_KEY = "studenthub:PomodoroTimer:v1";
@@ -63,7 +69,7 @@ function signalPhaseEnd(wasFocus: boolean) {
   } catch {}
 }
 
-export function PomodoroTimer({ initialTask, tasks = [] }: PomodoroTimerProps) {
+export function PomodoroTimer({ initialTask, tasks = [], onFocusProgress, onSessionComplete, onSessionSaved }: PomodoroTimerProps) {
   const { toast } = useToast();
 
   const [preset, setPreset] = React.useState<Preset>("25/5");
@@ -203,6 +209,7 @@ export function PomodoroTimer({ initialTask, tasks = [] }: PomodoroTimerProps) {
       return;
     }
 
+    onSessionComplete?.(completedDuration);
     const res = await focusClientService.completePomodoro(
       completedDuration,
       startedAt,
@@ -210,6 +217,7 @@ export function PomodoroTimer({ initialTask, tasks = [] }: PomodoroTimerProps) {
       selectedTaskId,
       selectedCourseId ?? selectedTask?.courseId ?? null
     );
+    onSessionSaved?.(completedDuration, res.success);
     toast(
       res.success
         ? {
@@ -219,7 +227,12 @@ export function PomodoroTimer({ initialTask, tasks = [] }: PomodoroTimerProps) {
           }
         : { title: "Could not save session", description: res.message, variant: "error" }
     );
-  }, [mode, focusMinutes, breakMinutes, startAt, selectedTaskId, selectedCourseId, selectedTask, toast]);
+  }, [mode, focusMinutes, breakMinutes, startAt, selectedTaskId, selectedCourseId, selectedTask, toast, onSessionComplete, onSessionSaved]);
+
+  // Keep the stat cards live: report how much of the current focus session has elapsed.
+  React.useEffect(() => {
+    onFocusProgress?.(isRunning && mode === "focus" ? Math.max(0, focusMinutes * 60 - remaining) : 0);
+  }, [isRunning, mode, focusMinutes, remaining, onFocusProgress]);
 
   // Timer tick — Date-based to handle tab switching
   React.useEffect(() => {

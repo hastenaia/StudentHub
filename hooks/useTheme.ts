@@ -12,6 +12,7 @@ import {
   type ResolvedTheme,
   type Theme,
 } from "@/lib/theme";
+import { useHydrated } from "@/hooks/useHydrated";
 import { preferencesClientService } from "@/services/preferencesClient.service";
 
 type Listener = (theme: Theme) => void;
@@ -34,23 +35,12 @@ function subscribeToSystemScheme(onChange: () => void) {
 const getPrefersDark = () => prefersDarkScheme();
 const getPrefersDarkOnServer = () => false;
 
-function subscribeToNothing() {
-  return () => {};
-}
-
-const getHydrated = () => true;
-const getHydratedOnServer = () => false;
-
 function usePrefersDark() {
   return React.useSyncExternalStore(
     subscribeToSystemScheme,
     getPrefersDark,
     getPrefersDarkOnServer
   );
-}
-
-function useHydrated() {
-  return React.useSyncExternalStore(subscribeToNothing, getHydrated, getHydratedOnServer);
 }
 
 function storedTheme(fallback: Theme): Theme {

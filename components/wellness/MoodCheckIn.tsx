@@ -35,8 +35,6 @@ export function MoodCheckIn({ todayEntry, onSaved, onDeleted }: Props) {
     }
   }, [todayEntry, form]);
 
-  const mood = form.watch("mood");
-
   const onSubmit = async (values: WellnessFormValues) => {
     const res = await wellnessClientService.upsertEntry(values.mood, values.journal || null);
     if (res.success && res.data) {
@@ -90,7 +88,7 @@ export function MoodCheckIn({ todayEntry, onSaved, onDeleted }: Props) {
                           type="button"
                           onClick={() => field.onChange(value)}
                           className={`flex flex-col items-center gap-1 rounded-lg border p-3 transition ${
-                            mood === value ? "border-brand-royal bg-brand-royal/5 ring-1 ring-brand-royal" : "border-gray-200 bg-white hover:border-brand-royal/30 hover:bg-brand-gray/20"
+                            field.value === value ? "border-brand-royal bg-brand-royal/5 ring-1 ring-brand-royal" : "border-gray-200 bg-white hover:border-brand-royal/30 hover:bg-brand-gray/20"
                           }`}
                         >
                           <span className="text-2xl">{MOOD_EMOJI[value as keyof typeof MOOD_EMOJI]}</span>

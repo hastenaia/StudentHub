@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useHydrated } from "@/hooks/useHydrated";
 import { CalendarDays, Clock, MapPin, GraduationCap, BookOpen } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatTime } from "@/utils/date";
@@ -16,8 +16,7 @@ const TYPE_ICON: Record<string, typeof BookOpen> = {
 
 export function TodaysSchedule({ items }: Props) {
   // Times must be formatted in the browser's timezone; the server renders in UTC, so wait for mount.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useHydrated();
   const time = (iso: string | null) => (mounted ? formatTime(iso) : "");
 
   return (

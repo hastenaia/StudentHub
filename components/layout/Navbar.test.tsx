@@ -25,21 +25,7 @@ vi.mock("@/services/notificationsClient.service", () => ({
 const mockPathname = vi.fn((): string | null => "/dashboard");
 const mockList = vi.mocked(notificationsClientService.listNotifications);
 
-/** In-memory Storage; jsdom's localStorage isn't available under every Node version. */
-function memoryStorage(): Storage {
-  const data = new Map<string, string>();
-  return {
-    get length() { return data.size; },
-    clear: () => data.clear(),
-    getItem: (k) => data.get(k) ?? null,
-    key: (i) => [...data.keys()][i] ?? null,
-    removeItem: (k) => void data.delete(k),
-    setItem: (k, v) => void data.set(k, String(v)),
-  };
-}
-
 beforeEach(() => {
-  vi.stubGlobal("localStorage", memoryStorage());
   saveTheme.mockClear();
   mockPathname.mockReturnValue("/dashboard");
   mockList.mockResolvedValue({ success: true, message: "Notifications loaded.", data: [] });

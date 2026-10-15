@@ -69,7 +69,10 @@ describe("FlashcardStudy", () => {
     render(<FlashcardStudy deck={[card("1"), card("2")]} progress={0} onMark={vi.fn().mockResolvedValue(false)} onExit={vi.fn()} />);
     fireEvent.click(screen.getByText("Q1"));
     await act(async () => fireEvent.click(screen.getByRole("button", { name: /^Known/ })));
-    expect(screen.getByText("Q1")).toBeTruthy();
+    // A failed save keeps the same card, still flipped, so the user can retry.
+    expect(screen.getByText("A1")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Known/ })).toBeTruthy();
+    expect(screen.getByText("1 / 2 • 0% known")).toBeTruthy();
   });
 
   it("shows an empty state and exits", () => {

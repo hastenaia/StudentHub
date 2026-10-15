@@ -11,21 +11,7 @@ vi.mock("@/services/focusClient.service", () => ({
 
 const NOW = new Date("2026-09-30T12:00:00Z");
 
-/** In-memory Storage; jsdom's localStorage isn't available under every Node version. */
-function memoryStorage(): Storage {
-  const data = new Map<string, string>();
-  return {
-    get length() { return data.size; },
-    clear: () => data.clear(),
-    getItem: (k) => data.get(k) ?? null,
-    key: (i) => [...data.keys()][i] ?? null,
-    removeItem: (k) => void data.delete(k),
-    setItem: (k, v) => void data.set(k, String(v)),
-  };
-}
-
 beforeEach(() => {
-  vi.stubGlobal("localStorage", memoryStorage());
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
   toast.mockClear();

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getFocusStats } from "@/services/focus.service";
-import { PomodoroTimer } from "@/components/focus/PomodoroTimer";
-import { FocusStats } from "@/components/focus/FocusStats";
+import { FocusDashboard } from "@/components/focus/FocusDashboard";
 import { ChillHub } from "@/components/focus/ChillHub";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, ListTodo } from "lucide-react";
@@ -80,19 +79,21 @@ export default async function FocusPage({ searchParams }: FocusPageProps) {
         <p className="mt-1 text-sm text-gray-500">Pomodoro timer • Track your deep work • Stay in flow</p>
       </div>
 
-      <FocusStats
-        todayMinutes={stats.todayMinutes}
-        todaySessions={stats.todaySessions}
-        weeklyMinutes={stats.weeklyMinutes}
-        weeklySessions={stats.weeklySessions}
-        monthlyMinutes={stats.monthlyMinutes}
-        monthlySessions={stats.monthlySessions}
-        streak={stats.streak}
-        totalMinutes={stats.totalMinutes}
-        totalSessions={stats.totalSessions}
+      <FocusDashboard
+        stats={{
+          todayMinutes: stats.todayMinutes,
+          todaySessions: stats.todaySessions,
+          weeklyMinutes: stats.weeklyMinutes,
+          weeklySessions: stats.weeklySessions,
+          monthlyMinutes: stats.monthlyMinutes,
+          monthlySessions: stats.monthlySessions,
+          streak: stats.streak,
+          totalMinutes: stats.totalMinutes,
+          totalSessions: stats.totalSessions,
+        }}
+        initialTask={selectedTask}
+        tasks={enrichedTasks}
       />
-
-      <PomodoroTimer initialTask={selectedTask} tasks={enrichedTasks} />
 
       <ChillHub />
 
